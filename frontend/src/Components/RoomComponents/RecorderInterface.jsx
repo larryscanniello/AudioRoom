@@ -3,13 +3,14 @@ import { useEffect,useRef,useState } from "react";
 export default function RecorderInterface({
     audio,BPM,mouseDragEnd,zoomFactor,delayCompensation,
     measureTickRef,mouseDragStart,audioCtxRef,
-    waveformRef,playheadRef,setMouseDragStart,
+    waveform1Ref,waveform2Ref,playheadRef,setMouseDragStart,
     setMouseDragEnd,socket,roomID,scrollWindowRef,
     playheadLocation,setPlayheadLocation,snapToGrid,
-    currentlyPlayingAudio,isDemo
+    currentlyPlayingAudio,isDemo,audio2
 }){
 
     const canvasContainerRef = useRef(null);
+    const waveformContainerRef = useRef(null);
     const isDraggingPlaybackRegion = useRef(false);
     const mouseDragStartRef = useRef(mouseDragStart);
     const mouseDragEndRef = useRef(mouseDragEnd);
@@ -98,8 +99,58 @@ export default function RecorderInterface({
             }
             tickCtx.stroke();
         }
-        if(waveformRef.current){
-            //draws the actual waveforms
+
+        const drawWaveform = (canvasRef,drawWaveformAudio) => {
+                const canvasCtx = canvasRef.current.getContext('2d');
+                const WIDTH = canvasRef.current.width;
+                const HEIGHT = canvasRef.current.height;
+                canvasCtx.lineWidth =  1;
+                canvasCtx.strokeStyle = "rgb(0,0,0)";
+                canvasCtx.globalAlpha = 1.0
+                
+                canvasCtx.lineWidth = 1.5; // slightly thicker than 1px
+                canvasCtx.strokeStyle = "#1c1e22";
+                canvasCtx.lineCap = "round";
+                canvasCtx.lineJoin = "round";
+
+                const dataArray = drawWaveformAudio.getChannelData(0);
+                const bufferLength = dataArray.length;
+                
+                //const sliceWidth = (WIDTH/128.0)/(audioCtxRef.current.sampleRate*(60/BPM));
+                const scaleFactor = (bufferLength)/(audioCtxRef.current.sampleRate*128*(60/BPM));
+                const samplesPerPixel = Math.ceil((bufferLength) / (WIDTH*scaleFactor));
+                const delay = delayCompensation[0]*WIDTH/bufferLength
+                canvasCtx.beginPath();
+                let lastx;
+                //algorithm: each pixel gets min/max of a range of samples
+                for (let x = 0; x < WIDTH; x++) {
+                    const start = x * samplesPerPixel+delayCompensation[0]
+                    const end = Math.min(start + samplesPerPixel, bufferLength);
+                    let min = 1.0, max = -1.0;
+                    for (let i = start; i < end; i++) {
+                        const val = dataArray[i];
+                        if (val < min) min = val;
+                        if (val > max) max = val;
+                    }
+                    const y1 = ((1 + min) * HEIGHT) / 2;
+                    const y2 = ((1 + max) * HEIGHT) / 2;
+                    canvasCtx.moveTo(x, y1);
+                    canvasCtx.lineTo(x, y2);
+                    lastx = x;
+                    if(end==bufferLength){
+                        break
+                    }
+                }
+                canvasCtx.moveTo(0,HEIGHT/2)
+                canvasCtx.lineTo(lastx,HEIGHT/2)
+                canvasCtx.stroke();
+                canvasCtx.fillStyle = "rgb(0,125,225)"
+                canvasCtx.globalAlpha = .12
+                canvasCtx.fillRect(0,0,lastx,HEIGHT)
+                
+            }
+        
+        const fillSelectedRegion = (waveformRef) => {
             const canvasCtx = waveformRef.current.getContext("2d");
             const WIDTH = waveformRef.current.width;
             const HEIGHT = waveformRef.current.height;
@@ -113,62 +164,26 @@ export default function RecorderInterface({
                 canvasCtx.fillStyle = "rgb(75,75,75,.5)"
                 canvasCtx.fillRect(mouseDragStart.t*pxPerSecond,0,(mouseDragEnd.t-mouseDragStart.t)*pxPerSecond,HEIGHT)
             }
+        }
+        if(waveform1Ref.current){
+            fillSelectedRegion(waveform1Ref);
             if(audio){
-                const dataArray = audio.getChannelData(0);
-                const bufferLength = dataArray.length;
-                const drawWaveform = () => {
-                    canvasCtx.lineWidth =  1;
-                    canvasCtx.strokeStyle = "rgb(0,0,0)";
-                    canvasCtx.globalAlpha = 1.0
-                    
-                    canvasCtx.lineWidth = 1.5; // slightly thicker than 1px
-                    canvasCtx.strokeStyle = "#1c1e22";
-                    canvasCtx.lineCap = "round";
-                    canvasCtx.lineJoin = "round";
-                    
-                    //const sliceWidth = (WIDTH/128.0)/(audioCtxRef.current.sampleRate*(60/BPM));
-                    const scaleFactor = (bufferLength)/(audioCtxRef.current.sampleRate*128*(60/BPM));
-                    const samplesPerPixel = Math.ceil((bufferLength) / (WIDTH*scaleFactor));
-                    const delay = delayCompensation[0]*WIDTH/bufferLength
-                    canvasCtx.beginPath();
-                    let lastx;
-                    //algorithm: each pixel gets min/max of a range of samples
-                    for (let x = 0; x < WIDTH; x++) {
-                        const start = x * samplesPerPixel+delayCompensation[0]
-                        const end = Math.min(start + samplesPerPixel, bufferLength);
-                        let min = 1.0, max = -1.0;
-                        for (let i = start; i < end; i++) {
-                            const val = dataArray[i];
-                            if (val < min) min = val;
-                            if (val > max) max = val;
-                        }
-                        const y1 = ((1 + min) * HEIGHT) / 2;
-                        const y2 = ((1 + max) * HEIGHT) / 2;
-                        canvasCtx.moveTo(x, y1);
-                        canvasCtx.lineTo(x, y2);
-                        lastx = x;
-                        if(end==bufferLength){
-                            break
-                        }
-                    }
-                    canvasCtx.moveTo(0,HEIGHT/2)
-                    canvasCtx.lineTo(lastx,HEIGHT/2)
-                    canvasCtx.stroke();
-                    canvasCtx.fillStyle = "rgb(0,125,225)"
-                    canvasCtx.globalAlpha = .12
-                    canvasCtx.fillRect(0,0,lastx,HEIGHT)
-                    
-                }
-                drawWaveform();
-                
+                drawWaveform(waveform1Ref,audio);
             }
+        }
+        if(waveform2Ref.current){
+            fillSelectedRegion(waveform2Ref);
+            if(audio2){
+                drawWaveform(waveform2Ref,audio2);
             }
+        }
     
-    },[audio,BPM,mouseDragStart,mouseDragEnd,zoomFactor,delayCompensation,snapToGrid]);
+    
+    },[audio,audio2,BPM,mouseDragStart,mouseDragEnd,zoomFactor,delayCompensation,snapToGrid]);
 
     const handleCanvasMouseDown = (e) => {
         if(currentlyPlayingAudio.current) return;
-        const rect = waveformRef.current.getBoundingClientRect();
+        const rect = canvasContainerRef.current.getBoundingClientRect();
         const x = (e.clientX-rect.left)
         const rounded = rect.width*Math.floor(x*128/rect.width)/128;
         const coords = {trounded:rounded/pxPerSecond, t:x/pxPerSecond}
@@ -180,7 +195,7 @@ export default function RecorderInterface({
 
         const handleCanvasMouseMove = (e) => {
             if(!isDraggingPlaybackRegion.current) return;
-            const rect = waveformRef.current.getBoundingClientRect();
+            const rect = canvasContainerRef.current.getBoundingClientRect();
             const x = e.clientX-rect.left
             const mousedragstart = mouseDragStartRef.current;
             //if mouse has been dragged 5 pixels or less, doesn't count as a playback region
@@ -201,7 +216,7 @@ export default function RecorderInterface({
         }
         const handleCanvasMouseUp = (e) => {
             isDraggingPlaybackRegion.current = false;
-            const rect = waveformRef.current.getBoundingClientRect();
+            const rect = canvasContainerRef.current.getBoundingClientRect();
             const x = Math.max(0,Math.min(rect.width,e.clientX-rect.left))
             const mousedragstart = mouseDragStartRef.current;
             const mousedragend = mouseDragEndRef.current;
@@ -255,7 +270,7 @@ export default function RecorderInterface({
         const rect = scrollWindowRef.current.getBoundingClientRect()
         if(e.clientY-rect.y < 30) return;
         const handleMouseMove = (e) => {
-            const rect = waveformRef.current.getBoundingClientRect();
+            const rect = waveform1Ref.current.getBoundingClientRect();
             const x = e.clientX-rect.left
             
             if(mouseDragEnd){
@@ -316,27 +331,27 @@ export default function RecorderInterface({
                     >
                     
                 </canvas>
-                <canvas 
-                ref={waveformRef}
-                width={Math.floor(1000*zoomFactor)}
-                height={115}
-                style={{width:Math.floor(1000*zoomFactor),imageRendering:"pixelated",height:"115px"}} 
-                className={`row-start-2 col-start-2`}
-                onMouseDown={handleCanvasMouseDown}
-                >
-                </canvas>
-                {/*<div style={{width:}} className="h-40 row-start-2 col-start-2 bg-amber-300 opacity-30">
+                <div className="row-start-2 col-start-2"
+                    ref={waveformContainerRef}>
+                    <canvas 
+                    ref={waveform1Ref}
+                    width={Math.floor(1000*zoomFactor)}
+                    height={58}
+                    style={{width:Math.floor(1000*zoomFactor),imageRendering:"pixelated",height:"58px"}} 
+                    className={`row-start-2 col-start-2`}
+                    onMouseDown={handleCanvasMouseDown}
+                    >
+                    </canvas>
+                    <canvas
+                    ref={waveform2Ref}
+                    height={57}
+                    width={Math.floor(1000*zoomFactor)}
+                    style={{width:Math.floor(1000*zoomFactor),imageRendering:"pixelated",height:"57px"}}
+                    >
 
-                </div>*/}
-                {/*<div ref={playheadRef}
-                    onMouseDown={handleMovePlayhead}
-                    style={{position:"absolute",
-                        top:0,bottom:0,
-                        width:"2px",background:"red",
-                        transform:`translateX(${playheadPx}px)`
-                    }}
-                        >
-                </div>*/}
+                    </canvas>
+                </div>
+                
                 {<div ref={playheadRef} style={{position:"absolute",top:0,bottom:0,left:-1,
                     width:"4px", transform:`translateX(${playheadPx}px)`}}
                     onMouseDown={handleMovePlayhead}

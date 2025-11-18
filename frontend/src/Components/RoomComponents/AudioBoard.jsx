@@ -25,6 +25,7 @@ export default function AudioBoard({isDemo,socket}){
 
     const [audioURL,setAudioURL] = useState(null);
     const [audio,setAudio] = useState(null);
+    const [audio2,setAudio2] = useState(null);
     const [BPM,setBPM] = useState(isDemo ? 80 : 120);
     const [mouseDragStart,setMouseDragStart] = useState(isDemo ? {trounded:2.25,t:2.25} : {trounded:0,t:0}); //time in seconds
     const [mouseDragEnd,setMouseDragEnd] = useState(isDemo ? {trounded:13.5,t:13.5}: null); //time in seconds
@@ -38,7 +39,8 @@ export default function AudioBoard({isDemo,socket}){
     const [playheadLocation,setPlayheadLocation] = useState(isDemo ? 2.25 : 0);
     const [snapToGrid,setSnapToGrid] = useState(true);
 
-    const waveformRef = useRef(null);
+    const waveform1Ref = useRef(null);
+    const waveform2Ref = useRef(null);
     const playheadRef = useRef(null);
     const delayCompensationSourceRef = useRef(null);
     const measureTickRef = useRef(null);
@@ -48,6 +50,7 @@ export default function AudioBoard({isDemo,socket}){
     const currentlyPlayingAudio = useRef(false); //this ref stores a bool depending on whether audio is playing
     const currentlyRecording = useRef(false);
     const playingAudioRef = useRef(null); //this ref stores an audio context source 
+    const playingAudioRef2 = useRef(null);
     const BPMRef = useRef(BPM);
 
     const metronomeRef = useRef(null);
@@ -62,7 +65,7 @@ export default function AudioBoard({isDemo,socket}){
                                             setAudio,setAudioURL,setAudioChunks,
                                             setMouseDragStart,BPMRef,
                                             setMouseDragEnd,playheadRef,setDelayCompensation,
-                                            metronomeOn,waveformRef,BPM,scrollWindowRef,
+                                            metronomeOn,waveform1Ref,waveform2Ref,BPM,scrollWindowRef,
                                             currentlyRecording,setPlayheadLocation,isDemo,delayCompensation})
     
 
@@ -93,8 +96,9 @@ export default function AudioBoard({isDemo,socket}){
             setAudioURL(audioURLtemp);
             const arrayBuffer = await blob.arrayBuffer();
             const decoded = await AudioCtxRef.current.decodeAudioData(arrayBuffer);
-            setAudio(decoded);
+            setAudio2(decoded);
         }
+
 
         const handleKeyDown = (e) => {
             e.preventDefault();
@@ -115,9 +119,12 @@ export default function AudioBoard({isDemo,socket}){
                 }else if(currentlyPlayingAudio.current){
                     if(playingAudioRef.current){
                         playingAudioRef.current.stop()
-                        if(!isDemo){
-                            socket.current.emit("stop_audio_client_to_server",roomID)
-                        }
+                    }
+                    if(playingAudioRef2.current){
+                        playingAudioRef2.current.stop();
+                    }
+                    if(!isDemo && (playingAudioRef.current||playingAudioRef2.current)){
+                        socket.current.emit("stop_audio_client_to_server",roomID);
                     }
                 }else{
                     handlePlayAudioRef.current()
@@ -132,7 +139,6 @@ export default function AudioBoard({isDemo,socket}){
         
         if(!isDemo){
             socket.current.on("receive_audio_server_to_client", async (data) => {
-                console.log(data)
                 if(data.i==0){
                     setAudioChunks(()=>{
                         if(data.length===1){
@@ -212,6 +218,9 @@ export default function AudioBoard({isDemo,socket}){
                 if(playingAudioRef.current){
                     playingAudioRef.current.stop();
                 }
+                if(playingAudioRef2.current){
+                    playingAudioRef2.current.stop();
+                }
                 stopRecording(metronomeRef);
                 metronomeRef.current.stop();
             })
@@ -242,24 +251,53 @@ export default function AudioBoard({isDemo,socket}){
 
     const handlePlayAudio = () => {
         //This function handles the dirty work of playing audio correctly no matter where the playhead is
-        if(!audio) return;
-        const source = AudioCtxRef.current.createBufferSource();
-        //Need to create a copy of the audio to send to both ears
-        const stereoBuffer = AudioCtxRef.current.createBuffer(2, audio.length, AudioCtxRef.current.sampleRate);
-        stereoBuffer.getChannelData(0).set(audio.getChannelData(0));
-        stereoBuffer.getChannelData(1).set(audio.getChannelData(0));
-        source.buffer = stereoBuffer;
-        source.connect(AudioCtxRef.current.destination);
-        source.onended = () => {
-            currentlyPlayingAudio.current=false;
+        if(!audio&&!audio2) return;
+        if (playingAudioRef.current) {
+            playingAudioRef.current.disconnect();
+            playingAudioRef.current = null;
         }
-        const rect = waveformRef.current.getBoundingClientRect();
+        if (playingAudioRef2.current) {
+            playingAudioRef2.current.disconnect();
+            playingAudioRef2.current = null;
+        }
+        const source = AudioCtxRef.current.createBufferSource();
+        const source2 = AudioCtxRef.current.createBufferSource();
+        const gain = AudioCtxRef.current.createGain();
+        const gain2 = AudioCtxRef.current.createGain();
+        source.connect(gain);
+        source2.connect(gain2);
+        gain.connect(AudioCtxRef.current.destination);
+        gain2.connect(AudioCtxRef.current.destination);
+        const stereoBuffer = AudioCtxRef.current.createBuffer(2, audio ? audio.length:1, AudioCtxRef.current.sampleRate);
+        if(audio){
+            stereoBuffer.getChannelData(0).set(audio.getChannelData(0));
+            stereoBuffer.getChannelData(1).set(audio.getChannelData(0));
+        }
+        source.buffer = stereoBuffer;
+        const stereoBuffer2 = AudioCtxRef.current.createBuffer(2, audio2?audio2.length:1, AudioCtxRef.current.sampleRate);
+        if(audio2){
+            stereoBuffer2.getChannelData(0).set(audio2.getChannelData(0));
+            stereoBuffer2.getChannelData(1).set(audio2.getChannelData(0));
+        }
+        source2.buffer = stereoBuffer2
+        //currentPlayingAudio is set to 2 when audio is playing; when one source ends it -= 1
+        source.onended = () => {
+            currentlyPlayingAudio.current -= 1;
+            source.disconnect();
+            gain.disconnect();
+        }
+        source2.onended = () => {
+            currentlyPlayingAudio.current -= 1;
+            source2.disconnect();
+            gain2.disconnect();
+        }
+        const rect = waveform1Ref.current.getBoundingClientRect();
         //Pixels per second calculates the rate at which the playhead must move. Depends on BPM
         //Divides full width of canvas by the total time in seconds 128 beats takes
         const pixelsPerSecond = rect.width/((60/BPM)*128)
         //totalTime is is length of time if audio the length of entire canvas is played
         const totalTime = (128*60/BPM)
-        const duration = source.buffer.length/AudioCtxRef.current.sampleRate;
+        const duration = Math.max(source.buffer.length,source2.buffer.length)/AudioCtxRef.current.sampleRate;
         //startTime, endTime are relative to the audio, not absolute times, in seconds
         let startTime = 0;
         let endTime = Math.min(duration,totalTime);
@@ -267,28 +305,27 @@ export default function AudioBoard({isDemo,socket}){
         if(mouseDragStart&&(!mouseDragEnd||!snapToGrid)){
             //This if handles startTime if no region is selected and there is no snap to grid
             //startTime is totalTime times (pixels so far)/(total pixels in canvas)
-            startTime = totalTime * mouseDragStart.t*pixelsPerSecond/waveformRef.current.width;
+            startTime = totalTime * mouseDragStart.t*pixelsPerSecond/waveform1Ref.current.width;
             //find the next beat so metronome is aligned
-            const nextBeat = 128*mouseDragStart.t*pixelsPerSecond/waveformRef.current.width
+            const nextBeat = 128*mouseDragStart.t*pixelsPerSecond/waveform1Ref.current.width
             metronomeRef.current.currentBeatInBar = Math.ceil(nextBeat)%4
             const beatFractionToNextMeasure = Math.ceil(nextBeat)-nextBeat
             const secondsPerBeat = (60/BPM)
             timeToNextMeasure = beatFractionToNextMeasure * secondsPerBeat
         }else if(mouseDragStart&&mouseDragEnd&&snapToGrid){
             //startTime is totalTime times (pixels so far)/(total pixels in canvas)
-            startTime = totalTime * mouseDragStart.trounded*pixelsPerSecond/ waveformRef.current.width;
-            const currBeat = 128*mouseDragStart.trounded*pixelsPerSecond/waveformRef.current.width
+            startTime = totalTime * mouseDragStart.trounded*pixelsPerSecond/ waveform1Ref.current.width;
+            const currBeat = 128*mouseDragStart.trounded*pixelsPerSecond/waveform1Ref.current.width
             //this assumes that we are snapping to grid, so we use floor instead of ceil here
             //so that the first beat of selected region plays
             metronomeRef.current.currentBeatInBar = Math.floor(currBeat)%4
         }
         if(mouseDragEnd&&!snapToGrid){
-            endTime = totalTime * Math.min(1,mouseDragEnd.t*pixelsPerSecond/ waveformRef.current.width);
+            endTime = totalTime * Math.min(1,mouseDragEnd.t*pixelsPerSecond/ waveform1Ref.current.width);
         }else if(mouseDragEnd&&snapToGrid){
-            endTime = totalTime * Math.min(1,mouseDragEnd.trounded*pixelsPerSecond/ waveformRef.current.width);
+            endTime = totalTime * Math.min(1,mouseDragEnd.trounded*pixelsPerSecond/ waveform1Ref.current.width);
         }
-        //add .05 to match the delay of audio/metronome (metronome needs delay for first beat to sound)
-        let now = AudioCtxRef.current.currentTime+.05;
+
         //updatePlayhead uses requestAnimationFrame to animate the playhead
         //note we need the start parameter to keep track of where in the audio we are starting
         //as opposed to now which is the current time absolutely
@@ -302,7 +339,7 @@ export default function AudioBoard({isDemo,socket}){
             if((x-visibleStart)/(visibleEnd-visibleStart)>(10/11)){
                 scrollWindowRef.current.scrollLeft = 750 + visibleStart;
             }
-            if(start+elapsed<endTime&&currentlyPlayingAudio.current){
+            if(start+elapsed<endTime&&(currentlyPlayingAudio.current)){
                 requestAnimationFrame(()=>{updatePlayhead(start)});
             }else if(!mouseDragEnd){
                 //if no region has been dragged, and end is reached, reset playhead to the beginning
@@ -318,7 +355,8 @@ export default function AudioBoard({isDemo,socket}){
             
         }
         const secondsToDelay = delayCompensation/AudioCtxRef.current.sampleRate //convert delayComp in samples to seconds
-        if(startTime+secondsToDelay>=audio.getChannelData(0).length/AudioCtxRef.current.sampleRate){
+        const audiolength = Math.max(audio ? audio.getChannelData(0) : 0,audio2 ? audio2.getChannelData(0) : 0);
+        if(startTime+secondsToDelay>=audiolength/AudioCtxRef.current.sampleRate){
             //if someone tries to play audio after the end of the audio, play audio from the beginning
             startTime = 0;
             endTime = duration;
@@ -327,14 +365,18 @@ export default function AudioBoard({isDemo,socket}){
             setMouseDragEnd(null)
             start = 0;
         }
+        //add .05 to match the delay of audio/metronome (metronome needs delay for first beat to sound)
+        let now = AudioCtxRef.current.currentTime+.05;
         if(metronomeOn){
             //the .05 added to now previously was for playhead rendering purposes, we need to subtract it here
             metronomeRef.current.start(now-.05+timeToNextMeasure);
         }
         //source.start arguments are (time to wait to play audio,location in audio to start,duration to play)
-        source.start(AudioCtxRef.current.currentTime+.05,startTime+secondsToDelay,endTime-startTime)
+        source.start(now,startTime+secondsToDelay,endTime-startTime);
+        source2.start(now,startTime+secondsToDelay,endTime-startTime);
         playingAudioRef.current = source;
-        currentlyPlayingAudio.current = true;
+        playingAudioRef2.current = source2;
+        currentlyPlayingAudio.current = 2;
         updatePlayhead(startTime)
     }
 
@@ -398,13 +440,14 @@ export default function AudioBoard({isDemo,socket}){
                     <RecorderInterface audio={audio} BPM={BPM} mouseDragEnd={mouseDragEnd} zoomFactor={zoomFactor}
                                 delayCompensation={delayCompensation} measureTickRef={measureTickRef}
                                 mouseDragStart={mouseDragStart}
-                                audioCtxRef={AudioCtxRef} waveformRef={waveformRef}
+                                audioCtxRef={AudioCtxRef} waveform1Ref={waveform1Ref}
                                 playheadRef={playheadRef} setMouseDragStart={setMouseDragStart}
                                 setMouseDragEnd={setMouseDragEnd} socket={socket} roomID={roomID}
                                 scrollWindowRef={scrollWindowRef} playheadLocation={playheadLocation}
                                 setPlayheadLocation={setPlayheadLocation} audioURL={audioURL}
                                 snapToGrid={snapToGrid} currentlyPlayingAudio={currentlyPlayingAudio}
-                                setSnapToGrid={setSnapToGrid} isDemo={isDemo}
+                                setSnapToGrid={setSnapToGrid} isDemo={isDemo} waveform2Ref={waveform2Ref}
+                                audio2 = {audio2}
                     />
                     <Button variant="default" size="lg" onClick={()=>setSnapToGrid(prev=>!prev)} 
                         className="border-1 border-gray-300 hover:bg-gray-800"
@@ -430,9 +473,11 @@ export default function AudioBoard({isDemo,socket}){
                         <ButtonGroupSeparator/>
                         <Button variant="default" size="lg" className="hover:bg-gray-800"
                             onClick={()=>{
-                                    console.log('check3')
                                     if(playingAudioRef.current){
                                         playingAudioRef.current.stop();
+                                    }
+                                    if(playingAudioRef2.current){
+                                        playingAudioRef2.current.stop();
                                     }
                                     stopRecording(metronomeRef);
                                     metronomeRef.current.stop();

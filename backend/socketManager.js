@@ -60,19 +60,23 @@ const socketManager = async (server,sessionMiddleware) => {
     });
 
     socket.on("stop_audio_client_to_server",(roomID)=>{
-      socket.to(roomID).emit("stop_audio_server_to_client")
+      socket.to(roomID).emit("stop_audio_server_to_client");
     })
 
     socket.on("send_play_window_to_server",(data)=>{
-      socket.to(data.roomID).emit("send_play_window_to_clients",data)
+      socket.to(data.roomID).emit("send_play_window_to_clients",data);
     })
 
     socket.on("receive_bpm_client_to_server", (data)=> {
-      socket.to(data.roomID).emit("send_bpm_server_to_client",data.BPM)
+      socket.to(data.roomID).emit("send_bpm_server_to_client",data.BPM);
     })
 
     socket.on("handle_skipback_client_to_server",(roomID)=>{
-      socket.to(roomID).emit("handle_skipback_server_to_client")
+      socket.to(roomID).emit("handle_skipback_server_to_client");
+    })
+
+    socket.on("send_latency_client_to_server",(data)=>{
+      socket.to(data.roomID).emit("send_latency_server_to_client",data.delayCompensation);
     })
 
     socket.on("disconnect",()=>{

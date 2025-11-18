@@ -107,6 +107,9 @@ export const useAudioRecorder = (
                 }
             }
             setDelayCompensation([greatestIndex])
+            socket.current.emit("send_latency_client_to_server",{
+              roomID,delayCompensation:[greatestIndex]
+            })
             delayChunks = [];
         };
 

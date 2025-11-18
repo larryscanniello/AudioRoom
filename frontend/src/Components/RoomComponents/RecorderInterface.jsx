@@ -6,7 +6,7 @@ export default function RecorderInterface({
     waveform1Ref,waveform2Ref,playheadRef,setMouseDragStart,
     setMouseDragEnd,socket,roomID,scrollWindowRef,
     playheadLocation,setPlayheadLocation,snapToGrid,
-    currentlyPlayingAudio,isDemo,audio2
+    currentlyPlayingAudio,isDemo,audio2,delayCompensation2
 }){
 
     const canvasContainerRef = useRef(null);
@@ -100,10 +100,10 @@ export default function RecorderInterface({
             tickCtx.stroke();
         }
 
-        const drawWaveform = (canvasRef,drawWaveformAudio) => {
-                const canvasCtx = canvasRef.current.getContext('2d');
-                const WIDTH = canvasRef.current.width;
-                const HEIGHT = canvasRef.current.height;
+        const drawWaveform = (canvRef,drawWaveformAudio,delayComp) => {
+                const canvasCtx = canvRef.current.getContext('2d');
+                const WIDTH = canvRef.current.width;
+                const HEIGHT = canvRef.current.height;
                 canvasCtx.lineWidth =  1;
                 canvasCtx.strokeStyle = "rgb(0,0,0)";
                 canvasCtx.globalAlpha = 1.0
@@ -119,12 +119,12 @@ export default function RecorderInterface({
                 //const sliceWidth = (WIDTH/128.0)/(audioCtxRef.current.sampleRate*(60/BPM));
                 const scaleFactor = (bufferLength)/(audioCtxRef.current.sampleRate*128*(60/BPM));
                 const samplesPerPixel = Math.ceil((bufferLength) / (WIDTH*scaleFactor));
-                const delay = delayCompensation[0]*WIDTH/bufferLength
                 canvasCtx.beginPath();
                 let lastx;
+                console.log('check129',delayComp);
                 //algorithm: each pixel gets min/max of a range of samples
                 for (let x = 0; x < WIDTH; x++) {
-                    const start = x * samplesPerPixel+delayCompensation[0]
+                    const start = x * samplesPerPixel+delayComp
                     const end = Math.min(start + samplesPerPixel, bufferLength);
                     let min = 1.0, max = -1.0;
                     for (let i = start; i < end; i++) {
@@ -141,13 +141,12 @@ export default function RecorderInterface({
                         break
                     }
                 }
-                canvasCtx.moveTo(0,HEIGHT/2)
-                canvasCtx.lineTo(lastx,HEIGHT/2)
+                canvasCtx.moveTo(0,HEIGHT/2);
+                canvasCtx.lineTo(lastx,HEIGHT/2);
                 canvasCtx.stroke();
                 canvasCtx.fillStyle = "rgb(0,125,225)"
                 canvasCtx.globalAlpha = .12
                 canvasCtx.fillRect(0,0,lastx,HEIGHT)
-                
             }
         
         const fillSelectedRegion = (waveformRef) => {
@@ -168,18 +167,19 @@ export default function RecorderInterface({
         if(waveform1Ref.current){
             fillSelectedRegion(waveform1Ref);
             if(audio){
-                drawWaveform(waveform1Ref,audio);
+                drawWaveform(waveform1Ref,audio,delayCompensation[0]);
             }
         }
         if(waveform2Ref.current){
             fillSelectedRegion(waveform2Ref);
             if(audio2){
-                drawWaveform(waveform2Ref,audio2);
+                console.log('dc2',delayCompensation2);
+                drawWaveform(waveform2Ref,audio2,delayCompensation2[0]);
             }
         }
     
     
-    },[audio,audio2,BPM,mouseDragStart,mouseDragEnd,zoomFactor,delayCompensation,snapToGrid]);
+    },[audio,audio2,BPM,mouseDragStart,mouseDragEnd,zoomFactor,delayCompensation,delayCompensation2,snapToGrid]);
 
     const handleCanvasMouseDown = (e) => {
         if(currentlyPlayingAudio.current) return;

@@ -33,6 +33,7 @@ export default function AudioBoard({isDemo,socket}){
     const [audioChunks,setAudioChunks] = useState([]);
     const [zoomFactor,setZoomFactor] = useState(2);
     const [delayCompensation,setDelayCompensation] = useState([0]); //delayCompensation is in samples
+    const [delayCompensation2,setDelayCompensation2] = useState([0]);
     const [currentlyAdjustingLatency,setCurrentlyAdjustingLatency] = useState(null);
     const [displayDelayCompensationMessage,setDisplayDelayCompensationMessage] = useState(false);
     const [metronomeOn,setMetronomeOn] = useState(true);
@@ -223,6 +224,10 @@ export default function AudioBoard({isDemo,socket}){
                 }
                 stopRecording(metronomeRef);
                 metronomeRef.current.stop();
+            })
+
+            socket.current.on("send_latency_server_to_client",(delayComp)=>{
+                setDelayCompensation2(delayComp);
             })
         }
 
@@ -447,7 +452,7 @@ export default function AudioBoard({isDemo,socket}){
                                 setPlayheadLocation={setPlayheadLocation} audioURL={audioURL}
                                 snapToGrid={snapToGrid} currentlyPlayingAudio={currentlyPlayingAudio}
                                 setSnapToGrid={setSnapToGrid} isDemo={isDemo} waveform2Ref={waveform2Ref}
-                                audio2 = {audio2}
+                                audio2={audio2} delayCompensation2={delayCompensation2}
                     />
                     <Button variant="default" size="lg" onClick={()=>setSnapToGrid(prev=>!prev)} 
                         className="border-1 border-gray-300 hover:bg-gray-800"
@@ -560,7 +565,11 @@ export default function AudioBoard({isDemo,socket}){
                                 Latency compensatation attempted successfully.</div>}
                             <div className="pt-4">Alternatively, adjust it manually:
                                 <Slider style={{width:100}} max={20000} step={delayCompensationStep}
-                                    onValueChange={(value)=>setDelayCompensation(value)} className="p-4"
+                                    onValueChange={(value)=>setDelayCompensation(value)}
+                                    onValueCommit={()=>socket.current.emit("send_latency_client_to_server",{
+                                        roomID,delayCompensation
+                                    })}
+                                    className="p-4"
                                     value={delayCompensation}
                                     > 
 

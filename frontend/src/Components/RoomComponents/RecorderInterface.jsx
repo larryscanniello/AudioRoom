@@ -62,7 +62,15 @@ export default function RecorderInterface({
                 canvasContainerCtx.stroke();
             }
             drawBeats()
-
+            //draw the line separating the two tracks
+            canvasContainerCtx.beginPath();
+            canvasContainerCtx.strokeStyle = "rgb(0,0,0)";
+            canvasContainerCtx.lineWidth = 1.5;
+            canvasContainerCtx.globalAlpha = .3;
+            canvasContainerCtx.moveTo(0,HEIGHT/2);
+            canvasContainerCtx.lineTo(WIDTH,HEIGHT/2);
+            canvasContainerCtx.stroke();
+            canvasContainerCtx.globalAlpha = 1;
         }
         if(measureTickRef.current){
             //draws the upper measure ticks and numbers
@@ -100,7 +108,7 @@ export default function RecorderInterface({
             tickCtx.stroke();
         }
 
-        const drawWaveform = (canvRef,drawWaveformAudio,delayComp) => {
+        const drawWaveform = (canvRef,drawWaveformAudio,delayComp,tracknum) => {
                 const canvasCtx = canvRef.current.getContext('2d');
                 const WIDTH = canvRef.current.width;
                 const HEIGHT = canvRef.current.height;
@@ -121,7 +129,6 @@ export default function RecorderInterface({
                 const samplesPerPixel = Math.ceil((bufferLength) / (WIDTH*scaleFactor));
                 canvasCtx.beginPath();
                 let lastx;
-                console.log('check129',delayComp);
                 //algorithm: each pixel gets min/max of a range of samples
                 for (let x = 0; x < WIDTH; x++) {
                     const start = x * samplesPerPixel+delayComp
@@ -144,7 +151,7 @@ export default function RecorderInterface({
                 canvasCtx.moveTo(0,HEIGHT/2);
                 canvasCtx.lineTo(lastx,HEIGHT/2);
                 canvasCtx.stroke();
-                canvasCtx.fillStyle = "rgb(0,125,225)"
+                canvasCtx.fillStyle = tracknum===2 ? "rgb(0,125,225)" : "rgb(0,200,160)"
                 canvasCtx.globalAlpha = .12
                 canvasCtx.fillRect(0,0,lastx,HEIGHT)
             }
@@ -167,14 +174,13 @@ export default function RecorderInterface({
         if(waveform1Ref.current){
             fillSelectedRegion(waveform1Ref);
             if(audio){
-                drawWaveform(waveform1Ref,audio,delayCompensation[0]);
+                drawWaveform(waveform1Ref,audio,delayCompensation[0],1);
             }
         }
         if(waveform2Ref.current){
             fillSelectedRegion(waveform2Ref);
             if(audio2){
-                console.log('dc2',delayCompensation2);
-                drawWaveform(waveform2Ref,audio2,delayCompensation2[0]);
+                drawWaveform(waveform2Ref,audio2,delayCompensation2[0],2);
             }
         }
     
@@ -310,8 +316,8 @@ export default function RecorderInterface({
 
     }    
 
-    return <div className="grid overflow-x-auto relative border-black border-0 shadow-sm shadow-blak"
-                style={{width:1000,height:150}} ref={scrollWindowRef}>
+    return <div className="grid overflow-x-auto relative border-black border-0 shadow-sm shadow-blak grid-cols-2"
+                style={{width:900,height:150}} ref={scrollWindowRef}>
                 
                 <canvas className="row-start-1 col-start-2"
                     style={{width:Math.floor(1000*zoomFactor),height:35}}
@@ -331,14 +337,14 @@ export default function RecorderInterface({
                     >
                     
                 </canvas>
-                <div className="row-start-2 col-start-2"
+                <div className="row-start-2 col-start-3"
                     ref={waveformContainerRef}>
                     <canvas 
                     ref={waveform1Ref}
                     width={Math.floor(1000*zoomFactor)}
                     height={58}
                     style={{width:Math.floor(1000*zoomFactor),imageRendering:"pixelated",height:"58px"}} 
-                    className={`row-start-2 col-start-2`}
+                    className={`row-start-2 col-start-3`}
                     onMouseDown={handleCanvasMouseDown}
                     >
                     </canvas>

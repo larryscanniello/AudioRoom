@@ -5,7 +5,7 @@ import { useAudioRecorder } from "./useAudioRecorder";
 import RecorderInterface from "./RecorderInterface";
 import { Button } from "@/Components/ui/button"
 import { Play, Square, Circle,SkipBack,Lock,LockOpen,
-    Columns4,Magnet,ChevronsDownUp,ChevronsUpDown } from "lucide-react"
+    Columns4,Magnet} from "lucide-react"
 import {
   ButtonGroup,
   ButtonGroupSeparator,
@@ -39,6 +39,10 @@ export default function AudioBoard({isDemo,socket}){
     const [metronomeOn,setMetronomeOn] = useState(true);
     const [playheadLocation,setPlayheadLocation] = useState(isDemo ? 2.25 : 0);
     const [snapToGrid,setSnapToGrid] = useState(true);
+    const [track1Vol,setTrack1Vol] = useState(1.0);
+    const [track2Vol,setTrack2Vol] = useState(1.0);
+    const [track1Muted,setTrack1Muted] = useState(false);
+    const [track2Muted,setTrack2Muted] = useState(false);
 
     const waveform1Ref = useRef(null);
     const waveform2Ref = useRef(null);
@@ -46,12 +50,15 @@ export default function AudioBoard({isDemo,socket}){
     const delayCompensationSourceRef = useRef(null);
     const measureTickRef = useRef(null);
     const scrollWindowRef = useRef(null);
+    const controlPanelRef = useRef(null);
 
     const handlePlayAudioRef = useRef(null);
     const currentlyPlayingAudio = useRef(false); //this ref stores a bool depending on whether audio is playing
     const currentlyRecording = useRef(false);
     const playingAudioRef = useRef(null); //this ref stores an audio context source 
     const playingAudioRef2 = useRef(null);
+    const gainRef = useRef(null);
+    const gain2Ref = useRef(null);
     const BPMRef = useRef(BPM);
 
     const metronomeRef = useRef(null);
@@ -79,6 +86,10 @@ export default function AudioBoard({isDemo,socket}){
         const analyser = AudioCtxRef.current.createAnalyser();
         analyser.minDecibels = -90;
         analyser.maxDecibels = -10;
+        gainRef.current = AudioCtxRef.current.createGain();
+        gain2Ref.current = AudioCtxRef.current.createGain();
+        gainRef.current.connect(AudioCtxRef.current.destination);
+        gain2Ref.current.connect(AudioCtxRef.current.destination);
         const getDemo = async ()=>{
             const response = await fetch(blackbirdDemo)
             const arrayBuffer = await response.arrayBuffer();
@@ -250,6 +261,7 @@ export default function AudioBoard({isDemo,socket}){
         handlePlayAudioRef.current = handlePlayAudio;
     });
 
+
     if(metronomeRef.current){
         metronomeRef.current.tempo = BPM;
     }
@@ -269,10 +281,9 @@ export default function AudioBoard({isDemo,socket}){
         const source2 = AudioCtxRef.current.createBufferSource();
         const gain = AudioCtxRef.current.createGain();
         const gain2 = AudioCtxRef.current.createGain();
-        source.connect(gain);
-        source2.connect(gain2);
-        gain.connect(AudioCtxRef.current.destination);
-        gain2.connect(AudioCtxRef.current.destination);
+        source.connect(gainRef.current);
+        source2.connect(gain2Ref.current);
+        
         const stereoBuffer = AudioCtxRef.current.createBuffer(2, audio ? audio.length:1, AudioCtxRef.current.sampleRate);
         if(audio){
             stereoBuffer.getChannelData(0).set(audio.getChannelData(0));
@@ -289,12 +300,10 @@ export default function AudioBoard({isDemo,socket}){
         source.onended = () => {
             currentlyPlayingAudio.current -= 1;
             source.disconnect();
-            gain.disconnect();
         }
         source2.onended = () => {
             currentlyPlayingAudio.current -= 1;
             source2.disconnect();
-            gain2.disconnect();
         }
         const rect = waveform1Ref.current.getBoundingClientRect();
         //Pixels per second calculates the rate at which the playhead must move. Depends on BPM
@@ -441,7 +450,74 @@ export default function AudioBoard({isDemo,socket}){
         <div className="w-full grid place-items-center items-center">
             <div className="grid grid-rows-[1px_172px] h-58 bg-gray-700 border-gray-500 border-4 rounded-2xl shadow-gray shadow-md"
                 style={{width:1050}}>
-                <div className="relative row-start-2 grid place-items-center items-center h-43">
+                <div className="relative row-start-2 grid h-43 pt-3 grid-cols-[20px_100px_0px] ">
+                    <div
+                        ref={controlPanelRef}
+                        className="col-start-2"
+                        style={{width:100,height:150}}
+                    >
+                    <div className="bg-[rgb(86,86,133)]"
+                            style={{width:100,height:35}}
+                    >
+                    </div>
+                    <div className="bg-[rgb(114,120,155)]"
+                        style={{width:100,height:115}}
+                    >
+                        <div style={{width:100,height:58}} className="border-b border-black flex flex-row items-center">
+                            <button className={"border-1 border-black text-white text-xs w-8 h-6 ml-1 rounded-sm " + (track1Muted ? "bg-amber-600" : "")}
+                                onClick={(e)=>{
+                                    e.preventDefault();
+                                    if(!track1Muted){
+                                        gainRef.current.gain.value = 0;
+                                    }else{
+                                        gainRef.current.gain.value = track1Vol;
+                                    }
+                                    setTrack1Muted(prev=>!prev);
+                                }}
+                            >
+                                M
+                            </button>
+                            <Slider className="ml-2 mr-2"
+                                defaultValue={[1.0]} max={1.0} min={0.0} step={.025}
+                                onValueChange={(value)=>{
+                                    if(!track1Muted){
+                                        gainRef.current.gain.value = value;
+                                    }
+                                    setTrack1Vol(value);
+                                }} 
+                            >
+
+                            </Slider>
+                        </div>
+                        <div style={{width:100,height:57}} className="border-b border-black flex flex-row items-center">
+                            <button className={"border-1 border-black text-xs text-white w-8 h-6 ml-1 rounded-sm " + (track2Muted ? "bg-amber-600" : "")}
+                                onClick={(e)=>{
+                                        e.preventDefault();
+                                        if(!track2Muted){
+                                            gainRef.current.gain.value = 0;
+                                        }else{
+                                            gainRef.current.gain.value = track2Vol;
+                                        }
+                                        setTrack2Muted(prev=>!prev);
+                                    }}
+                            >
+                                M
+                            </button>
+                            <Slider className="ml-2 mr-2"
+                            defaultValue={[1.0]} max={1.0} min={0.0} step={.025}
+                            onValueChange={(value)=>{
+                                    if(!track2Muted){
+                                        gain2Ref.current.gain.value = value;
+                                    }
+                                    setTrack2Vol(value);
+                                }} 
+                            >
+
+                            </Slider>
+                        </div>
+
+                    </div>
+                    </div>
                     <RecorderInterface audio={audio} BPM={BPM} mouseDragEnd={mouseDragEnd} zoomFactor={zoomFactor}
                                 delayCompensation={delayCompensation} measureTickRef={measureTickRef}
                                 mouseDragStart={mouseDragStart}
@@ -572,7 +648,6 @@ export default function AudioBoard({isDemo,socket}){
                                     className="p-4"
                                     value={delayCompensation}
                                     > 
-
                                 </Slider>
                             </div>
 

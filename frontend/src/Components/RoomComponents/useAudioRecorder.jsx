@@ -7,7 +7,7 @@ export const useAudioRecorder = (
   setAudioChunks,setAudioURL,setDelayCompensation, setDelayCompensationAudio, 
   onDelayCompensationComplete, setMouseDragStart, setMouseDragEnd,    
   playheadRef,metronomeOn,waveform1Ref,BPM,scrollWindowRef,currentlyRecording,
-  setPlayheadLocation,isDemo,delayCompensation,BPMRef,recorderRef
+  setPlayheadLocation,isDemo,delayCompensation,BPMRef,recorderRef,recordAnimationRef
 }
 ) => {
   const mediaRecorderRef = useRef(null);
@@ -55,6 +55,7 @@ export const useAudioRecorder = (
         
         processor.port.onmessage = (event) => {
           let recordedBuffers = event.data.buffer;
+          if(recordedBuffers.length==0){return;}
           let chunks = [];
           for(let i=0;i<recordedBuffers.length;i++){
             if(i%16==0){
@@ -161,6 +162,34 @@ export const useAudioRecorder = (
   }
 
   // Recording control functions
+const updatePlayhead = (waveformRef,now) => {
+    if(!currentlyRecording.current){return;}
+    const rect = waveformRef.current.getBoundingClientRect();
+    const pixelsPerSecond = rect.width/((60/BPMRef.current)*128)
+    const waveformCtx = waveformRef.current.getContext("2d");
+    const elapsed = AudioCtxRef.current.currentTime - now;
+    setPlayheadLocation(elapsed);                
+    const x = (elapsed * pixelsPerSecond);
+    if(x>=waveformRef.current.width){
+      stopRecording(metRef);
+      return
+    }
+    const visibleStart = scrollWindowRef.current.scrollLeft
+    const visibleEnd = visibleStart + 1000
+    if((x-visibleStart)/(visibleEnd-visibleStart)>(10/11)){
+        scrollWindowRef.current.scrollLeft = 750 + visibleStart;
+    }
+    waveformCtx.clearRect(0,0,rect.width,rect.height)
+    waveformCtx.fillStyle = "rgb(0,75,200)"
+    waveformCtx.globalAlpha = .20
+    waveformCtx.fillRect(0,0,x,rect.height)
+    if(currentlyRecording.current){
+        requestAnimationFrame(()=>updatePlayhead(waveformRef,now));
+    }
+}
+
+recordAnimationRef.current = updatePlayhead;
+
   const handleRecording = async (metRef) => {
     if (recorderRef.current && metRef.current) {
         if (AudioCtxRef.current.state === "suspended") {
@@ -169,39 +198,16 @@ export const useAudioRecorder = (
 
         currentlyRecording.current = true;
         
-        const now = AudioCtxRef.current.currentTime
+        const now = AudioCtxRef.current.currentTime;
+
+        console.log('now',now);
 
         if(metronomeOn){
             metRef.current.currentBeatInBar = 0;
             metRef.current.start(now);
         }
         
-        
-        const updatePlayhead = () => {
-                const rect = waveform1Ref.current.getBoundingClientRect();
-                const pixelsPerSecond = rect.width/((60/BPMRef.current)*128)
-                const waveformCtx = waveform1Ref.current.getContext("2d");
-                const elapsed = AudioCtxRef.current.currentTime - now;
-                setPlayheadLocation(elapsed);                
-                const x = (elapsed * pixelsPerSecond);
-                if(x>=waveform1Ref.current.width){
-                  stopRecording(metRef);
-                  return
-                }
-                const visibleStart = scrollWindowRef.current.scrollLeft
-                const visibleEnd = visibleStart + 1000
-                if((x-visibleStart)/(visibleEnd-visibleStart)>(10/11)){
-                    scrollWindowRef.current.scrollLeft = 750 + visibleStart;
-                }
-                waveformCtx.clearRect(0,0,rect.width,rect.height)
-                waveformCtx.fillStyle = "rgb(0,75,200)"
-                waveformCtx.globalAlpha = .20
-                waveformCtx.fillRect(0,0,x,rect.height)
-                if(currentlyRecording.current){
-                    requestAnimationFrame(updatePlayhead);
-                }
-            }
-        updatePlayhead()
+        recordAnimationRef.current(waveform1Ref,now);
         console.log("Recording started");
     }
   }

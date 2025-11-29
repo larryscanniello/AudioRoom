@@ -69,15 +69,19 @@ const socketManager = async (server,sessionMiddleware) => {
 
     socket.on("receive_bpm_client_to_server", (data)=> {
       socket.to(data.roomID).emit("send_bpm_server_to_client",data.BPM);
-    })
+    });
 
     socket.on("handle_skipback_client_to_server",(roomID)=>{
       socket.to(roomID).emit("handle_skipback_server_to_client");
-    })
+    });
 
     socket.on("send_latency_client_to_server",(data)=>{
       socket.to(data.roomID).emit("send_latency_server_to_client",data.delayCompensation);
-    })
+    });
+
+    socket.on("start_recording_client_to_server",(roomID)=>{
+      socket.to(roomID).emit("start_recording_server_to_client");
+    });
 
     socket.on("disconnect",()=>{
       for(let i=0;i<userList.length;i++){

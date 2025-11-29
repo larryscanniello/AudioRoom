@@ -60,6 +60,7 @@ export default function AudioBoard({isDemo,socket}){
     const gainRef = useRef(null);
     const gain2Ref = useRef(null);
     const BPMRef = useRef(BPM);
+    const recordAnimationRef = useRef(null);
     const recorderRef = useRef(null);
 
     const metronomeRef = useRef(null);
@@ -76,7 +77,7 @@ export default function AudioBoard({isDemo,socket}){
                                             setMouseDragEnd,playheadRef,setDelayCompensation,
                                             metronomeOn,waveform1Ref,waveform2Ref,BPM,scrollWindowRef,
                                             currentlyRecording,setPlayheadLocation,isDemo,delayCompensation,
-                                            recorderRef})
+                                            recorderRef,recordAnimationRef})
     
 
     useEffect(() => {
@@ -105,7 +106,7 @@ export default function AudioBoard({isDemo,socket}){
         
 
         const processAudio = async (newchunks) => {
-            console.log('check301')
+            console.log('check402');
             const recordedBuffers = newchunks;
             const length = recordedBuffers.reduce((sum,arr) => sum+arr.length,0)
             const fullBuffer = new Float32Array(length);
@@ -143,6 +144,7 @@ export default function AudioBoard({isDemo,socket}){
             if(e.key===" "){
                 if(currentlyRecording.current){
                     stopRecording(metronomeRef)
+                    recorderRef.current.stopRecording();
                 }else if(currentlyPlayingAudio.current){
                     if(playingAudioRef.current){
                         playingAudioRef.current.stop()
@@ -150,6 +152,8 @@ export default function AudioBoard({isDemo,socket}){
                     if(playingAudioRef2.current){
                         playingAudioRef2.current.stop();
                     }
+                    currentlyRecording.current = false;
+                    currentlyPlayingAudio.current = false;
                     if(!isDemo && (playingAudioRef.current||playingAudioRef2.current)){
                         socket.current.emit("stop_audio_client_to_server",roomID);
                     }
@@ -166,10 +170,10 @@ export default function AudioBoard({isDemo,socket}){
         
         if(!isDemo){
             socket.current.on("receive_audio_server_to_client", async (data) => {
-                console.log('check1',data.i,data.length);
                 if(data.i==0){
                     setAudioChunks(()=>{
                         if(data.length===1){
+                            currentlyRecording.current = false;
                             processAudio([data.audio])
                             setMouseDragStart({trounded:0,t:0});
                             setMouseDragEnd(null);
@@ -186,9 +190,10 @@ export default function AudioBoard({isDemo,socket}){
                         const newchunks = [...prev, data.audio]
                         
                         if(data.length==newchunks.length){
+                            currentlyRecording.current = false;
                             processAudio(newchunks);
                             setMouseDragStart({trounded:0,t:0});
-                            setMouseDragEnd({trounded:0,t:0});
+                            setMouseDragEnd(null);
                             setPlayheadLocation(0);
                         }
                         return newchunks
@@ -251,11 +256,19 @@ export default function AudioBoard({isDemo,socket}){
                 }
                 stopRecording(metronomeRef);
                 metronomeRef.current.stop();
-            })
+                currentlyPlayingAudio.current = false;
+                currentlyRecording.current = false;
+                recorderRef.current.stopRecording();
+            });
 
             socket.current.on("send_latency_server_to_client",(delayComp)=>{
                 setDelayCompensation2(delayComp);
-            })
+            });
+
+            socket.current.on("start_recording_server_to_client",()=>{
+                currentlyRecording.current = true;
+                recordAnimationRef.current(waveform2Ref,AudioCtxRef.current.currentTime);
+            });
         }
 
         
@@ -283,7 +296,7 @@ export default function AudioBoard({isDemo,socket}){
     }
 
     const handlePlayAudio = () => {
-        console.log('audio',audio);
+        console.log('audio2',audio2);
         //This function handles the dirty work of playing audio correctly no matter where the playhead is
         if(!audio&&!audio2) return;
         if (playingAudioRef.current) {
@@ -296,8 +309,6 @@ export default function AudioBoard({isDemo,socket}){
         }
         const source = AudioCtxRef.current.createBufferSource();
         const source2 = AudioCtxRef.current.createBufferSource();
-        const gain = AudioCtxRef.current.createGain();
-        const gain2 = AudioCtxRef.current.createGain();
         source.connect(gainRef.current);
         source2.connect(gain2Ref.current);
         
@@ -333,6 +344,7 @@ export default function AudioBoard({isDemo,socket}){
         let startTime = 0;
         let endTime = Math.min(duration,totalTime);
         let timeToNextMeasure = 0; //seconds
+        console.log('check-1',endTime);
         if(mouseDragStart&&(!mouseDragEnd||!snapToGrid)){
             //This if handles startTime if no region is selected and there is no snap to grid
             //startTime is totalTime times (pixels so far)/(total pixels in canvas)
@@ -360,6 +372,7 @@ export default function AudioBoard({isDemo,socket}){
         //updatePlayhead uses requestAnimationFrame to animate the playhead
         //note we need the start parameter to keep track of where in the audio we are starting
         //as opposed to now which is the current time absolutely
+        console.log('check',endTime)
         const updatePlayhead = (start) => {
             const elapsed = AudioCtxRef.current.currentTime - now;
             setPlayheadLocation(start+elapsed);
@@ -370,6 +383,7 @@ export default function AudioBoard({isDemo,socket}){
             if((x-visibleStart)/(visibleEnd-visibleStart)>(10/11)){
                 scrollWindowRef.current.scrollLeft = 750 + visibleStart;
             }
+            
             if(start+elapsed<endTime&&(currentlyPlayingAudio.current)){
                 requestAnimationFrame(()=>{updatePlayhead(start)});
             }else if(!mouseDragEnd){
@@ -591,9 +605,8 @@ export default function AudioBoard({isDemo,socket}){
                             variant="default" size="lg" className="hover:bg-gray-800"
                             onClick={()=>{
                                 if(!currentlyPlayingAudio.current&&!currentlyRecording.current){
-                                    console.log(recorderRef);
                                     recorderRef.current.startRecording();
-                                    //startRecording(metronomeRef);
+                                    socket.current.emit("start_recording_client_to_server",roomID);
                                 }
                             }}
                         >

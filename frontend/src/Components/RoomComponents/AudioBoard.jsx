@@ -60,6 +60,7 @@ export default function AudioBoard({isDemo,socket}){
     const gainRef = useRef(null);
     const gain2Ref = useRef(null);
     const BPMRef = useRef(BPM);
+    const recorderRef = useRef(null);
 
     const metronomeRef = useRef(null);
     const AudioCtxRef = useRef(null);
@@ -74,13 +75,14 @@ export default function AudioBoard({isDemo,socket}){
                                             setMouseDragStart,BPMRef,
                                             setMouseDragEnd,playheadRef,setDelayCompensation,
                                             metronomeOn,waveform1Ref,waveform2Ref,BPM,scrollWindowRef,
-                                            currentlyRecording,setPlayheadLocation,isDemo,delayCompensation})
+                                            currentlyRecording,setPlayheadLocation,isDemo,delayCompensation,
+                                            recorderRef})
     
 
     useEffect(() => {
         //This effect runs only when component first mounts. 
         //Inititializes audio context, metronome, demo stuff, sockets
-        AudioCtxRef.current = new AudioContext;
+        AudioCtxRef.current = new AudioContext({latencyHint:'interactive'});
         metronomeRef.current = new Metronome;
         metronomeRef.current.audioContext = AudioCtxRef.current;
         const analyser = AudioCtxRef.current.createAnalyser();
@@ -103,12 +105,25 @@ export default function AudioBoard({isDemo,socket}){
         
 
         const processAudio = async (newchunks) => {
-            const blob = new Blob(newchunks, { type: "audio/ogg; codecs=opus" });
-            const audioURLtemp = window.URL.createObjectURL(blob);
-            setAudioURL(audioURLtemp);
-            const arrayBuffer = await blob.arrayBuffer();
-            const decoded = await AudioCtxRef.current.decodeAudioData(arrayBuffer);
-            setAudio2(decoded);
+            console.log('check301')
+            const recordedBuffers = newchunks;
+            const length = recordedBuffers.reduce((sum,arr) => sum+arr.length,0)
+            const fullBuffer = new Float32Array(length);
+            let offset = 0;
+            for(const arr of recordedBuffers){
+                fullBuffer.set(arr,offset)
+                offset += arr.length;
+            }
+            
+
+            const audioBuffer = AudioCtxRef.current.createBuffer(1,fullBuffer.length,AudioCtxRef.current.sampleRate);
+            audioBuffer.copyToChannel(fullBuffer,0);
+
+            setAudioChunks(recordedBuffers);
+            setMouseDragStart({trounded:0,t:0});
+            setMouseDragEnd(null);
+            setPlayheadLocation(0);
+            setAudio2(audioBuffer);
         }
 
 
@@ -151,6 +166,7 @@ export default function AudioBoard({isDemo,socket}){
         
         if(!isDemo){
             socket.current.on("receive_audio_server_to_client", async (data) => {
+                console.log('check1',data.i,data.length);
                 if(data.i==0){
                     setAudioChunks(()=>{
                         if(data.length===1){
@@ -267,6 +283,7 @@ export default function AudioBoard({isDemo,socket}){
     }
 
     const handlePlayAudio = () => {
+        console.log('audio',audio);
         //This function handles the dirty work of playing audio correctly no matter where the playhead is
         if(!audio&&!audio2) return;
         if (playingAudioRef.current) {
@@ -494,9 +511,9 @@ export default function AudioBoard({isDemo,socket}){
                                 onClick={(e)=>{
                                         e.preventDefault();
                                         if(!track2Muted){
-                                            gainRef.current.gain.value = 0;
+                                            gain2Ref.current.gain.value = 0;
                                         }else{
-                                            gainRef.current.gain.value = track2Vol;
+                                            gain2Ref.current.gain.value = track2Vol;
                                         }
                                         setTrack2Muted(prev=>!prev);
                                     }}
@@ -560,6 +577,7 @@ export default function AudioBoard({isDemo,socket}){
                                     if(playingAudioRef2.current){
                                         playingAudioRef2.current.stop();
                                     }
+                                    recorderRef.current.stopRecording();
                                     stopRecording(metronomeRef);
                                     metronomeRef.current.stop();
                                     if(!isDemo){
@@ -573,7 +591,9 @@ export default function AudioBoard({isDemo,socket}){
                             variant="default" size="lg" className="hover:bg-gray-800"
                             onClick={()=>{
                                 if(!currentlyPlayingAudio.current&&!currentlyRecording.current){
-                                    startRecording(metronomeRef);
+                                    console.log(recorderRef);
+                                    recorderRef.current.startRecording();
+                                    //startRecording(metronomeRef);
                                 }
                             }}
                         >

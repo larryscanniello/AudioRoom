@@ -1,17 +1,19 @@
 // useAudioRecorder.js
 import { useRef, useEffect, useState } from 'react';
 
+
 export const useAudioRecorder = (
   {AudioCtxRef, metronomeRef,socket, roomID, setAudio,
   setAudioChunks,setAudioURL,setDelayCompensation, setDelayCompensationAudio, 
   onDelayCompensationComplete, setMouseDragStart, setMouseDragEnd,    
   playheadRef,metronomeOn,waveform1Ref,BPM,scrollWindowRef,currentlyRecording,
-  setPlayheadLocation,isDemo,delayCompensation,BPMRef
+  setPlayheadLocation,isDemo,delayCompensation,BPMRef,recorderRef
 }
 ) => {
   const mediaRecorderRef = useRef(null);
   const delayCompensationRecorderRef = useRef(null);
   const streamRef = useRef(null);
+  const recordedBuffersRef = useRef(null);
   
 
   // Initialize media stream and recorders
@@ -32,70 +34,91 @@ export const useAudioRecorder = (
         });
 
         streamRef.current = stream;
-        
-        // Setup main recorder
-        const mediaRecorder = new MediaRecorder(stream);
-        mediaRecorderRef.current = mediaRecorder;
-        
-        let chunks = [];
 
-        mediaRecorder.ondataavailable = (e) => {
-          chunks.push(e.data);
-        };
+        await AudioCtxRef.current.resume();
+        const source = AudioCtxRef.current.createMediaStreamSource(stream);
+        await AudioCtxRef.current.audioWorklet.addModule("/src/Classes/RecorderProcessor.js");
+        const processor = new AudioWorkletNode(AudioCtxRef.current,'RecorderProcessor');
+        source.connect(processor);
+        processor.connect(AudioCtxRef.current.destination);
+        
 
-        mediaRecorder.onstart = () => {
+        const startRecording = () => {
+          recordedBuffersRef.current = [];
+          processor.port.postMessage({actiontype:"start"});
           handleRecording(metronomeRef);
         }
 
-        mediaRecorder.onstop = async (e) => {
-          console.log("recorder stopped");
-          // Send chunks to server
+        const stopRecording = () => {
+          processor.port.postMessage({actiontype:"stop"});
+        };
+        
+        processor.port.onmessage = (event) => {
+          let recordedBuffers = event.data.buffer;
+          let chunks = [];
+          for(let i=0;i<recordedBuffers.length;i++){
+            if(i%16==0){
+              chunks.push(recordedBuffers[i]);
+            }else{
+              chunks[Math.floor(i/16)] = [...chunks[Math.floor(i/16)],...recordedBuffers[i]];
+            }
+          }
+          recordedBuffers = chunks;
+  
+          const length = recordedBuffers.reduce((sum,arr) => sum+arr.length,0)
+          const fullBuffer = new Float32Array(length);
+          let offset = 0;
+          for(const arr of recordedBuffers){
+            fullBuffer.set(arr,offset)
+            offset += arr.length;
+          }
+        
+
+          const audioBuffer = AudioCtxRef.current.createBuffer(1,fullBuffer.length,AudioCtxRef.current.sampleRate);
+          audioBuffer.copyToChannel(fullBuffer,0);
+
+          setAudioChunks(recordedBuffers);
+          setAudio(audioBuffer);
+          setMouseDragStart({trounded:0,t:0});
+          setMouseDragEnd(null);
+          setPlayheadLocation(0);
+
           if(!isDemo){
-            for (let i = 0; i < chunks.length; i++) {
+            for (let i = 0; i < recordedBuffers.length; i++) {
               socket.current.emit("send_audio_client_to_server", {
-                audio: chunks[i],
+                audio: recordedBuffers[i],
                 roomID,
                 i,
                 user: "all",
-                length: chunks.length,
+                length: recordedBuffers.length,
                 delayCompensation
               });
             }
           }
 
-          const blob = new Blob(chunks, { type: "audio/webm; codecs=opus" });
-          const webmArrayBuffer = await blob.arrayBuffer();
-          console.log('blob',blob,'webmArrayBuffer',webmArrayBuffer);
-          const decoded = await AudioCtxRef.current.decodeAudioData(webmArrayBuffer);
-          setAudioChunks([...chunks]);
-          setAudio(decoded);
-          setMouseDragStart({trounded:0,t:0});
-          setMouseDragEnd(null);
-          setPlayheadLocation(0);
-          chunks = [];
+          recordedBuffersRef.current = [];
+        }
 
-          //setAudioURL(audioURLtemp);
-          
-        };
-
+        recorderRef.current = {processor,startRecording,stopRecording};
         // Setup delay compensation recorder
-        const delayCompRecorder = new MediaRecorder(stream);
+        const delayCompRecorder = new AudioWorkletNode(AudioCtxRef.current,'RecorderProcessor');
         delayCompensationRecorderRef.current = delayCompRecorder;
-        
-        let delayChunks = [];
+        source.connect(delayCompRecorder);
+        delayCompRecorder.connect(AudioCtxRef.current.destination);
 
-        delayCompRecorder.ondataavailable = (e) => {
-          delayChunks.push(e.data);
-        };
-
-        delayCompRecorder.onstop = async (e) => {
+        delayCompRecorder.port.onmessage = (event) => {
             console.log("Delay compensation recorder stopped");
-            const blob = new Blob(delayChunks, { type: "audio/ogg; codecs=opus" });
-            const arrayBuffer = await blob.arrayBuffer();
-            const decoded = await AudioCtxRef.current.decodeAudioData(arrayBuffer);
+            const recordedBuffers = event.data.buffer;
+            const length = recordedBuffers.reduce((sum,arr) => sum+arr.length,0)
+            const fullBuffer = new Float32Array(length);
+            let offset = 0;
+            for(const arr of recordedBuffers){
+              fullBuffer.set(arr,offset)
+              offset += arr.length;
+            }
             let greatestAvg = 0;
             let greatestIndex = 0;
-            const dataArray = decoded.getChannelData(0);
+            const dataArray = fullBuffer;
             for(let i=0;i<dataArray.length-50;i++){
                 let avg = 0
                 for(let j=i;j<i+50;j++){
@@ -107,10 +130,11 @@ export const useAudioRecorder = (
                 }
             }
             setDelayCompensation([greatestIndex])
-            socket.current.emit("send_latency_client_to_server",{
+            if(!isDemo){
+              socket.current.emit("send_latency_client_to_server",{
               roomID,delayCompensation:[greatestIndex]
             })
-            delayChunks = [];
+            }
         };
 
       } catch (err) {
@@ -126,7 +150,9 @@ export const useAudioRecorder = (
         streamRef.current.getTracks().forEach(track => track.stop());
       }
     };
-  }, [AudioCtxRef.current, roomID, socket, delayCompensation]);
+  },[]);
+  
+  //[AudioCtxRef.current, roomID, socket, delayCompensation,recorderRef.current]);
 
   const startRecording = () => {
     if(mediaRecorderRef.current){
@@ -136,7 +162,7 @@ export const useAudioRecorder = (
 
   // Recording control functions
   const handleRecording = async (metRef) => {
-    if (mediaRecorderRef.current && metRef.current) {
+    if (recorderRef.current && metRef.current) {
         if (AudioCtxRef.current.state === "suspended") {
           await AudioCtxRef.current.resume();
         }
@@ -181,10 +207,9 @@ export const useAudioRecorder = (
   }
 
   const stopRecording = (metRef) => {
-    if (mediaRecorderRef.current && metRef.current) {
+    if (recorderRef.current && metRef.current) {
         currentlyRecording.current = false;
         metRef.current.stop();
-        mediaRecorderRef.current.stop();
         console.log("Recording stopped");
     }
   }
@@ -195,14 +220,14 @@ export const useAudioRecorder = (
       const now = AudioCtxRef.current.currentTime;
       metRef.current.tempo = 120;
       metRef.current.start(now);
-      delayCompensationRecorderRef.current.start();
+      delayCompensationRecorderRef.current.port.postMessage({actiontype:"start"});
       console.log("Delay compensation recording started");
       setTimeout(() => {
         metronomeRef.current.stop();
         metRef.current.tempo = prevtempo
       }, 400);
       setTimeout(()=>{
-        delayCompensationRecorderRef.current.stop();
+        delayCompensationRecorderRef.current.port.postMessage({actiontype:"stop"});
       },1000)
     }
   }
@@ -212,6 +237,6 @@ export const useAudioRecorder = (
     startRecording,
     stopRecording,
     startDelayCompensationRecording,
-    isRecorderReady: !!mediaRecorderRef.current
+    isRecorderReady: !!recorderRef.current
   };
 };

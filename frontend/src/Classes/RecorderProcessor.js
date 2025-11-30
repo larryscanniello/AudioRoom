@@ -1,27 +1,45 @@
 class RecorderProcessor extends AudioWorkletProcessor {
   constructor() {
     super();
+
     this.isRecording = false;
-    this.buffer = [];
+    this.isPlayingBack = true;
+    this.recordingBuffer = [];
+    this.playbackBuffer = null;
+    this.playbackPos = 0;
+
     this.port.onmessage = (e) => {
-      const { actiontype } = e.data;
-      if (actiontype === 'start'){ 
-        this.buffer = [];
+      if (e.data.actiontype === 'start'){ 
+        this.recordingBuffer = [];
         this.isRecording = true;
+        this.playbackBuffer = e.data.buffer
+        this.playbackPos += e.data.delayCompensation[0]-(Math.floor(.05*sampleRate)); //compensate for metronome delay
       };
-      if (actiontype === 'stop'){ 
+      if (e.data.actiontype === 'stop'){ 
         this.isRecording = false;
-        this.port.postMessage({buffer:this.buffer});
+        this.playbackPos = 0;
+        this.port.postMessage({buffer:this.recordingBuffer});
       };
     };
   }
-  process(inputs) {
+  process(inputs,outputs) {
     const input = inputs[0];
-
+    
     if (!input || !input[0]) return true;
+    
 
     if(this.isRecording){
-      this.buffer.push(new Float32Array(input[0]));
+      this.recordingBuffer.push(new Float32Array(input[0]));
+      if(this.isPlayingBack && this.playbackPos<this.playbackBuffer.length){
+        const output = outputs[0];
+        const outL = output[0];
+        const outR = output[1] ?? output[0];
+        for(let i=0;i<128;i++){
+          outL[i] = this.playbackBuffer[this.playbackPos] ?? 0;
+          outR[i] = this.playbackBuffer[this.playbackPos] ?? 0;
+          this.playbackPos++;
+        }
+      }
     }
 
     return true;

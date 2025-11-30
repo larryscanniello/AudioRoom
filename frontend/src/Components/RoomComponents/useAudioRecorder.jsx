@@ -7,7 +7,8 @@ export const useAudioRecorder = (
   setAudioChunks,setAudioURL,setDelayCompensation, setDelayCompensationAudio, 
   onDelayCompensationComplete, setMouseDragStart, setMouseDragEnd,    
   playheadRef,metronomeOn,waveform1Ref,BPM,scrollWindowRef,currentlyRecording,
-  setPlayheadLocation,isDemo,delayCompensation,BPMRef,recorderRef,recordAnimationRef
+  setPlayheadLocation,isDemo,delayCompensation,BPMRef,recorderRef,recordAnimationRef,
+  metronomeOnRef
 }
 ) => {
   const mediaRecorderRef = useRef(null);
@@ -43,9 +44,13 @@ export const useAudioRecorder = (
         processor.connect(AudioCtxRef.current.destination);
         
 
-        const startRecording = () => {
+        const startRecording = (audio2,delayComp) => {
           recordedBuffersRef.current = [];
-          processor.port.postMessage({actiontype:"start"});
+          processor.port.postMessage({
+            actiontype:"start",
+            buffer:audio2 ? audio2.getChannelData(0).slice():[],
+            delayCompensation:delayComp
+          });
           handleRecording(metronomeRef);
         }
 
@@ -65,6 +70,7 @@ export const useAudioRecorder = (
             }
           }
           recordedBuffers = chunks;
+          
   
           const length = recordedBuffers.reduce((sum,arr) => sum+arr.length,0)
           const fullBuffer = new Float32Array(length);
@@ -155,11 +161,7 @@ export const useAudioRecorder = (
   
   //[AudioCtxRef.current, roomID, socket, delayCompensation,recorderRef.current]);
 
-  const startRecording = () => {
-    if(mediaRecorderRef.current){
-      mediaRecorderRef.current.start()
-    }
-  }
+  const startRecording = () => {}
 
   // Recording control functions
 const updatePlayhead = (waveformRef,now) => {
@@ -200,9 +202,7 @@ recordAnimationRef.current = updatePlayhead;
         
         const now = AudioCtxRef.current.currentTime;
 
-        console.log('now',now);
-
-        if(metronomeOn){
+        if(metronomeOnRef.current){
             metRef.current.currentBeatInBar = 0;
             metRef.current.start(now);
         }
@@ -226,7 +226,7 @@ recordAnimationRef.current = updatePlayhead;
       const now = AudioCtxRef.current.currentTime;
       metRef.current.tempo = 120;
       metRef.current.start(now);
-      delayCompensationRecorderRef.current.port.postMessage({actiontype:"start"});
+      delayCompensationRecorderRef.current.port.postMessage({actiontype:"start",buffer:[]});
       console.log("Delay compensation recording started");
       setTimeout(() => {
         metronomeRef.current.stop();

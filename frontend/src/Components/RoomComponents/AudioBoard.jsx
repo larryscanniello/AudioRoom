@@ -62,6 +62,7 @@ export default function AudioBoard({isDemo,socket}){
     const BPMRef = useRef(BPM);
     const recordAnimationRef = useRef(null);
     const recorderRef = useRef(null);
+    const metronomeOnRef = useRef(true);
 
     const metronomeRef = useRef(null);
     const AudioCtxRef = useRef(null);
@@ -77,7 +78,7 @@ export default function AudioBoard({isDemo,socket}){
                                             setMouseDragEnd,playheadRef,setDelayCompensation,
                                             metronomeOn,waveform1Ref,waveform2Ref,BPM,scrollWindowRef,
                                             currentlyRecording,setPlayheadLocation,isDemo,delayCompensation,
-                                            recorderRef,recordAnimationRef})
+                                            recorderRef,recordAnimationRef,metronomeOnRef})
     
 
     useEffect(() => {
@@ -296,7 +297,6 @@ export default function AudioBoard({isDemo,socket}){
     }
 
     const handlePlayAudio = () => {
-        console.log('audio2',audio2);
         //This function handles the dirty work of playing audio correctly no matter where the playhead is
         if(!audio&&!audio2) return;
         if (playingAudioRef.current) {
@@ -344,7 +344,6 @@ export default function AudioBoard({isDemo,socket}){
         let startTime = 0;
         let endTime = Math.min(duration,totalTime);
         let timeToNextMeasure = 0; //seconds
-        console.log('check-1',endTime);
         if(mouseDragStart&&(!mouseDragEnd||!snapToGrid)){
             //This if handles startTime if no region is selected and there is no snap to grid
             //startTime is totalTime times (pixels so far)/(total pixels in canvas)
@@ -372,7 +371,6 @@ export default function AudioBoard({isDemo,socket}){
         //updatePlayhead uses requestAnimationFrame to animate the playhead
         //note we need the start parameter to keep track of where in the audio we are starting
         //as opposed to now which is the current time absolutely
-        console.log('check',endTime)
         const updatePlayhead = (start) => {
             const elapsed = AudioCtxRef.current.currentTime - now;
             setPlayheadLocation(start+elapsed);
@@ -399,7 +397,8 @@ export default function AudioBoard({isDemo,socket}){
             }
             
         }
-        const secondsToDelay = delayCompensation/AudioCtxRef.current.sampleRate //convert delayComp in samples to seconds
+        const secondsToDelay = delayCompensation/AudioCtxRef.current.sampleRate; //convert delayComp in samples to seconds
+        const secondsToDelay2 = delayCompensation2/AudioCtxRef.current.sampleRate;
         const audiolength = Math.max(audio ? audio.getChannelData(0) : 0,audio2 ? audio2.getChannelData(0) : 0);
         if(startTime+secondsToDelay>=audiolength/AudioCtxRef.current.sampleRate){
             //if someone tries to play audio after the end of the audio, play audio from the beginning
@@ -412,13 +411,13 @@ export default function AudioBoard({isDemo,socket}){
         }
         //add .05 to match the delay of audio/metronome (metronome needs delay for first beat to sound)
         let now = AudioCtxRef.current.currentTime+.05;
-        if(metronomeOn){
+        if(metronomeOnRef.current){
             //the .05 added to now previously was for playhead rendering purposes, we need to subtract it here
             metronomeRef.current.start(now-.05+timeToNextMeasure);
         }
         //source.start arguments are (time to wait to play audio,location in audio to start,duration to play)
         source.start(now,startTime+secondsToDelay,endTime-startTime);
-        source2.start(now,startTime+secondsToDelay,endTime-startTime);
+        source2.start(now,startTime+secondsToDelay2,endTime-startTime);
         playingAudioRef.current = source;
         playingAudioRef2.current = source2;
         currentlyPlayingAudio.current = 2;
@@ -605,7 +604,7 @@ export default function AudioBoard({isDemo,socket}){
                             variant="default" size="lg" className="hover:bg-gray-800"
                             onClick={()=>{
                                 if(!currentlyPlayingAudio.current&&!currentlyRecording.current){
-                                    recorderRef.current.startRecording();
+                                    recorderRef.current.startRecording(audio2,delayCompensation2);
                                     socket.current.emit("start_recording_client_to_server",roomID);
                                 }
                             }}
@@ -624,7 +623,10 @@ export default function AudioBoard({isDemo,socket}){
                         <Button variant="default" size="lg" className="hover:bg-gray-800"
                                 onClick={()=>{
                                     if(!currentlyPlayingAudio.current&&!currentlyRecording.current){
-                                        setMetronomeOn(prev=>!prev)
+                                        setMetronomeOn(prev=>{
+                                            metronomeOnRef.current = !prev;
+                                            return !prev;
+                                        })
                                     }
                                 }}>
                             <PiMetronomeDuotone style={{width:20,height:20}} 

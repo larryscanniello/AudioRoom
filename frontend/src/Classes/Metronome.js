@@ -13,6 +13,7 @@ export default class Metronome
         this.isRunning = false;
         this.intervalID = null;
         this.delayCompensation = null;
+        this.gainRef = null;
 
     }
 
@@ -43,7 +44,8 @@ export default class Metronome
         envelope.gain.exponentialRampToValueAtTime(0.001, time + 0.02);
 
         osc.connect(envelope);
-        envelope.connect(this.audioContext.destination);
+        console.log('gainref',this.gainRef);
+        envelope.connect(this.gainRef.current);
     
         osc.start(time);
         osc.stop(time + 0.03);
@@ -76,7 +78,6 @@ export default class Metronome
             this.nextNoteTime = startTime+.05;
         }
         
-        console.log('beatinbar',this.currentBeatInBar)
         this.intervalID = setInterval(() => this.scheduler(), this.lookahead);
     }
 

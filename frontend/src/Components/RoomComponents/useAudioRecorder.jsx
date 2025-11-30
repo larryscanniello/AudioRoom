@@ -8,7 +8,7 @@ export const useAudioRecorder = (
   onDelayCompensationComplete, setMouseDragStart, setMouseDragEnd,    
   playheadRef,metronomeOn,waveform1Ref,BPM,scrollWindowRef,currentlyRecording,
   setPlayheadLocation,isDemo,delayCompensation,BPMRef,recorderRef,recordAnimationRef,
-  metronomeOnRef
+  metronomeOnRef,gain2Ref
 }
 ) => {
   const mediaRecorderRef = useRef(null);
@@ -41,7 +41,7 @@ export const useAudioRecorder = (
         await AudioCtxRef.current.audioWorklet.addModule("/src/Classes/RecorderProcessor.js");
         const processor = new AudioWorkletNode(AudioCtxRef.current,'RecorderProcessor');
         source.connect(processor);
-        processor.connect(AudioCtxRef.current.destination);
+        processor.connect(gain2Ref.current);
         
 
         const startRecording = (audio2,delayComp) => {
@@ -202,10 +202,8 @@ recordAnimationRef.current = updatePlayhead;
         
         const now = AudioCtxRef.current.currentTime;
 
-        if(metronomeOnRef.current){
-            metRef.current.currentBeatInBar = 0;
-            metRef.current.start(now);
-        }
+        metRef.current.currentBeatInBar = 0;
+        metRef.current.start(now);
         
         recordAnimationRef.current(waveform1Ref,now);
         console.log("Recording started");

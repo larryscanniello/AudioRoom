@@ -63,6 +63,7 @@ export default function AudioBoard({isDemo,socket}){
     const recordAnimationRef = useRef(null);
     const recorderRef = useRef(null);
     const metronomeOnRef = useRef(true);
+    const metronomeGainRef = useRef(true);
 
     const metronomeRef = useRef(null);
     const AudioCtxRef = useRef(null);
@@ -78,7 +79,7 @@ export default function AudioBoard({isDemo,socket}){
                                             setMouseDragEnd,playheadRef,setDelayCompensation,
                                             metronomeOn,waveform1Ref,waveform2Ref,BPM,scrollWindowRef,
                                             currentlyRecording,setPlayheadLocation,isDemo,delayCompensation,
-                                            recorderRef,recordAnimationRef,metronomeOnRef})
+                                            recorderRef,recordAnimationRef,metronomeOnRef,gain2Ref})
     
 
     useEffect(() => {
@@ -92,8 +93,11 @@ export default function AudioBoard({isDemo,socket}){
         analyser.maxDecibels = -10;
         gainRef.current = AudioCtxRef.current.createGain();
         gain2Ref.current = AudioCtxRef.current.createGain();
+        metronomeGainRef.current = AudioCtxRef.current.createGain();
         gainRef.current.connect(AudioCtxRef.current.destination);
         gain2Ref.current.connect(AudioCtxRef.current.destination);
+        metronomeGainRef.current.connect(AudioCtxRef.current.destination);
+        metronomeRef.current.gainRef = metronomeGainRef;
         const getDemo = async ()=>{
             const response = await fetch(blackbirdDemo)
             const arrayBuffer = await response.arrayBuffer();
@@ -411,10 +415,8 @@ export default function AudioBoard({isDemo,socket}){
         }
         //add .05 to match the delay of audio/metronome (metronome needs delay for first beat to sound)
         let now = AudioCtxRef.current.currentTime+.05;
-        if(metronomeOnRef.current){
             //the .05 added to now previously was for playhead rendering purposes, we need to subtract it here
-            metronomeRef.current.start(now-.05+timeToNextMeasure);
-        }
+        metronomeRef.current.start(now-.05+timeToNextMeasure);
         //source.start arguments are (time to wait to play audio,location in audio to start,duration to play)
         source.start(now,startTime+secondsToDelay,endTime-startTime);
         source2.start(now,startTime+secondsToDelay2,endTime-startTime);
@@ -622,12 +624,16 @@ export default function AudioBoard({isDemo,socket}){
                         <ButtonGroupSeparator/>
                         <Button variant="default" size="lg" className="hover:bg-gray-800"
                                 onClick={()=>{
-                                    if(!currentlyPlayingAudio.current&&!currentlyRecording.current){
                                         setMetronomeOn(prev=>{
                                             metronomeOnRef.current = !prev;
+                                            if(metronomeOnRef.current){
+                                                metronomeGainRef.current.gain.value = 1.0;
+                                            }else{
+                                                metronomeGainRef.current.gain.value = 0.0;
+                                            }
                                             return !prev;
                                         })
-                                    }
+                                    
                                 }}>
                             <PiMetronomeDuotone style={{width:20,height:20}} 
                                                 color={metronomeOn ? "pink" : ""}

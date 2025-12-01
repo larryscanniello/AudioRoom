@@ -10,23 +10,24 @@ export default function Landing() {
   const [showUnderConstruction,setShowUnderConstruction] = useState(false);
 
   return <div>
-        <div className="flex items-center justify-center">
-          <h6 className="m-8 text-4xl">AudioBoard: A whiteboard for remote music lessons</h6>
+        <div className="flex items-center justify-center flex-col">
+          <h6 className="mt-8 text-6xl">AudioBoard</h6>
+          <h4 className="mt-4 text-2xl">A whiteboard for real-time music collaboration</h4>
         </div>
         <div className="p-4"> 
           <AudioBoard isDemo={true}/>
         </div>
         
         <div className="w-full flex flex-col items-center">
-            <ul className="pt-10 text-xl flex flex-col "> 
+            <ul className="pt-4 text-xl flex flex-col "> 
               <li className="p flex"><Wifi color={"purple"} size={25} 
-              className="w-8 h-8 p-2 mr-2 rounded border-gray-400"/><div>Join a room and connect with your teacher</div></li>
+              className="w-8 h-8 p-2 mr-2 rounded border-gray-400"/><div>Join a room and connect with a music teacher, jam partner, or other collaborator</div></li>
               <li className="p flex"><Circle color={"red"} size={25} 
-              className="w-8 h-8 p-2 mr-2 rounded border-gray-400"/><div>Record directly in the browser</div></li>
+              className="w-8 h-8 p-2 mr-2 rounded border-gray-400"/><div>Record into the first track; your partner records into the second track</div></li>
               <li className="p flex"><Pointer color={"blue"} size={25} 
               className="w-8 h-8 p-2 mr-2 rounded border-gray-400"/>Drag the mouse to select a playback region</li>
               <li className="p flex"><Play color={"green"} size={25} 
-              className="w-8 h-8 p-2 mr-2 rounded border-gray-400"/>Synchronized playback lets student and teacher hear the same thing</li>
+              className="w-8 h-8 p-2 mr-2 rounded border-gray-400"/>Synchronized playback lets both hear the same thing at the same time</li>
             </ul>
         </div>
         <div className="w-full flex flex-col items-center mt-10 text-xl">

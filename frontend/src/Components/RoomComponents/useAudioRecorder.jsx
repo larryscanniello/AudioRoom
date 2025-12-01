@@ -38,7 +38,7 @@ export const useAudioRecorder = (
 
         await AudioCtxRef.current.resume();
         const source = AudioCtxRef.current.createMediaStreamSource(stream);
-        await AudioCtxRef.current.audioWorklet.addModule("/src/Classes/RecorderProcessor.js");
+        await AudioCtxRef.current.audioWorklet.addModule("/RecorderProcessor.js");
         const processor = new AudioWorkletNode(AudioCtxRef.current,'RecorderProcessor');
         source.connect(processor);
         processor.connect(gain2Ref.current);

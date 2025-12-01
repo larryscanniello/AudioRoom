@@ -44,7 +44,6 @@ export default class Metronome
         envelope.gain.exponentialRampToValueAtTime(0.001, time + 0.02);
 
         osc.connect(envelope);
-        console.log('gainref',this.gainRef);
         envelope.connect(this.gainRef.current);
     
         osc.start(time);

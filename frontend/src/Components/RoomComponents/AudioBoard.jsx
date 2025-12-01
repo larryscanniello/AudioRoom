@@ -19,16 +19,17 @@ import {
   PopoverTrigger,
 } from "@/Components/ui/popover"
 import { FaMagnifyingGlass } from "react-icons/fa6";
-import blackbirdDemo from "/audio/BlackbirdAudioBoarddemo.mp3"
+import demoacoustic from "/audio/audioboarddemoacoustic.mp3"
+import demoelectric from "/audio/audioboarddemoelectric.mp3"
 
 export default function AudioBoard({isDemo,socket}){
 
     const [audioURL,setAudioURL] = useState(null);
     const [audio,setAudio] = useState(null);
     const [audio2,setAudio2] = useState(null);
-    const [BPM,setBPM] = useState(isDemo ? 80 : 120);
-    const [mouseDragStart,setMouseDragStart] = useState(isDemo ? {trounded:2.25,t:2.25} : {trounded:0,t:0}); //time in seconds
-    const [mouseDragEnd,setMouseDragEnd] = useState(isDemo ? {trounded:13.5,t:13.5}: null); //time in seconds
+    const [BPM,setBPM] = useState(isDemo ? 112 : 120);
+    const [mouseDragStart,setMouseDragStart] = useState(isDemo ? {trounded:2.142857142857143,t:2.142857142857143} : {trounded:0,t:0}); //time in seconds
+    const [mouseDragEnd,setMouseDragEnd] = useState(isDemo ? {trounded:10.714285714285714,t:10.714285714285714}: null); //time in seconds
     const [roomResponse,setRoomResponse] = useState(null);
     const [audioChunks,setAudioChunks] = useState([]);
     const [zoomFactor,setZoomFactor] = useState(2);
@@ -37,7 +38,7 @@ export default function AudioBoard({isDemo,socket}){
     const [currentlyAdjustingLatency,setCurrentlyAdjustingLatency] = useState(null);
     const [displayDelayCompensationMessage,setDisplayDelayCompensationMessage] = useState(false);
     const [metronomeOn,setMetronomeOn] = useState(true);
-    const [playheadLocation,setPlayheadLocation] = useState(isDemo ? 2.25 : 0);
+    const [playheadLocation,setPlayheadLocation] = useState(isDemo ? 2.142857142857143 : 0);
     const [snapToGrid,setSnapToGrid] = useState(true);
     const [track1Vol,setTrack1Vol] = useState(1.0);
     const [track2Vol,setTrack2Vol] = useState(1.0);
@@ -99,10 +100,14 @@ export default function AudioBoard({isDemo,socket}){
         metronomeGainRef.current.connect(AudioCtxRef.current.destination);
         metronomeRef.current.gainRef = metronomeGainRef;
         const getDemo = async ()=>{
-            const response = await fetch(blackbirdDemo)
-            const arrayBuffer = await response.arrayBuffer();
-            const decoded = await AudioCtxRef.current.decodeAudioData(arrayBuffer)
-            setAudio(decoded);
+            const acousticresponse = await fetch(demoacoustic)
+            const electricresponse = await fetch(demoelectric)
+            const arrayBufferAcoustic = await acousticresponse.arrayBuffer();
+            const arrayBufferElectric = await electricresponse.arrayBuffer();
+            const decoded1 = await AudioCtxRef.current.decodeAudioData(arrayBufferAcoustic)
+            const decoded2 = await AudioCtxRef.current.decodeAudioData(arrayBufferElectric)
+            setAudio(decoded2);
+            setAudio2(decoded1);
         }
         if(isDemo){
             getDemo()
@@ -111,7 +116,6 @@ export default function AudioBoard({isDemo,socket}){
         
 
         const processAudio = async (newchunks) => {
-            console.log('check402');
             const recordedBuffers = newchunks;
             const length = recordedBuffers.reduce((sum,arr) => sum+arr.length,0)
             const fullBuffer = new Float32Array(length);
@@ -147,21 +151,8 @@ export default function AudioBoard({isDemo,socket}){
                 }
             }
             if(e.key===" "){
-                if(currentlyRecording.current){
-                    stopRecording(metronomeRef)
-                    recorderRef.current.stopRecording();
-                }else if(currentlyPlayingAudio.current){
-                    if(playingAudioRef.current){
-                        playingAudioRef.current.stop()
-                    }
-                    if(playingAudioRef2.current){
-                        playingAudioRef2.current.stop();
-                    }
-                    currentlyRecording.current = false;
-                    currentlyPlayingAudio.current = false;
-                    if(!isDemo && (playingAudioRef.current||playingAudioRef2.current)){
-                        socket.current.emit("stop_audio_client_to_server",roomID);
-                    }
+                if(currentlyRecording.current||currentlyPlayingAudio.current){
+                    handleStop();
                 }else{
                     handlePlayAudioRef.current()
                     if(!isDemo){
@@ -470,6 +461,21 @@ export default function AudioBoard({isDemo,socket}){
         }
     }
 
+    const handleStop = () => {
+        if(playingAudioRef.current){
+            playingAudioRef.current.stop();
+        }
+        if(playingAudioRef2.current){
+            playingAudioRef2.current.stop();
+        }
+        currentlyRecording.current = false;
+        recorderRef.current.stopRecording();
+        metronomeRef.current.stop();
+        if(!isDemo){
+            socket.current.emit("stop_audio_client_to_server",roomID)
+        }
+    }
+
     let delayCompensationStep;
     if(AudioCtxRef.current){
         delayCompensationStep = Math.floor(AudioCtxRef.current.sampleRate * .01);
@@ -585,20 +591,7 @@ export default function AudioBoard({isDemo,socket}){
                         </Button>
                         <ButtonGroupSeparator/>
                         <Button variant="default" size="lg" className="hover:bg-gray-800"
-                            onClick={()=>{
-                                    if(playingAudioRef.current){
-                                        playingAudioRef.current.stop();
-                                    }
-                                    if(playingAudioRef2.current){
-                                        playingAudioRef2.current.stop();
-                                    }
-                                    recorderRef.current.stopRecording();
-                                    stopRecording(metronomeRef);
-                                    metronomeRef.current.stop();
-                                    if(!isDemo){
-                                        socket.current.emit("stop_audio_client_to_server",roomID)
-                                    }
-                                }}>
+                            onClick={handleStop}>
                             <Square color={"lightblue"} className="" style={{width:20,height:20}}/>
                         </Button>
                         <ButtonGroupSeparator/>
@@ -607,7 +600,9 @@ export default function AudioBoard({isDemo,socket}){
                             onClick={()=>{
                                 if(!currentlyPlayingAudio.current&&!currentlyRecording.current){
                                     recorderRef.current.startRecording(audio2,delayCompensation2);
-                                    socket.current.emit("start_recording_client_to_server",roomID);
+                                    if(!isDemo){
+                                        socket.current.emit("start_recording_client_to_server",roomID);
+                                    }
                                 }
                             }}
                         >

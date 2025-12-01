@@ -13,8 +13,6 @@ export default function Home(){
     const [isAuthorized, setIsAuthorized] = auth;
     const navigate = useNavigate();
     
-      console.log(isAuthorized)
-
     const handleNewRoom = async () => {
         let roomID;
         await fetch(import.meta.env.VITE_BACKEND_URL+"/newroom",{

@@ -13,7 +13,7 @@ class RecorderProcessor extends AudioWorkletProcessor {
         this.recordingBuffer = [];
         this.isRecording = true;
         this.playbackBuffer = e.data.buffer
-        this.playbackPos = Math.max(0,e.data.delayCompensation[0]-(Math.floor(.05*sampleRate))); //compensate for metronome delay
+        this.playbackPos = e.data.delayCompensation[0]-(Math.floor(.05*sampleRate)); //compensate for metronome delay
       };
       if (e.data.actiontype === 'stop'){ 
         this.isRecording = false;
@@ -32,7 +32,7 @@ class RecorderProcessor extends AudioWorkletProcessor {
         const outL = output[0];
         const outR = output[1] ?? output[0];
         for(let i=0;i<128;i++){
-          if(this.isPlayingBack){
+          if(this.isPlayingBack && this.playbackPos>=0){
             outL[i] = this.playbackBuffer[this.playbackPos] ?? 0;
             outR[i] = this.playbackBuffer[this.playbackPos] ?? 0;
           }

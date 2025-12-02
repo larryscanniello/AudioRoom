@@ -196,7 +196,7 @@ export default function AudioBoard({isDemo,socket}){
                         return newchunks
                     });
                 }
-                setDelayCompensation(data.delayCompensation)
+                setDelayCompensation2(data.delayCompensation)
             });
             
             socket.current.on("send_play_window_to_clients", (data)=>{
@@ -275,6 +275,7 @@ export default function AudioBoard({isDemo,socket}){
 
     useEffect(() => {
         handlePlayAudioRef.current = handlePlayAudio;
+
     });
 
 

@@ -15,7 +15,9 @@ export const useAudioRecorder = (
   const delayCompensationRecorderRef = useRef(null);
   const streamRef = useRef(null);
   const recordedBuffersRef = useRef(null);
+  const delayCompensationRef = useRef(null);
   
+  delayCompensationRef.current = delayCompensation;
 
   // Initialize media stream and recorders
   useEffect(() => {
@@ -98,7 +100,7 @@ export const useAudioRecorder = (
                 i,
                 user: "all",
                 length: recordedBuffers.length,
-                delayCompensation
+                delayCompensation:delayCompensationRef.current
               });
             }
           }

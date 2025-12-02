@@ -8,7 +8,7 @@ export const useAudioRecorder = (
   onDelayCompensationComplete, setMouseDragStart, setMouseDragEnd,    
   playheadRef,metronomeOn,waveform1Ref,BPM,scrollWindowRef,currentlyRecording,
   setPlayheadLocation,isDemo,delayCompensation,BPMRef,recorderRef,recordAnimationRef,
-  metronomeOnRef,gain2Ref
+  metronomeOnRef,gain2Ref,metronomeGainRef,
 }
 ) => {
   const mediaRecorderRef = useRef(null);
@@ -221,14 +221,17 @@ recordAnimationRef.current = updatePlayhead;
   const startDelayCompensationRecording = (metRef) => {
     if (delayCompensationRecorderRef.current && metRef.current) {
       const prevtempo = metRef.current.tempo;
+      const prevMetronomeGain = metronomeGainRef.current.gain.value;
       const now = AudioCtxRef.current.currentTime;
       metRef.current.tempo = 120;
       metRef.current.start(now);
+      metronomeGainRef.current.gain.value = 1.0;
       delayCompensationRecorderRef.current.port.postMessage({actiontype:"start",buffer:[]});
       console.log("Delay compensation recording started");
       setTimeout(() => {
         metronomeRef.current.stop();
         metRef.current.tempo = prevtempo
+        metronomeGainRef.current.gain.value = prevMetronomeGain;
       }, 400);
       setTimeout(()=>{
         delayCompensationRecorderRef.current.port.postMessage({actiontype:"stop"});

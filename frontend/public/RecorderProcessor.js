@@ -19,6 +19,7 @@ class RecorderProcessor extends AudioWorkletProcessor {
         this.isRecording = false;
         this.playbackPos = 0;
         this.port.postMessage({buffer:this.recordingBuffer});
+        this.recordingBuffer = [];
       };
     };
   }

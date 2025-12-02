@@ -153,7 +153,7 @@ export default function AudioBoard({isDemo,socket}){
             }
             if(e.key===" "){
                 if(currentlyRecording.current||currentlyPlayingAudio.current){
-                    handleStop();
+                    handleStop(true);
                 }else{
                     handlePlayAudioRef.current()
                     if(!isDemo){
@@ -245,17 +245,7 @@ export default function AudioBoard({isDemo,socket}){
             });
 
             socket.current.on("stop_audio_server_to_client",()=>{
-                if(playingAudioRef.current){
-                    playingAudioRef.current.stop();
-                }
-                if(playingAudioRef2.current){
-                    playingAudioRef2.current.stop();
-                }
-                stopRecording(metronomeRef);
-                metronomeRef.current.stop();
-                currentlyPlayingAudio.current = false;
-                currentlyRecording.current = false;
-                recorderRef.current.stopRecording();
+                handleStop(false);
             });
 
             socket.current.on("send_latency_server_to_client",(delayComp)=>{
@@ -462,7 +452,7 @@ export default function AudioBoard({isDemo,socket}){
         }
     }
 
-    const handleStop = () => {
+    const handleStop = (sendSocket) => {
         if(playingAudioRef.current){
             playingAudioRef.current.stop();
         }
@@ -472,7 +462,7 @@ export default function AudioBoard({isDemo,socket}){
         currentlyRecording.current = false;
         recorderRef.current.stopRecording();
         metronomeRef.current.stop();
-        if(!isDemo){
+        if(!isDemo && sendSocket){
             socket.current.emit("stop_audio_client_to_server",roomID)
         }
     }
@@ -592,7 +582,7 @@ export default function AudioBoard({isDemo,socket}){
                         </Button>
                         <ButtonGroupSeparator/>
                         <Button variant="default" size="lg" className="hover:bg-gray-800"
-                            onClick={handleStop}>
+                            onClick={()=>handleStop(true)}>
                             <Square color={"lightblue"} className="" style={{width:20,height:20}}/>
                         </Button>
                         <ButtonGroupSeparator/>
@@ -679,8 +669,8 @@ export default function AudioBoard({isDemo,socket}){
                             <div className="pt-4">Alternatively, adjust it manually:
                                 <Slider style={{width:100}} max={20000} step={delayCompensationStep}
                                     onValueChange={(value)=>setDelayCompensation(value)}
-                                    onValueCommit={()=>socket.current.emit("send_latency_client_to_server",{
-                                        roomID,delayCompensation
+                                    onValueCommit={(value)=>socket.current.emit("send_latency_client_to_server",{
+                                        roomID,delayCompensation:value
                                     })}
                                     className="p-4"
                                     value={delayCompensation}

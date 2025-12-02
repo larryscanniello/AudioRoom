@@ -224,8 +224,8 @@ recordAnimationRef.current = updatePlayhead;
       const prevMetronomeGain = metronomeGainRef.current.gain.value;
       const now = AudioCtxRef.current.currentTime;
       metRef.current.tempo = 120;
-      metRef.current.start(now);
       metronomeGainRef.current.gain.value = 1.0;
+      metRef.current.start(now);
       delayCompensationRecorderRef.current.port.postMessage({actiontype:"start",buffer:[]});
       console.log("Delay compensation recording started");
       setTimeout(() => {

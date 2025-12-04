@@ -22,6 +22,8 @@ import { FaMagnifyingGlass } from "react-icons/fa6";
 import demoacoustic from "/audio/audioboarddemoacoustic.mp3"
 import demoelectric from "/audio/audioboarddemoelectric.mp3"
 
+const WAVEFORM_WINDOW_LEN = 900;
+
 export default function AudioBoard({isDemo,socket}){
 
     const [audioURL,setAudioURL] = useState(null);
@@ -52,6 +54,7 @@ export default function AudioBoard({isDemo,socket}){
     const measureTickRef = useRef(null);
     const scrollWindowRef = useRef(null);
     const controlPanelRef = useRef(null);
+    const autoscrollEnabled = useRef(false);
 
     const handlePlayAudioRef = useRef(null);
     const currentlyPlayingAudio = useRef(false); //this ref stores a bool depending on whether audio is playing
@@ -81,7 +84,7 @@ export default function AudioBoard({isDemo,socket}){
                                             metronomeOn,waveform1Ref,waveform2Ref,BPM,scrollWindowRef,
                                             currentlyRecording,setPlayheadLocation,isDemo,delayCompensation,
                                             recorderRef,recordAnimationRef,metronomeOnRef,gain2Ref,
-                                            metronomeGainRef})
+                                            metronomeGainRef,WAVEFORM_WINDOW_LEN})
     
 
     useEffect(() => {
@@ -364,7 +367,7 @@ export default function AudioBoard({isDemo,socket}){
             const x = (start+elapsed) * pixelsPerSecond;
             //auto scroll right if playhead moves far right enough
             const visibleStart = scrollWindowRef.current.scrollLeft
-            const visibleEnd = visibleStart + 1000
+            const visibleEnd = visibleStart + 900
             if((x-visibleStart)/(visibleEnd-visibleStart)>(10/11)){
                 scrollWindowRef.current.scrollLeft = 750 + visibleStart;
             }
@@ -559,6 +562,7 @@ export default function AudioBoard({isDemo,socket}){
                                 snapToGrid={snapToGrid} currentlyPlayingAudio={currentlyPlayingAudio}
                                 setSnapToGrid={setSnapToGrid} isDemo={isDemo} waveform2Ref={waveform2Ref}
                                 audio2={audio2} delayCompensation2={delayCompensation2}
+                                WAVEFORM_WINDOW_LEN={WAVEFORM_WINDOW_LEN}
                     />
                     <Button variant="default" size="lg" onClick={()=>setSnapToGrid(prev=>!prev)} 
                         className="border-1 border-gray-300 hover:bg-gray-800"

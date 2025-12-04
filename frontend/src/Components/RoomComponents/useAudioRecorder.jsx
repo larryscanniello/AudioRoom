@@ -8,7 +8,7 @@ export const useAudioRecorder = (
   onDelayCompensationComplete, setMouseDragStart, setMouseDragEnd,    
   playheadRef,metronomeOn,waveform1Ref,BPM,scrollWindowRef,currentlyRecording,
   setPlayheadLocation,isDemo,delayCompensation,BPMRef,recorderRef,recordAnimationRef,
-  metronomeOnRef,gain2Ref,metronomeGainRef,
+  metronomeOnRef,gain2Ref,metronomeGainRef,WAVEFORM_WINDOW_LEN
 }
 ) => {
   const mediaRecorderRef = useRef(null);
@@ -179,7 +179,7 @@ const updatePlayhead = (waveformRef,now) => {
       return
     }
     const visibleStart = scrollWindowRef.current.scrollLeft
-    const visibleEnd = visibleStart + 1000
+    const visibleEnd = visibleStart + WAVEFORM_WINDOW_LEN;
     if((x-visibleStart)/(visibleEnd-visibleStart)>(10/11)){
         scrollWindowRef.current.scrollLeft = 750 + visibleStart;
     }

@@ -1,6 +1,5 @@
 import { useEffect,useRef,useState } from "react";
 
-const WAVEFORM_WINDOW_LEN = 900;
 
 export default function RecorderInterface({
     audio,BPM,mouseDragEnd,zoomFactor,delayCompensation,
@@ -8,7 +7,8 @@ export default function RecorderInterface({
     waveform1Ref,waveform2Ref,playheadRef,setMouseDragStart,
     setMouseDragEnd,socket,roomID,scrollWindowRef,
     playheadLocation,setPlayheadLocation,snapToGrid,
-    currentlyPlayingAudio,isDemo,audio2,delayCompensation2
+    currentlyPlayingAudio,isDemo,audio2,delayCompensation2,
+    WAVEFORM_WINDOW_LEN
 }){
 
     const canvasContainerRef = useRef(null);

@@ -3,6 +3,7 @@ import { useEffect,useContext,useState, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { AuthContext } from "../AuthProvider";
 import io from "socket.io-client"
+import DailyIframe from '@daily-co/daily-js';
 
 export default function Room(){
     const auth = useContext(AuthContext);
@@ -37,10 +38,48 @@ export default function Room(){
         })
     },[])
 
+    const videoRef = useRef(null);
+    const callRef = useRef(null);
+
+  useEffect(() => {
+    if(!videoRef.current){return;}
+    // Replace with a real Daily room URL
+    const roomUrl = 'https://audio-board.daily.co/demo-room';
+
+    // Create Daily call frame
+    const callFrame = DailyIframe.createFrame(videoRef.current,{
+      showLeaveButton: true,
+    });
+
+    callFrame.join({ url: roomUrl });
+
+    callRef.current = callFrame;
+
+    return () => {
+      // Clean up
+      if (callRef.current) {
+        callRef.current.leave();
+        callRef.current.destroy();
+      }
+    };
+  }, [videoRef.current]);
+
+
     return <div>
     {(roomResponse && isAuthorized) ? 
     <div>
-        <AudioBoard isDemo={false} socket={socket}/>
+    <div className="flex items-center justify-center">
+    <div
+        ref={videoRef}
+        style={{
+            width: "1000px",
+            height: "700px",
+            position: "relative",
+        }}
+    >
+    </div>
+    </div> 
+    <AudioBoard isDemo={false} socket={socket}/>
         <div className="flex flex-col items-center">
             <div className="bg-white rounded-2xl mt-5 flex flex-col items-center">
                 <div className="text-2xl mt-4">Room ID:</div>
@@ -51,6 +90,6 @@ export default function Room(){
             </div>
         </div>
     </div> 
-    : <div className="flex flex-col items-center"><div className="text-4xl pt-40">Wrong room or not authorized.</div></div>}
+    : <div className="flex flex-col items-center"><div className="text-4xl pt-40">Loading...</div></div>}
     </div>
 }

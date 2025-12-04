@@ -23,7 +23,7 @@ export default function Home(){
         .then(resjson => {
             roomID = resjson.id
         })
-        navigate('/room/'+roomID)
+        navigate('/room/'+roomID);
     }
 
     const goToRoom = async () => {

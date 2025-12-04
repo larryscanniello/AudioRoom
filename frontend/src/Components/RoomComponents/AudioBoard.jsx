@@ -519,7 +519,7 @@ export default function AudioBoard({isDemo,socket}){
 
                             </Slider>
                         </div>
-                        <div style={{width:100,height:57}} className="border-b border-black flex flex-row items-center">
+                        <div style={{width:100,height:58}} className="border-b border-black flex flex-row items-center">
                             <button className={"border-1 border-black text-xs text-white w-8 h-6 ml-1 rounded-sm " + (track2Muted ? "bg-amber-600" : "")}
                                 onClick={(e)=>{
                                         e.preventDefault();

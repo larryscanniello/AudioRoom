@@ -1,5 +1,7 @@
 import { useEffect,useRef,useState } from "react";
 
+const WAVEFORM_WINDOW_LEN = 900;
+
 export default function RecorderInterface({
     audio,BPM,mouseDragEnd,zoomFactor,delayCompensation,
     measureTickRef,mouseDragStart,audioCtxRef,
@@ -16,7 +18,7 @@ export default function RecorderInterface({
     const mouseDragEndRef = useRef(mouseDragEnd);
 
     //Used to set playhead location in the DOM, and also for calculations on the canvas
-    const pxPerSecond = Math.floor(1000*zoomFactor)/(128*60/BPM)
+    const pxPerSecond = Math.floor(WAVEFORM_WINDOW_LEN*zoomFactor)/(128*60/BPM)
     const playheadPx = playheadLocation*pxPerSecond
 
     useEffect(()=>{
@@ -317,11 +319,11 @@ export default function RecorderInterface({
     }    
 
     return <div className="grid overflow-x-auto relative border-black border-0 shadow-sm shadow-blak grid-cols-2"
-                style={{width:900,height:150}} ref={scrollWindowRef}>
+                style={{width:WAVEFORM_WINDOW_LEN,height:150}} ref={scrollWindowRef}>
                 
                 <canvas className="row-start-1 col-start-2"
-                    style={{width:Math.floor(1000*zoomFactor),height:35}}
-                    width={Math.floor(1000*zoomFactor)}
+                    style={{width:Math.floor(WAVEFORM_WINDOW_LEN*zoomFactor),height:35}}
+                    width={Math.floor(WAVEFORM_WINDOW_LEN*zoomFactor)}
                     height={35}
                     ref={measureTickRef}
                     onMouseDown={handleCanvasMouseDown}
@@ -330,9 +332,9 @@ export default function RecorderInterface({
                 </canvas>
                 <canvas
                     ref={canvasContainerRef}
-                    width={Math.floor(1000*zoomFactor)}
+                    width={Math.floor(WAVEFORM_WINDOW_LEN*zoomFactor)}
                     height={115}
-                    style={{width:`${Math.floor(1000*zoomFactor)}px`,height:"115px",imageRendering:"pixelated"}}
+                    style={{width:`${Math.floor(WAVEFORM_WINDOW_LEN*zoomFactor)}px`,height:"115px",imageRendering:"pixelated"}}
                     className="row-start-2 col-start-2"
                     >
                     
@@ -341,9 +343,9 @@ export default function RecorderInterface({
                     ref={waveformContainerRef}>
                     <canvas 
                     ref={waveform1Ref}
-                    width={Math.floor(1000*zoomFactor)}
+                    width={Math.floor(WAVEFORM_WINDOW_LEN*zoomFactor)}
                     height={58}
-                    style={{width:Math.floor(1000*zoomFactor),imageRendering:"pixelated",height:"58px"}} 
+                    style={{width:Math.floor(WAVEFORM_WINDOW_LEN*zoomFactor),imageRendering:"pixelated",height:"58px"}} 
                     className={`row-start-2 col-start-3`}
                     onMouseDown={handleCanvasMouseDown}
                     >
@@ -351,8 +353,8 @@ export default function RecorderInterface({
                     <canvas
                     ref={waveform2Ref}
                     height={57}
-                    width={Math.floor(1000*zoomFactor)}
-                    style={{width:Math.floor(1000*zoomFactor),imageRendering:"pixelated",height:"57px"}}
+                    width={Math.floor(WAVEFORM_WINDOW_LEN*zoomFactor)}
+                    style={{width:Math.floor(WAVEFORM_WINDOW_LEN*zoomFactor),imageRendering:"pixelated",height:"57px"}}
                     >
 
                     </canvas>

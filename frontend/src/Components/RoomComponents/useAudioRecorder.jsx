@@ -54,6 +54,8 @@ export const useAudioRecorder = (
             delayCompensation:delayComp
           });
           handleRecording(metronomeRef);
+          setMouseDragStart({trounded:0,t:0});
+          setMouseDragEnd(null);
         }
 
         const stopRecording = () => {
@@ -88,8 +90,7 @@ export const useAudioRecorder = (
 
           setAudioChunks(recordedBuffers);
           setAudio(audioBuffer);
-          setMouseDragStart({trounded:0,t:0});
-          setMouseDragEnd(null);
+
           setPlayheadLocation(0);
 
           if(!isDemo){

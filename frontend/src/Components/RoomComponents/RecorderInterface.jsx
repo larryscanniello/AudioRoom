@@ -8,7 +8,7 @@ export default function RecorderInterface({
     setMouseDragEnd,socket,roomID,scrollWindowRef,
     playheadLocation,setPlayheadLocation,snapToGrid,
     currentlyPlayingAudio,isDemo,audio2,delayCompensation2,
-    WAVEFORM_WINDOW_LEN
+    WAVEFORM_WINDOW_LEN,autoscrollEnabledRef
 }){
 
     const canvasContainerRef = useRef(null);
@@ -20,6 +20,14 @@ export default function RecorderInterface({
     //Used to set playhead location in the DOM, and also for calculations on the canvas
     const pxPerSecond = Math.floor(WAVEFORM_WINDOW_LEN*zoomFactor)/(128*60/BPM)
     const playheadPx = playheadLocation*pxPerSecond
+
+    useEffect(()=>{
+        const handleScroll = () => {
+            autoscrollEnabledRef.current = false;
+        }
+        scrollWindowRef.current.addEventListener("scroll", handleScroll);
+        return () => scrollWindowRef.current.removeEventListener("scroll", handleScroll);
+    },[])
 
     useEffect(()=>{
         if(canvasContainerRef.current){

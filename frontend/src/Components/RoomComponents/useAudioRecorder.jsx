@@ -8,7 +8,7 @@ export const useAudioRecorder = (
   onDelayCompensationComplete, setMouseDragStart, setMouseDragEnd,    
   playheadRef,metronomeOn,waveform1Ref,BPM,scrollWindowRef,currentlyRecording,
   setPlayheadLocation,isDemo,delayCompensation,BPMRef,recorderRef,recordAnimationRef,
-  metronomeOnRef,gain2Ref,metronomeGainRef,WAVEFORM_WINDOW_LEN
+  metronomeOnRef,gain2Ref,metronomeGainRef,WAVEFORM_WINDOW_LEN,autoscrollEnabledRef
 }
 ) => {
   const mediaRecorderRef = useRef(null);
@@ -163,7 +163,8 @@ export const useAudioRecorder = (
   
   //[AudioCtxRef.current, roomID, socket, delayCompensation,recorderRef.current]);
 
-  const startRecording = () => {}
+  const startRecording = () => {
+  }
 
   // Recording control functions
 const updatePlayhead = (waveformRef,now) => {
@@ -180,7 +181,7 @@ const updatePlayhead = (waveformRef,now) => {
     }
     const visibleStart = scrollWindowRef.current.scrollLeft
     const visibleEnd = visibleStart + WAVEFORM_WINDOW_LEN;
-    if((x-visibleStart)/(visibleEnd-visibleStart)>(10/11)){
+    if((x-visibleStart)/(visibleEnd-visibleStart)>(10/11)&&autoscrollEnabledRef.current){
         scrollWindowRef.current.scrollLeft = 750 + visibleStart;
     }
     waveformCtx.clearRect(0,0,rect.width,rect.height)
@@ -196,6 +197,9 @@ recordAnimationRef.current = updatePlayhead;
 
   const handleRecording = async (metRef) => {
     if (recorderRef.current && metRef.current) {
+        autoscrollEnabledRef.current = true;
+
+
         if (AudioCtxRef.current.state === "suspended") {
           await AudioCtxRef.current.resume();
         }

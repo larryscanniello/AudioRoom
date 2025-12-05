@@ -54,7 +54,7 @@ export default function AudioBoard({isDemo,socket}){
     const measureTickRef = useRef(null);
     const scrollWindowRef = useRef(null);
     const controlPanelRef = useRef(null);
-    const autoscrollEnabled = useRef(false);
+    const autoscrollEnabledRef = useRef(false);
 
     const handlePlayAudioRef = useRef(null);
     const currentlyPlayingAudio = useRef(false); //this ref stores a bool depending on whether audio is playing
@@ -84,7 +84,7 @@ export default function AudioBoard({isDemo,socket}){
                                             metronomeOn,waveform1Ref,waveform2Ref,BPM,scrollWindowRef,
                                             currentlyRecording,setPlayheadLocation,isDemo,delayCompensation,
                                             recorderRef,recordAnimationRef,metronomeOnRef,gain2Ref,
-                                            metronomeGainRef,WAVEFORM_WINDOW_LEN})
+                                            metronomeGainRef,WAVEFORM_WINDOW_LEN,autoscrollEnabledRef})
     
 
     useEffect(() => {
@@ -289,6 +289,7 @@ export default function AudioBoard({isDemo,socket}){
     const handlePlayAudio = () => {
         //This function handles the dirty work of playing audio correctly no matter where the playhead is
         if(!audio&&!audio2) return;
+        autoscrollEnabledRef.current = true;
         if (playingAudioRef.current) {
             playingAudioRef.current.disconnect();
             playingAudioRef.current = null;
@@ -368,7 +369,7 @@ export default function AudioBoard({isDemo,socket}){
             //auto scroll right if playhead moves far right enough
             const visibleStart = scrollWindowRef.current.scrollLeft
             const visibleEnd = visibleStart + 900
-            if((x-visibleStart)/(visibleEnd-visibleStart)>(10/11)){
+            if((x-visibleStart)/(visibleEnd-visibleStart)>(10/11)&&autoscrollEnabledRef.current){
                 scrollWindowRef.current.scrollLeft = 750 + visibleStart;
             }
             
@@ -562,7 +563,7 @@ export default function AudioBoard({isDemo,socket}){
                                 snapToGrid={snapToGrid} currentlyPlayingAudio={currentlyPlayingAudio}
                                 setSnapToGrid={setSnapToGrid} isDemo={isDemo} waveform2Ref={waveform2Ref}
                                 audio2={audio2} delayCompensation2={delayCompensation2}
-                                WAVEFORM_WINDOW_LEN={WAVEFORM_WINDOW_LEN}
+                                WAVEFORM_WINDOW_LEN={WAVEFORM_WINDOW_LEN} autoscrollEnabledRef={autoscrollEnabledRef}
                     />
                     <Button variant="default" size="lg" onClick={()=>setSnapToGrid(prev=>!prev)} 
                         className="border-1 border-gray-300 hover:bg-gray-800"

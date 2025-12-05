@@ -363,12 +363,12 @@ export default function AudioBoard({isDemo,socket}){
         //note we need the start parameter to keep track of where in the audio we are starting
         //as opposed to now which is the current time absolutely
         const updatePlayhead = (start) => {
-            const elapsed = AudioCtxRef.current.currentTime - now;
+            const elapsed = Math.max(AudioCtxRef.current.currentTime - now,0);
             setPlayheadLocation(start+elapsed);
             const x = (start+elapsed) * pixelsPerSecond;
             //auto scroll right if playhead moves far right enough
             const visibleStart = scrollWindowRef.current.scrollLeft
-            const visibleEnd = visibleStart + 900
+            const visibleEnd = visibleStart + WAVEFORM_WINDOW_LEN
             if((x-visibleStart)/(visibleEnd-visibleStart)>(10/11)&&autoscrollEnabledRef.current){
                 scrollWindowRef.current.scrollLeft = 750 + visibleStart;
             }
@@ -402,6 +402,7 @@ export default function AudioBoard({isDemo,socket}){
         }
         //add .05 to match the delay of audio/metronome (metronome needs delay for first beat to sound)
         let now = AudioCtxRef.current.currentTime+.05;
+        const now2 = now - .05;
             //the .05 added to now previously was for playhead rendering purposes, we need to subtract it here
         metronomeRef.current.start(now-.05+timeToNextMeasure);
         //source.start arguments are (time to wait to play audio,location in audio to start,duration to play)

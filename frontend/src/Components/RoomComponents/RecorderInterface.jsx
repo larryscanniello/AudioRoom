@@ -18,8 +18,8 @@ export default function RecorderInterface({
     const mouseDragEndRef = useRef(mouseDragEnd);
 
     //Used to set playhead location in the DOM, and also for calculations on the canvas
-    const pxPerSecond = Math.floor(WAVEFORM_WINDOW_LEN*zoomFactor)/(128*60/BPM)
-    const playheadPx = playheadLocation*pxPerSecond
+    const pxPerSecond = Math.floor(WAVEFORM_WINDOW_LEN*zoomFactor)/(128*60/BPM);
+    const playheadPx = playheadLocation*pxPerSecond;
 
     useEffect(()=>{
         const handleScroll = () => {

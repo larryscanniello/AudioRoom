@@ -8,7 +8,7 @@ export default function RecorderInterface({
     setMouseDragEnd,socket,roomID,scrollWindowRef,
     playheadLocation,setPlayheadLocation,snapToGrid,
     currentlyPlayingAudio,isDemo,audio2,delayCompensation2,
-    WAVEFORM_WINDOW_LEN,autoscrollEnabledRef
+    WAVEFORM_WINDOW_LEN,autoscrollEnabledRef,setZoomFactor
 }){
 
     const canvasContainerRef = useRef(null);
@@ -16,6 +16,9 @@ export default function RecorderInterface({
     const isDraggingPlaybackRegion = useRef(false);
     const mouseDragStartRef = useRef(mouseDragStart);
     const mouseDragEndRef = useRef(mouseDragEnd);
+    const wheelTimeoutRef = useRef(null);
+    const currentlyPinchingRef = useRef(false);
+    const pinchStartingZoom = useRef(null);
 
     //Used to set playhead location in the DOM, and also for calculations on the canvas
     const pxPerSecond = Math.floor(WAVEFORM_WINDOW_LEN*zoomFactor)/(128*60/BPM);
@@ -197,6 +200,21 @@ export default function RecorderInterface({
     
     },[audio,audio2,BPM,mouseDragStart,mouseDragEnd,zoomFactor,delayCompensation,delayCompensation2,snapToGrid]);
 
+    const handleWheel = (e) => {
+        if (!e.ctrlKey) return;
+        e.preventDefault();
+        if (!currentlyPinchingRef.current) {
+            currentlyPinchingRef.current = true;
+            pinchStartingZoom.current = zoomFactor;
+        }
+        console.log('check40',pinchStartingZoom.current,e.deltaX,e.deltaY);
+        setZoomFactor(Math.min(32,Math.max(1,pinchStartingZoom.current+.1*e.deltaX)));
+        clearTimeout(wheelTimeoutRef.current);
+        wheelTimeoutRef.current = setTimeout(() => {
+            currentlyPinchingRef.current = false;
+        }, 500);
+    }
+
     const handleCanvasMouseDown = (e) => {
         if(currentlyPlayingAudio.current) return;
         const rect = canvasContainerRef.current.getBoundingClientRect();
@@ -211,24 +229,23 @@ export default function RecorderInterface({
 
         const handleCanvasMouseMove = (e) => {
             if(!isDraggingPlaybackRegion.current) return;
-            const rect = canvasContainerRef.current.getBoundingClientRect();
-            const x = e.clientX-rect.left
-            const mousedragstart = mouseDragStartRef.current;
-            //if mouse has been dragged 5 pixels or less, doesn't count as a playback region
-            if(x<0){
-                const mousedragend = {t:0,trounded:0};
-                setMouseDragEnd(mousedragend);
-                mouseDragEndRef.current = mousedragend;
-            }else if(x>rect.width){
-                const mousedragend = {t:rect.width,trounded:rect.width};
-                setMouseDragEnd(mousedragend);
-                mouseDragEndRef.current = mousedragend;
-            }else if(Math.abs(mousedragstart.t*pxPerSecond-x)>5){
-                    const mousedragend = {t:x/pxPerSecond,trounded:rect.width*Math.ceil(x*128/rect.width)/128/pxPerSecond}
+                const rect = canvasContainerRef.current.getBoundingClientRect();
+                const x = e.clientX-rect.left
+                const mousedragstart = mouseDragStartRef.current;
+                //if mouse has been dragged 5 pixels or less, doesn't count as a playback region
+                if(x<0){
+                    const mousedragend = {t:0,trounded:0};
                     setMouseDragEnd(mousedragend);
                     mouseDragEndRef.current = mousedragend;
+                }else if(x>rect.width){
+                    const mousedragend = {t:rect.width,trounded:rect.width};
+                    setMouseDragEnd(mousedragend);
+                    mouseDragEndRef.current = mousedragend;
+                }else if(Math.abs(mousedragstart.t*pxPerSecond-x)>5){
+                        const mousedragend = {t:x/pxPerSecond,trounded:rect.width*Math.ceil(x*128/rect.width)/128/pxPerSecond}
+                        setMouseDragEnd(mousedragend);
+                        mouseDragEndRef.current = mousedragend;
                 }
-            
         }
         const handleCanvasMouseUp = (e) => {
             isDraggingPlaybackRegion.current = false;
@@ -327,7 +344,9 @@ export default function RecorderInterface({
     }    
 
     return <div className="grid overflow-x-auto relative border-black border-0 shadow-sm shadow-blak grid-cols-2"
-                style={{width:WAVEFORM_WINDOW_LEN,height:150}} ref={scrollWindowRef}>
+                style={{width:WAVEFORM_WINDOW_LEN,height:150}} ref={scrollWindowRef}
+                onWheel={handleWheel}
+                >
                 
                 <canvas className="row-start-1 col-start-2"
                     style={{width:Math.floor(WAVEFORM_WINDOW_LEN*zoomFactor),height:35}}
@@ -363,6 +382,7 @@ export default function RecorderInterface({
                     height={57}
                     width={Math.floor(WAVEFORM_WINDOW_LEN*zoomFactor)}
                     style={{width:Math.floor(WAVEFORM_WINDOW_LEN*zoomFactor),imageRendering:"pixelated",height:"57px"}}
+                    onMouseDown={handleCanvasMouseDown}
                     >
 
                     </canvas>

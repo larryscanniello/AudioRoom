@@ -289,6 +289,7 @@ export default function AudioBoard({isDemo,socket}){
     const handlePlayAudio = () => {
         //This function handles the dirty work of playing audio correctly no matter where the playhead is
         if(!audio&&!audio2) return;
+        if(currentlyPlayingAudio.current || currentlyRecording.current) return;
         autoscrollEnabledRef.current = true;
         if (playingAudioRef.current) {
             playingAudioRef.current.disconnect();
@@ -564,6 +565,7 @@ export default function AudioBoard({isDemo,socket}){
                                 setSnapToGrid={setSnapToGrid} isDemo={isDemo} waveform2Ref={waveform2Ref}
                                 audio2={audio2} delayCompensation2={delayCompensation2}
                                 WAVEFORM_WINDOW_LEN={WAVEFORM_WINDOW_LEN} autoscrollEnabledRef={autoscrollEnabledRef}
+                                setZoomFactor={setZoomFactor}
                     />
                     <Button variant="default" size="lg" onClick={()=>setSnapToGrid(prev=>!prev)} 
                         className="border-1 border-gray-300 hover:bg-gray-800"
@@ -577,12 +579,10 @@ export default function AudioBoard({isDemo,socket}){
                     <ButtonGroup className="rounded border-1 border-gray-300 col-start-2">
                         <Button variant="default" size="lg" className="hover:bg-gray-800"
                             onClick={()=>{
-                                if(!currentlyPlayingAudio.current&&!currentlyRecording.current){
                                     handlePlayAudio();
                                     if(!isDemo){
                                         socket.current.emit("client_to_server_play_audio",{roomID})
-                                    }
-                                }    
+                                    } 
                                 }}>
                             <Play color={"lightgreen"} style={{width:20,height:20}}/> 
                         </Button>

@@ -4,6 +4,7 @@ import { useParams } from "react-router-dom";
 import { AuthContext } from "../AuthProvider";
 import io from "socket.io-client"
 import DailyIframe from '@daily-co/daily-js';
+import { useWindowSize } from "../useWindowSize";
 
 export default function Room(){
     const auth = useContext(AuthContext);
@@ -15,6 +16,7 @@ export default function Room(){
     const {roomID} = useParams();
     const socket = useRef(null);
     const [userList,setUserList] = useState([])
+    const [width,height] = useWindowSize();
 
     useEffect(()=>{
         async function verifyRoom(){
@@ -72,15 +74,15 @@ export default function Room(){
     <div
         ref={videoRef}
         style={{
-            width: "1000px",
-            height: "700px",
+            width: 1050,
+            height: height-235,
             position: "relative",
         }}
     >
     </div>
     </div> 
     <AudioBoard isDemo={false} socket={socket}/>
-        <div className="flex flex-col items-center">
+        {/*<div className="flex flex-col items-center">
             <div className="bg-white rounded-2xl mt-5 flex flex-col items-center">
                 <div className="text-2xl mt-4">Room ID:</div>
                 <div className="text-xs ml-4 mr-4">{roomID}</div>
@@ -88,7 +90,7 @@ export default function Room(){
                 {userList && userList.map(([username,i],j) => <div key={j}>{username}</div>)}
                 <div className="p-4"></div>
             </div>
-        </div>
+        </div>*/}
     </div> 
     : <div className="flex flex-col items-center"><div className="text-4xl pt-40">Loading...</div></div>}
     </div>

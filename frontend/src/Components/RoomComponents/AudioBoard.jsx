@@ -378,9 +378,9 @@ export default function AudioBoard({isDemo,socket}){
             }else if(!mouseDragEnd){
                 //if no region has been dragged, and end is reached, reset playhead to the beginning
                 metronomeRef.current.stop();
-                setMouseDragStart({trounded:0,t:0})
+                setMouseDragStart({trounded:x/pixelsPerSecond,t:x/pixelsPerSecond})
                 setMouseDragEnd(null)
-                setPlayheadLocation(0)
+                setPlayheadLocation(x/pixelsPerSecond);
             }else{
                 //if a region has been dragged, reset playhead to 
                 metronomeRef.current.stop();
@@ -402,8 +402,7 @@ export default function AudioBoard({isDemo,socket}){
         }
         //add .05 to match the delay of audio/metronome (metronome needs delay for first beat to sound)
         let now = AudioCtxRef.current.currentTime+.05;
-        const now2 = now - .05;
-            //the .05 added to now previously was for playhead rendering purposes, we need to subtract it here
+        //the .05 added to now previously was for playhead rendering purposes, we need to subtract it here
         metronomeRef.current.start(now-.05+timeToNextMeasure);
         //source.start arguments are (time to wait to play audio,location in audio to start,duration to play)
         source.start(now,startTime+secondsToDelay,endTime-startTime);

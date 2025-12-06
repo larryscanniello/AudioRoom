@@ -1,12 +1,10 @@
 .scrollwindow {
   overflow: auto;
   scrollbar-width: none; /* Firefox */
+  scrollbar-gutter: none;
 }
 
 .scrollwindow::-webkit-scrollbar {
   display: none; /* Safari/Chrome */
 }
 
-.scrollwindow {
-  scrollbar-gutter: none;
-}

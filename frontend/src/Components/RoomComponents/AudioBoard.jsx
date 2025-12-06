@@ -500,7 +500,7 @@ export default function AudioBoard({isDemo,socket}){
             <div 
             className={`grid grid-rows-[1px_${Math.floor(172*compactMode)}px] bg-gray-700 border-gray-500 border-4 rounded-2xl shadow-gray shadow-md`}
                 style={{width:1050,height:Math.floor(232*compactMode)}}>
-                <div className={"relative row-start-2 grid pt-3 grid-cols-[20px_100px_0px]"}
+                <div className={"relative row-start-2 grid pt-3 grid-cols-[20px_100px_0px] abcde"}
                 style={{height:Math.floor(172*compactMode)}}
                 >
                     <div

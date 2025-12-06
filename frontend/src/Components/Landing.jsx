@@ -9,6 +9,7 @@ import { useState } from "react";
 export default function Landing() {
   const [showUnderConstruction,setShowUnderConstruction] = useState(false);
   const [goToRoomValue,setGoToRoomValue] = useState("");
+  const navigate = useNavigate();
 
   return <div>
         <div className="flex items-center justify-center flex-col">
@@ -35,11 +36,14 @@ export default function Landing() {
           <div className="flex flex-col items-center">
               <button className="text-2xl"
               >                Join an existing room:</button>
-              {<form onSubmit={()=>navigate('/room/'+goToRoomValue)} className="">
+              {<form onSubmit={(e)=>{e.preventDefault();navigate('/room/'+goToRoomValue)}} className="">
                   <input
                   className='border w-64 border-gray-700 mb-5 pt-1 pb-1 pl-1 rounded-md bg-gray-100'
                   value={goToRoomValue}
-                  onChange={e => setGoToRoomValue(e.target.value)}
+                  onChange={(e) => {
+                    console.log('check-41')
+                    setGoToRoomValue(e.target.value);
+                  }}
                   placeholder="Enter Room ID"
                   />
                   <button type="submit" className="ml-3 pt-1 pb-1 pl-2 pr-2 bg-blue-200 rounded-md border-1 border-black hover:bg-blue-400">

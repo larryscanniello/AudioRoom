@@ -155,6 +155,7 @@ export default function AudioBoard({isDemo,socket}){
 
 
         const handleKeyDown = (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
             e.preventDefault();
             if(e.key==="Enter"){
                 setMouseDragStart({trounded:0,t:0});

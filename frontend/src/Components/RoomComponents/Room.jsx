@@ -75,7 +75,7 @@ export default function Room(){
         ref={videoRef}
         style={{
             width: 1050,
-            height: height-235,
+            height: height-(height<700?235*(4/7):235),
             position: "relative",
         }}
     >

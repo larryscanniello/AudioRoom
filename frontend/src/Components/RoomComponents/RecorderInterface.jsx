@@ -8,7 +8,8 @@ export default function RecorderInterface({
     setMouseDragEnd,socket,roomID,scrollWindowRef,
     playheadLocation,setPlayheadLocation,snapToGrid,
     currentlyPlayingAudio,isDemo,audio2,delayCompensation2,
-    WAVEFORM_WINDOW_LEN,autoscrollEnabledRef,setZoomFactor
+    WAVEFORM_WINDOW_LEN,autoscrollEnabledRef,setZoomFactor,
+    compactMode,
 }){
 
     const canvasContainerRef = useRef(null);
@@ -16,9 +17,6 @@ export default function RecorderInterface({
     const isDraggingPlaybackRegion = useRef(false);
     const mouseDragStartRef = useRef(mouseDragStart);
     const mouseDragEndRef = useRef(mouseDragEnd);
-    const wheelTimeoutRef = useRef(null);
-    const currentlyPinchingRef = useRef(false);
-    const pinchStartingZoom = useRef(null);
 
     //Used to set playhead location in the DOM, and also for calculations on the canvas
     const pxPerSecond = Math.floor(WAVEFORM_WINDOW_LEN*zoomFactor)/(128*60/BPM);
@@ -198,22 +196,7 @@ export default function RecorderInterface({
         }
     
     
-    },[audio,audio2,BPM,mouseDragStart,mouseDragEnd,zoomFactor,delayCompensation,delayCompensation2,snapToGrid]);
-
-    const handleWheel = (e) => {
-        if (!e.ctrlKey) return;
-        e.preventDefault();
-        if (!currentlyPinchingRef.current) {
-            currentlyPinchingRef.current = true;
-            pinchStartingZoom.current = zoomFactor;
-        }
-        console.log('check40',pinchStartingZoom.current,e.deltaX,e.deltaY);
-        setZoomFactor(Math.min(32,Math.max(1,pinchStartingZoom.current+.1*e.deltaX)));
-        clearTimeout(wheelTimeoutRef.current);
-        wheelTimeoutRef.current = setTimeout(() => {
-            currentlyPinchingRef.current = false;
-        }, 500);
-    }
+    },[audio,audio2,BPM,mouseDragStart,mouseDragEnd,zoomFactor,delayCompensation,delayCompensation2,snapToGrid,compactMode]);
 
     const handleCanvasMouseDown = (e) => {
         if(currentlyPlayingAudio.current) return;
@@ -344,14 +327,13 @@ export default function RecorderInterface({
     }    
 
     return <div className="grid overflow-x-auto relative border-black border-0 shadow-sm shadow-blak grid-cols-2"
-                style={{width:WAVEFORM_WINDOW_LEN,height:150}} ref={scrollWindowRef}
-                onWheel={handleWheel}
+                style={{width:WAVEFORM_WINDOW_LEN,height:Math.floor(150*compactMode)}} ref={scrollWindowRef}
                 >
                 
                 <canvas className="row-start-1 col-start-2"
-                    style={{width:Math.floor(WAVEFORM_WINDOW_LEN*zoomFactor),height:35}}
+                    style={{width:Math.floor(WAVEFORM_WINDOW_LEN*zoomFactor),height:Math.floor(35*compactMode)}}
                     width={Math.floor(WAVEFORM_WINDOW_LEN*zoomFactor)}
-                    height={35}
+                    height={Math.floor(35*compactMode)}
                     ref={measureTickRef}
                     onMouseDown={handleCanvasMouseDown}
                 >
@@ -360,8 +342,8 @@ export default function RecorderInterface({
                 <canvas
                     ref={canvasContainerRef}
                     width={Math.floor(WAVEFORM_WINDOW_LEN*zoomFactor)}
-                    height={115}
-                    style={{width:`${Math.floor(WAVEFORM_WINDOW_LEN*zoomFactor)}px`,height:"115px",imageRendering:"pixelated"}}
+                    height={Math.floor(115*compactMode)}
+                    style={{width:`${Math.floor(WAVEFORM_WINDOW_LEN*zoomFactor)}px`,height:Math.floor(115*compactMode),imageRendering:"pixelated"}}
                     className="row-start-2 col-start-2"
                     >
                     
@@ -371,17 +353,17 @@ export default function RecorderInterface({
                     <canvas 
                     ref={waveform1Ref}
                     width={Math.floor(WAVEFORM_WINDOW_LEN*zoomFactor)}
-                    height={58}
-                    style={{width:Math.floor(WAVEFORM_WINDOW_LEN*zoomFactor),imageRendering:"pixelated",height:"58px"}} 
+                    height={Math.floor(58*compactMode)}
+                    style={{width:Math.floor(WAVEFORM_WINDOW_LEN*zoomFactor),imageRendering:"pixelated",height:Math.floor(58*compactMode)}} 
                     className={`row-start-2 col-start-3`}
                     onMouseDown={handleCanvasMouseDown}
                     >
                     </canvas>
                     <canvas
                     ref={waveform2Ref}
-                    height={57}
+                    height={Math.floor(57*compactMode)}
                     width={Math.floor(WAVEFORM_WINDOW_LEN*zoomFactor)}
-                    style={{width:Math.floor(WAVEFORM_WINDOW_LEN*zoomFactor),imageRendering:"pixelated",height:"57px"}}
+                    style={{width:Math.floor(WAVEFORM_WINDOW_LEN*zoomFactor),imageRendering:"pixelated",height:Math.floor(57*compactMode)}}
                     onMouseDown={handleCanvasMouseDown}
                     >
 
@@ -396,17 +378,17 @@ export default function RecorderInterface({
                     >
                     <div style={{
                             width: "8px",
-                            height: "8px",
+                            height: Math.floor(8*compactMode),
                             borderRadius: "50%",
                             background: "red",
-                            marginTop: "26px",
+                            marginTop: Math.floor(26*compactMode),
                             }}
                             >
                     
                     </div>
                     <div
                     style={{
-                        position:"absolute",top:25,bottom:0,
+                        position:"absolute",top:Math.floor(25*compactMode),bottom:0,
                         width:"2px",background:"red",
                     }}
                     ></div>

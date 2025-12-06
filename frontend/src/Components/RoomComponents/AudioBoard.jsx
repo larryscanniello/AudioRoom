@@ -21,10 +21,13 @@ import {
 import { FaMagnifyingGlass } from "react-icons/fa6";
 import demoacoustic from "/audio/audioboarddemoacoustic.mp3"
 import demoelectric from "/audio/audioboarddemoelectric.mp3"
+import { useWindowSize } from "../useWindowSize";
 
 const WAVEFORM_WINDOW_LEN = 900;
 
 export default function AudioBoard({isDemo,socket}){
+
+    const [width,height] = useWindowSize();
 
     const [audioURL,setAudioURL] = useState(null);
     const [audio,setAudio] = useState(null);
@@ -46,6 +49,7 @@ export default function AudioBoard({isDemo,socket}){
     const [track2Vol,setTrack2Vol] = useState(1.0);
     const [track1Muted,setTrack1Muted] = useState(false);
     const [track2Muted,setTrack2Muted] = useState(false);
+    const [compactMode,setCompactMode] = useState(height < 700 ? (4/7) : 1);
 
     const waveform1Ref = useRef(null);
     const waveform2Ref = useRef(null);
@@ -71,6 +75,16 @@ export default function AudioBoard({isDemo,socket}){
 
     const metronomeRef = useRef(null);
     const AudioCtxRef = useRef(null);
+
+    useEffect(()=>{
+        
+        if(height<700){
+            setCompactMode(4/7);
+        }else{
+            setCompactMode(1);
+        }
+    },[height])
+    
 
     const { roomID } = useParams();
 
@@ -483,22 +497,25 @@ export default function AudioBoard({isDemo,socket}){
 
     return <div className="">
         <div className="w-full grid place-items-center items-center">
-            <div className="grid grid-rows-[1px_172px] h-58 bg-gray-700 border-gray-500 border-4 rounded-2xl shadow-gray shadow-md"
-                style={{width:1050}}>
-                <div className="relative row-start-2 grid h-43 pt-3 grid-cols-[20px_100px_0px] ">
+            <div 
+            className={`grid grid-rows-[1px_${Math.floor(172*compactMode)}px] bg-gray-700 border-gray-500 border-4 rounded-2xl shadow-gray shadow-md`}
+                style={{width:1050,height:Math.floor(232*compactMode)}}>
+                <div className={"relative row-start-2 grid pt-3 grid-cols-[20px_100px_0px]"}
+                style={{height:Math.floor(172*compactMode)}}
+                >
                     <div
                         ref={controlPanelRef}
                         className="col-start-2"
-                        style={{width:100,height:150}}
+                        style={{width:100,height:Math.floor(150*compactMode)}}
                     >
                     <div className="bg-[rgb(86,86,133)]"
-                            style={{width:100,height:35}}
+                            style={{width:100,height:Math.floor(35*compactMode)}}
                     >
                     </div>
                     <div className="bg-[rgb(114,120,155)]"
-                        style={{width:100,height:115}}
+                        style={{width:100,height:Math.floor(115*compactMode)}}
                     >
-                        <div style={{width:100,height:58}} className="border-b border-black flex flex-row items-center">
+                        <div style={{width:100,height:Math.floor(58*compactMode)}} className="border-b border-black flex flex-row items-center">
                             <button className={"border-1 border-black text-white text-xs w-8 h-6 ml-1 rounded-sm " + (track1Muted ? "bg-amber-600" : "")}
                                 onClick={(e)=>{
                                     e.preventDefault();
@@ -524,7 +541,7 @@ export default function AudioBoard({isDemo,socket}){
 
                             </Slider>
                         </div>
-                        <div style={{width:100,height:58}} className="border-b border-black flex flex-row items-center">
+                        <div style={{width:100,height:Math.floor(58*compactMode)}} className="border-b border-black flex flex-row items-center">
                             <button className={"border-1 border-black text-xs text-white w-8 h-6 ml-1 rounded-sm " + (track2Muted ? "bg-amber-600" : "")}
                                 onClick={(e)=>{
                                         e.preventDefault();
@@ -565,19 +582,22 @@ export default function AudioBoard({isDemo,socket}){
                                 setSnapToGrid={setSnapToGrid} isDemo={isDemo} waveform2Ref={waveform2Ref}
                                 audio2={audio2} delayCompensation2={delayCompensation2}
                                 WAVEFORM_WINDOW_LEN={WAVEFORM_WINDOW_LEN} autoscrollEnabledRef={autoscrollEnabledRef}
-                                setZoomFactor={setZoomFactor}
+                                setZoomFactor={setZoomFactor} compactMode={compactMode}
                     />
-                    <Button variant="default" size="lg" onClick={()=>setSnapToGrid(prev=>!prev)} 
+                    <Button variant="default" size={compactMode==1?"lg":"sm"} onClick={()=>setSnapToGrid(prev=>!prev)} 
                         className="border-1 border-gray-300 hover:bg-gray-800"
-                        style={{position:"absolute",right:15,top:120,transform:"scale(.7)"}}>
-                        <Magnet color={snapToGrid ? "lightblue" : "white"} style={{transform:"rotate(315deg) scale(1.5)"}}></Magnet>
-                        <Columns4 color={snapToGrid ? "lightblue" : "white"} style={{transform:"scale(1.5)"}}></Columns4>
+                        style={{position:"absolute",right:15,top:Math.floor(120*compactMode),transform:"scale(.7)"}}>
+                        <Magnet color={snapToGrid ? "lightblue" : "white"} style={{transform:"rotate(315deg)"+(compactMode==1?"scale(1.5)":"scale(1)")}}></Magnet>
+                        <Columns4 color={snapToGrid ? "lightblue" : "white"} style={{transform:compactMode==1?"scale(1.5)":"scale(1)"}}></Columns4>
                     </Button>
                 </div>
                 
-                <div className="row-start-3 h-8 grid grid-cols-[20px_375px_125px_125px_125px_125px]" >
-                    <ButtonGroup className="rounded border-1 border-gray-300 col-start-2">
-                        <Button variant="default" size="lg" className="hover:bg-gray-800"
+                <div className="row-start-3 grid grid-cols-[20px_375px_125px_125px_125px_125px]" 
+                    style={{height:Math.floor(32*compactMode)}}>
+                    <ButtonGroup className="rounded border-1 border-gray-300 col-start-2"
+                        style={{transform:compactMode!=1?"scale(.7) translate(-55px,-10px)":""}}
+                    >
+                        <Button variant="default" size={compactMode==1?"lg":"sm"} className="hover:bg-gray-800"
                             onClick={()=>{
                                     handlePlayAudio();
                                     if(!isDemo){
@@ -587,13 +607,13 @@ export default function AudioBoard({isDemo,socket}){
                             <Play color={"lightgreen"} style={{width:20,height:20}}/> 
                         </Button>
                         <ButtonGroupSeparator/>
-                        <Button variant="default" size="lg" className="hover:bg-gray-800"
+                        <Button variant="default" size={compactMode==1?"lg":"sm"} className="hover:bg-gray-800"
                             onClick={()=>handleStop(true)}>
                             <Square color={"lightblue"} className="" style={{width:20,height:20}}/>
                         </Button>
                         <ButtonGroupSeparator/>
                         <Button 
-                            variant="default" size="lg" className="hover:bg-gray-800"
+                            variant="default" size={compactMode==1?"lg":"sm"} className="hover:bg-gray-800"
                             onClick={()=>{
                                 if(!currentlyPlayingAudio.current&&!currentlyRecording.current){
                                     recorderRef.current.startRecording(audio2,delayCompensation2);
@@ -606,7 +626,7 @@ export default function AudioBoard({isDemo,socket}){
                             <Circle color={"red"}className="" style={{width:20,height:20}}/>
                         </Button>
                         <ButtonGroupSeparator/>
-                        <Button variant="default" size="lg" className="hover:bg-gray-800"
+                        <Button variant="default" size={compactMode==1?"lg":"sm"} className={"hover:bg-gray-800"}
                             onClick={()=>{handleSkipBack();
                                 socket.current.emit("handle_skipback_client_to_server",roomID)
                             }}
@@ -614,7 +634,7 @@ export default function AudioBoard({isDemo,socket}){
                             <SkipBack style={{width:20,height:20}} color="orange"/>
                         </Button>
                         <ButtonGroupSeparator/>
-                        <Button variant="default" size="lg" className="hover:bg-gray-800"
+                        <Button variant="default" size={compactMode==1?"lg":"sm"} className="hover:bg-gray-800"
                                 onClick={()=>{
                                         setMetronomeOn(prev=>{
                                             metronomeOnRef.current = !prev;
@@ -632,11 +652,11 @@ export default function AudioBoard({isDemo,socket}){
                                                 />
                         </Button>
                         <ButtonGroupSeparator/>
-                        <Button variant="default" size="lg" onMouseDown={handleTempoMouseDown}>
+                        <Button className={compactMode==1?"test-lg":"text-md"} variant="default" size={compactMode==1?"lg":"sm"} onMouseDown={handleTempoMouseDown}>
                             {BPM}
                         </Button>
                     </ButtonGroup>
-                    <div className="flex flex-row items-center col-start-3">
+                    <div className={"flex flex-row items-center col-start-3 " + (compactMode!=1?"-translate-y-2":"")}>
                         <FaMagnifyingGlass style={{transform:"scale(1.1)",marginRight:3}} className="text-blue-200"/>
                         <Slider style={{width:100}}
                         defaultValue={[20000/32]} max={1000} min={0} step={1} 
@@ -654,7 +674,7 @@ export default function AudioBoard({isDemo,socket}){
                         </Slider>
                     </div>
                     <Popover>
-                        <PopoverTrigger className="col-start-4 hover:underline text-blue-200">Latency</PopoverTrigger>
+                        <PopoverTrigger className={"col-start-4 hover:underline text-blue-200 "+(compactMode!=1?"-translate-y-2":"")}>Latency</PopoverTrigger>
                         <PopoverContent onCloseAutoFocus={()=>setDisplayDelayCompensationMessage(false)}>
                             <div>Place your microphone near your speakers,
                                 turn your volume up,

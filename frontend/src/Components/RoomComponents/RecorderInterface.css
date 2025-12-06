@@ -1,0 +1,8 @@
+.scrollwindow {
+  overflow: auto;
+  scrollbar-width: none; /* Firefox */
+}
+
+.scrollwindow::-webkit-scrollbar {
+  display: none; /* Safari/Chrome */
+}

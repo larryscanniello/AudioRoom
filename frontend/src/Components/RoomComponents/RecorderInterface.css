@@ -1,6 +1,6 @@
-.scrollwindow {
+/*.scrollwindow {
   overflow: auto;
-  scrollbar-width: none; /* Firefox */
+  scrollbar-width: none;
 }
 
 .scrollwindow::-webkit-scrollbar {
@@ -8,3 +8,4 @@
   height:0;
 }
 
+*/

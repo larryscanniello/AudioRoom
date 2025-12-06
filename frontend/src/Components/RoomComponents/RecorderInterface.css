@@ -1,10 +1,10 @@
 .scrollwindow {
   overflow: auto;
   scrollbar-width: none; /* Firefox */
-  scrollbar-gutter: stable both-edges;
 }
 
 .scrollwindow::-webkit-scrollbar {
-  display: none; /* Safari/Chrome */
+  width:0;
+  height:0;
 }
 

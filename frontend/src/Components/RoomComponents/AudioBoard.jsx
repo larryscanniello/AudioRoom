@@ -478,7 +478,7 @@ export default function AudioBoard({isDemo,socket}){
     }else{
         delayCompensationStep = 410;
     }
-    
+    //
 
     return <div className="">
         <div className="w-full grid place-items-center items-center">

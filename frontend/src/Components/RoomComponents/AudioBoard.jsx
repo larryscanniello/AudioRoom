@@ -77,7 +77,6 @@ export default function AudioBoard({isDemo,socket}){
     const AudioCtxRef = useRef(null);
 
     useEffect(()=>{
-        
         if(height<700){
             setCompactMode(4/7);
         }else{
@@ -498,8 +497,12 @@ export default function AudioBoard({isDemo,socket}){
     return <div className="">
         <div className="w-full grid place-items-center items-center">
             <div 
-            className={`grid grid-rows-[1px_${Math.floor(172*compactMode)}px] bg-gray-700 border-gray-500 border-4 rounded-2xl shadow-gray shadow-md`}
-                style={{width:1050,height:Math.floor(232*compactMode)}}>
+            className={`grid bg-gray-700 border-gray-500 border-4 rounded-2xl shadow-gray shadow-md`}
+                style={{
+                    gridTemplateRows: `1px ${Math.floor(172*compactMode)}px`,
+                    width: 1050, 
+                    height: Math.floor(232*compactMode) 
+                }}>
                 <div className={"relative row-start-2 grid pt-3 grid-cols-[20px_100px_0px]"}
                 style={{height:Math.floor(172*compactMode)}}
                 >

@@ -9,10 +9,10 @@ import AuthProvider from './Components/AuthProvider';
 
 const router = createBrowserRouter([
     {
-      element: <AuthProvider><Layout/></AuthProvider>,
+      element: <Layout/>,
       children: [
         { path: "/", element: <Landing/>},
-        { path: "/home", element: <Home/>},
+        { path: "/home", element: <AuthProvider><Home/></AuthProvider>},
         { path: "/room/:roomID", element: <Room/>},
         /*{ path: "/account", element: <Account/>},
         ,

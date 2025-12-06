@@ -1,22 +1,17 @@
 import AudioBoard from "./AudioBoard"
 import { useEffect,useContext,useState, useRef } from "react";
 import { useParams } from "react-router-dom";
-import { AuthContext } from "../AuthProvider";
 import io from "socket.io-client"
 import DailyIframe from '@daily-co/daily-js';
 import { useWindowSize } from "../useWindowSize";
 
 export default function Room(){
-    const auth = useContext(AuthContext);
-          if (!auth) {
-            throw new Error("Home must be used inside AuthProvider");
-          }
-    const [isAuthorized, setIsAuthorized] = auth;
-    const [roomResponse,setRoomResponse] = useState(true);
+    const [roomResponse,setRoomResponse] = useState(false);
     const {roomID} = useParams();
     const socket = useRef(null);
     const [userList,setUserList] = useState([])
     const [width,height] = useWindowSize();
+    const [errorMessage,setErrorMessage] = useState("Loading...")
 
     useEffect(()=>{
         async function verifyRoom(){
@@ -24,14 +19,16 @@ export default function Room(){
                 credentials: "include",
                 method: "GET",
             });
+            console.log(response);
             if (response.ok) {
                 setRoomResponse(true);
                 console.log(`Attempting to join socket room: ${roomID}`);
             } else {
                 setRoomResponse(false);
+                setErrorMessage("Error");
             }
         }
-        //verifyRoom()
+        verifyRoom()
         const newSocket = io(import.meta.env.VITE_BACKEND_URL, { withCredentials: true });
         socket.current = newSocket;
         socket.current.emit("join_room", roomID);
@@ -68,7 +65,7 @@ export default function Room(){
 
 
     return <div>
-    {(roomResponse && isAuthorized) ? 
+    {(roomResponse) ? 
     <div>
     <div className="flex items-center justify-center">
     <div
@@ -92,6 +89,6 @@ export default function Room(){
             </div>
         </div>*/}
     </div> 
-    : <div className="flex flex-col items-center"><div className="text-4xl pt-40">Loading...</div></div>}
+    : <div className="flex flex-col items-center"><div className="text-4xl pt-40">{errorMessage}</div></div>}
     </div>
 }

@@ -13,8 +13,6 @@ const socketManager = async (server,sessionMiddleware) => {
     }
   });
 
-  const userList = []
-
   io.use(sharedSession(sessionMiddleware,{
     autoSave: true,
   }));
@@ -25,7 +23,6 @@ const socketManager = async (server,sessionMiddleware) => {
     if (socket.handshake.session.passport?.user) {
       userID = socket.handshake.session.passport.user;
       console.log("User ID:", userID);
-      
     } else {
       console.log("Unauthenticated socket");
     }
@@ -34,19 +31,12 @@ const socketManager = async (server,sessionMiddleware) => {
     socket.on('join_room', async (roomID) => {
       socket.join(roomID);
       roomIDglobal = roomID;
-      const data = await pool.query("SELECT * FROM USERS WHERE id = $1",[userID]);
-      userList.push([data.rows[0].username,userID])
-      io.to(roomID).emit("user_list_server_to_client",userList)
-      socket.to(roomID).emit('request_audio_server_to_client',{user:userID});
-      console.log(`User ${socket.handshake.session.passport.user} joined room: ${roomID}`);
+      socket.to(roomID).emit('request_audio_server_to_client');
+      console.log(`User has joined room: ${roomID}`);
     });
 
     socket.on("send_audio_client_to_server",(data)=>{
-      if(data.user==="all"){
         socket.to(data.roomID).emit("receive_audio_server_to_client",data)
-      }else{
-        socket.to(data.roomID).emit("receive_audio_server_to_client",data)
-      }
     })
 
     socket.on("client_to_server_play_audio",(data)=>{
@@ -82,17 +72,6 @@ const socketManager = async (server,sessionMiddleware) => {
     socket.on("start_recording_client_to_server",(roomID)=>{
       socket.to(roomID).emit("start_recording_server_to_client");
     });
-
-    socket.on("disconnect",()=>{
-      for(let i=0;i<userList.length;i++){
-        if(userList[i][1]===userID){
-          userList.splice(i,1);
-          console.log(userList)
-          break
-        }
-      }
-      socket.to(roomIDglobal).emit("user_list_server_to_client",userList)
-    })
 
   });
 

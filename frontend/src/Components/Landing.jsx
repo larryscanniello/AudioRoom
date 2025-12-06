@@ -41,7 +41,6 @@ export default function Landing() {
                   className='border w-64 border-gray-700 mb-5 pt-1 pb-1 pl-1 rounded-md bg-gray-100'
                   value={goToRoomValue}
                   onChange={(e) => {
-                    console.log('check-41')
                     setGoToRoomValue(e.target.value);
                   }}
                   placeholder="Enter Room ID"

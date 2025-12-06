@@ -26,8 +26,9 @@ export default function RecorderInterface({
         const handleScroll = () => {
             autoscrollEnabledRef.current = false;
         }
-        scrollWindowRef.current.addEventListener("scroll", handleScroll);
-        return () => scrollWindowRef.current.removeEventListener("scroll", handleScroll);
+        const scrollWindow = scrollWindowRef.current;
+        scrollWindow.addEventListener("scroll", handleScroll);
+        return () => scrollWindow.removeEventListener("scroll", handleScroll);
     },[])
 
     useEffect(()=>{

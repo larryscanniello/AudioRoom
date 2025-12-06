@@ -31,7 +31,7 @@ export default function Room(){
                 setRoomResponse(false);
             }
         }
-        verifyRoom()
+        //verifyRoom()
         const newSocket = io(import.meta.env.VITE_BACKEND_URL, { withCredentials: true });
         socket.current = newSocket;
         socket.current.emit("join_room", roomID);

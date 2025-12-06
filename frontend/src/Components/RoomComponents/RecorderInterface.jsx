@@ -1,4 +1,5 @@
 import { useEffect,useRef,useState } from "react";
+import "./RecorderInterface.css";
 
 export default function RecorderInterface({
     audio,BPM,mouseDragEnd,zoomFactor,delayCompensation,
@@ -325,7 +326,7 @@ export default function RecorderInterface({
 
     }    
 
-    return <div className="grid overflow-x-auto relative border-black border-0 shadow-sm shadow-blak grid-cols-2"
+    return <div className="grid overflow-x-auto relative border-black border-0 shadow-sm shadow-blak grid-cols-2 scrollwindow"
                 style={{width:WAVEFORM_WINDOW_LEN,height:Math.floor(150*compactMode)}} ref={scrollWindowRef}
                 >
                 

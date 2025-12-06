@@ -1,7 +1,7 @@
 .scrollwindow {
   overflow: auto;
   scrollbar-width: none; /* Firefox */
-  scrollbar-gutter: none;
+  scrollbar-gutter: stable both-edges;
 }
 
 .scrollwindow::-webkit-scrollbar {

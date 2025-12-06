@@ -12,7 +12,7 @@ export default function Room(){
             throw new Error("Home must be used inside AuthProvider");
           }
     const [isAuthorized, setIsAuthorized] = auth;
-    const [roomResponse,setRoomResponse] = useState(false);
+    const [roomResponse,setRoomResponse] = useState(true);
     const {roomID} = useParams();
     const socket = useRef(null);
     const [userList,setUserList] = useState([])

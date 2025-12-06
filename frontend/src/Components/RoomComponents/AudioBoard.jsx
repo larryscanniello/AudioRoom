@@ -683,8 +683,10 @@ export default function AudioBoard({isDemo,socket}){
                                 <Button 
                                     variant="default" size="lg" className="bg-white hover:bg-gray-300 border-1 border-gray-400"
                                     onClick={()=>{
-                                        startDelayCompensationRecording(metronomeRef);
-                                        setTimeout(()=>setDisplayDelayCompensationMessage(true),1000)
+                                        if(!currentlyPlayingAudio.current && !currentlyRecording.current){
+                                            startDelayCompensationRecording(metronomeRef);
+                                            setTimeout(()=>setDisplayDelayCompensationMessage(true),1000)
+                                        }
                                     }}
                                     >
                                     <Circle color={"red"}className="" style={{width:20,height:20}}/>
@@ -694,10 +696,17 @@ export default function AudioBoard({isDemo,socket}){
                                 Latency compensatation attempted successfully.</div>}
                             <div className="pt-4">Alternatively, adjust it manually:
                                 <Slider style={{width:100}} max={20000} step={delayCompensationStep}
-                                    onValueChange={(value)=>setDelayCompensation(value)}
-                                    onValueCommit={(value)=>socket.current.emit("send_latency_client_to_server",{
-                                        roomID,delayCompensation:value
-                                    })}
+                                    onValueChange={(value)=>{
+                                        if(!currentlyPlayingAudio.current && !currentlyRecording.current){
+                                            setDelayCompensation(value);
+                                        }
+                                        }}
+                                    onValueCommit={(value)=>{
+                                        if(!currentlyPlayingAudio.current && !currentlyRecording.current){
+                                        socket.current.emit("send_latency_client_to_server",{
+                                        roomID,delayCompensation:value})
+                                        }
+                                    }}
                                     className="p-4"
                                     value={delayCompensation}
                                     > 

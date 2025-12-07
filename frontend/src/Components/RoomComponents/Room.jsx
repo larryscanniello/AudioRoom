@@ -19,7 +19,6 @@ export default function Room(){
                 credentials: "include",
                 method: "GET",
             });
-            console.log(response);
             if (response.ok) {
                 setRoomResponse(true);
                 console.log(`Attempting to join socket room: ${roomID}`);

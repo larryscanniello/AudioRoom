@@ -8,7 +8,8 @@ export const useAudioRecorder = (
   onDelayCompensationComplete, setMouseDragStart, setMouseDragEnd,    
   playheadRef,metronomeOn,waveform1Ref,BPM,scrollWindowRef,currentlyRecording,
   setPlayheadLocation,isDemo,delayCompensation,BPMRef,recorderRef,recordAnimationRef,
-  metronomeOnRef,gain2Ref,metronomeGainRef,WAVEFORM_WINDOW_LEN,autoscrollEnabledRef
+  metronomeOnRef,gain2Ref,metronomeGainRef,WAVEFORM_WINDOW_LEN,autoscrollEnabledRef,
+  setLoadingAudio,otherPersonRecordingRef,setAudio2,
 }
 ) => {
   const mediaRecorderRef = useRef(null);
@@ -169,13 +170,20 @@ export const useAudioRecorder = (
 
   // Recording control functions
 const updatePlayhead = (waveformRef,now) => {
-    if(!currentlyRecording.current){return;}
     const rect = waveformRef.current.getBoundingClientRect();
     const pixelsPerSecond = rect.width/((60/BPMRef.current)*128)
     const waveformCtx = waveformRef.current.getContext("2d");
     const elapsed = AudioCtxRef.current.currentTime - now;
-    setPlayheadLocation(elapsed);                
+    if(!currentlyRecording.current){
+      if(otherPersonRecordingRef.current){
+        otherPersonRecordingRef.current = false;
+        setAudio2(null);
+        setLoadingAudio(elapsed)
+      }
+      return;
+    }
     const x = (elapsed * pixelsPerSecond);
+    setPlayheadLocation(elapsed);                
     if(x>=waveformRef.current.width){
       stopRecording(metRef);
       return

@@ -9,7 +9,7 @@ export default function RecorderInterface({
     playheadLocation,setPlayheadLocation,snapToGrid,
     currentlyPlayingAudio,isDemo,audio2,delayCompensation2,
     WAVEFORM_WINDOW_LEN,autoscrollEnabledRef,setZoomFactor,
-    compactMode,
+    compactMode,loadingAudio
 }){
 
     const canvasContainerRef = useRef(null);
@@ -17,10 +17,13 @@ export default function RecorderInterface({
     const isDraggingPlaybackRegion = useRef(false);
     const mouseDragStartRef = useRef(mouseDragStart);
     const mouseDragEndRef = useRef(mouseDragEnd);
+    const audio2Ref = useRef(null);
 
     //Used to set playhead location in the DOM, and also for calculations on the canvas
     const pxPerSecond = Math.floor(WAVEFORM_WINDOW_LEN*zoomFactor)/(128*60/BPM);
     const playheadPx = playheadLocation*pxPerSecond;
+
+    audio2Ref.current = audio2;
 
     useEffect(()=>{
         const handleScroll = () => {
@@ -183,6 +186,59 @@ export default function RecorderInterface({
                 canvasCtx.fillRect(mouseDragStart.t*pxPerSecond,0,(mouseDragEnd.t-mouseDragStart.t)*pxPerSecond,HEIGHT)
             }
         }
+
+        const fillLoadingAudio = (waveformRef) => {
+            const canvasCtx = waveformRef.current.getContext("2d");
+            const WIDTH = waveformRef.current.width;
+            const HEIGHT = waveformRef.current.height;
+
+            canvasCtx.clearRect(0, 0, WIDTH, HEIGHT);
+
+            // Shaded loading region
+            canvasCtx.globalAlpha = 0.75;
+            canvasCtx.fillStyle = "rgb(204, 137, 49,.5)";
+            canvasCtx.fillRect(0, 0, loadingAudio * pxPerSecond, HEIGHT);
+
+            // Sine wave styling
+            canvasCtx.globalAlpha = 1;
+            canvasCtx.lineWidth = 1;
+            canvasCtx.strokeStyle = "rgb(250,250,250)";
+            canvasCtx.beginPath();
+
+            // 🔊 Sine wave parameters
+            const amplitude = (audioCtxRef.current.currentTime * 10) % (HEIGHT / 4);
+            const centerY = HEIGHT / 2;
+            const frequency = 100; // number of cycles across the width
+            const phase = (audioCtxRef.current.currentTime/100) % (2 * Math.PI);
+
+            // Draw the sine wave
+            let x = 0;
+
+            for (let i = 0; i <= loadingAudio * pxPerSecond; i++) {
+                const y =
+                centerY +
+                amplitude * Math.sin((phase + (i / WIDTH)) * frequency * 2 * Math.PI);
+
+                if (i === 0) {
+                canvasCtx.moveTo(x, y);
+                } else {
+                canvasCtx.lineTo(x, y);
+                }
+
+                x += 1;
+            }
+
+            canvasCtx.stroke();
+
+            if(audio2Ref.current==null){
+                requestAnimationFrame(()=>fillLoadingAudio(waveformRef))
+            }else{
+                return;
+            }
+
+            
+        };
+
         if(waveform1Ref.current){
             fillSelectedRegion(waveform1Ref);
             if(audio){
@@ -190,14 +246,19 @@ export default function RecorderInterface({
             }
         }
         if(waveform2Ref.current){
-            fillSelectedRegion(waveform2Ref);
-            if(audio2){
-                drawWaveform(waveform2Ref,audio2,delayCompensation2[0],2);
+            if(loadingAudio>0 && audio2!=null){
+                fillLoadingAudio(waveform2Ref);
+            }else{
+                fillSelectedRegion(waveform2Ref);
+                if(audio2){
+                    drawWaveform(waveform2Ref,audio2,delayCompensation2[0],2);
+                }
+                
             }
         }
     
     
-    },[audio,audio2,BPM,mouseDragStart,mouseDragEnd,zoomFactor,delayCompensation,delayCompensation2,snapToGrid,compactMode]);
+    },[audio,audio2,BPM,mouseDragStart,mouseDragEnd,zoomFactor,delayCompensation,delayCompensation2,snapToGrid,compactMode,loadingAudio]);
 
     const handleCanvasMouseDown = (e) => {
         if(currentlyPlayingAudio.current) return;

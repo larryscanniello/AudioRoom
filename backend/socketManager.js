@@ -20,7 +20,7 @@ const socketManager = async (server,sessionMiddleware) => {
   io.on('connection', async (socket) => {
     let userID;
     let roomIDglobal;
-    if (socket.handshake.session.passport?.user) {
+    if (socket?.handshake?.session?.passport?.user) {
       userID = socket.handshake.session.passport.user;
       console.log("User ID:", userID);
     } else {

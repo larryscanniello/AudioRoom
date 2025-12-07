@@ -50,6 +50,7 @@ export default function AudioBoard({isDemo,socket}){
     const [track1Muted,setTrack1Muted] = useState(false);
     const [track2Muted,setTrack2Muted] = useState(false);
     const [compactMode,setCompactMode] = useState(height < 700 ? (4/7) : 1);
+    const [loadingAudio,setLoadingAudio] = useState(0);
 
     const waveform1Ref = useRef(null);
     const waveform2Ref = useRef(null);
@@ -59,6 +60,7 @@ export default function AudioBoard({isDemo,socket}){
     const scrollWindowRef = useRef(null);
     const controlPanelRef = useRef(null);
     const autoscrollEnabledRef = useRef(false);
+    const otherPersonRecordingRef = useRef(false);
 
     const handlePlayAudioRef = useRef(null);
     const currentlyPlayingAudio = useRef(false); //this ref stores a bool depending on whether audio is playing
@@ -97,7 +99,8 @@ export default function AudioBoard({isDemo,socket}){
                                             metronomeOn,waveform1Ref,waveform2Ref,BPM,scrollWindowRef,
                                             currentlyRecording,setPlayheadLocation,isDemo,delayCompensation,
                                             recorderRef,recordAnimationRef,metronomeOnRef,gain2Ref,
-                                            metronomeGainRef,WAVEFORM_WINDOW_LEN,autoscrollEnabledRef})
+                                            metronomeGainRef,WAVEFORM_WINDOW_LEN,autoscrollEnabledRef,
+                                            otherPersonRecordingRef,setLoadingAudio,setAudio2})
     
 
     useEffect(() => {
@@ -151,6 +154,7 @@ export default function AudioBoard({isDemo,socket}){
             setMouseDragEnd(null);
             setPlayheadLocation(0);
             setAudio2(audioBuffer);
+            setLoadingAudio(0);
         }
 
 
@@ -272,6 +276,7 @@ export default function AudioBoard({isDemo,socket}){
             socket.current.on("start_recording_server_to_client",()=>{
                 currentlyRecording.current = true;
                 recordAnimationRef.current(waveform2Ref,AudioCtxRef.current.currentTime);
+                otherPersonRecordingRef.current = true;
             });
         }
 
@@ -586,7 +591,7 @@ export default function AudioBoard({isDemo,socket}){
                                 setSnapToGrid={setSnapToGrid} isDemo={isDemo} waveform2Ref={waveform2Ref}
                                 audio2={audio2} delayCompensation2={delayCompensation2}
                                 WAVEFORM_WINDOW_LEN={WAVEFORM_WINDOW_LEN} autoscrollEnabledRef={autoscrollEnabledRef}
-                                setZoomFactor={setZoomFactor} compactMode={compactMode}
+                                setZoomFactor={setZoomFactor} compactMode={compactMode} loadingAudio={loadingAudio}
                     />
                     <Button variant="default" size={compactMode==1?"lg":"sm"} onClick={()=>setSnapToGrid(prev=>!prev)} 
                         className="border-1 border-gray-300 hover:bg-gray-800"

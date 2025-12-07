@@ -36,7 +36,6 @@ export default function AudioBoard({isDemo,socket}){
     const [mouseDragStart,setMouseDragStart] = useState(isDemo ? {trounded:2.142857142857143,t:2.142857142857143} : {trounded:0,t:0}); //time in seconds
     const [mouseDragEnd,setMouseDragEnd] = useState(isDemo ? {trounded:10.714285714285714,t:10.714285714285714}: null); //time in seconds
     const [roomResponse,setRoomResponse] = useState(null);
-    const [audioChunks,setAudioChunks] = useState([]);
     const [zoomFactor,setZoomFactor] = useState(2);
     const [delayCompensation,setDelayCompensation] = useState([0]); //delayCompensation is in samples
     const [delayCompensation2,setDelayCompensation2] = useState([0]);
@@ -75,6 +74,8 @@ export default function AudioBoard({isDemo,socket}){
     const metronomeOnRef = useRef(true);
     const metronomeGainRef = useRef(true);
 
+    const audioChunksRef = useRef([]);
+
     const metronomeRef = useRef(null);
     const AudioCtxRef = useRef(null);
 
@@ -93,7 +94,7 @@ export default function AudioBoard({isDemo,socket}){
             stopRecording,
             startDelayCompensationRecording,
             isRecorderReady} = useAudioRecorder({AudioCtxRef,metronomeRef,socket,roomID,
-                                            setAudio,setAudioURL,setAudioChunks,
+                                            setAudio,setAudioURL,audioChunksRef,
                                             setMouseDragStart,BPMRef,
                                             setMouseDragEnd,playheadRef,setDelayCompensation,
                                             metronomeOn,waveform1Ref,waveform2Ref,BPM,scrollWindowRef,
@@ -149,7 +150,7 @@ export default function AudioBoard({isDemo,socket}){
             const audioBuffer = AudioCtxRef.current.createBuffer(1,fullBuffer.length,AudioCtxRef.current.sampleRate);
             audioBuffer.copyToChannel(fullBuffer,0);
 
-            setAudioChunks(recordedBuffers);
+            audioChunksRef.current = recordedBuffers;
             setMouseDragStart({trounded:0,t:0});
             setMouseDragEnd(null);
             setPlayheadLocation(0);
@@ -189,33 +190,22 @@ export default function AudioBoard({isDemo,socket}){
         if(!isDemo){
             socket.current.on("receive_audio_server_to_client", async (data) => {
                 if(data.i==0){
-                    setAudioChunks(()=>{
-                        if(data.length===1){
-                            currentlyRecording.current = false;
-                            processAudio([data.audio])
-                            setMouseDragStart({trounded:0,t:0});
-                            setMouseDragEnd(null);
-                            setPlayheadLocation(0);
-                        }
-                        return [data.audio]
-                    })
+                    audioChunksRef.current = [data.audio];
+                    currentlyRecording.current = false;
+                    processAudio([data.audio]);
+                    setMouseDragStart({trounded:0,t:0});
+                    setMouseDragEnd(null);
+                    setPlayheadLocation(0);
                 }else {
-                    setAudioChunks(prev => {
-                        if(data.i!=prev.length){
-                            return prev
-                        }
-
-                        const newchunks = [...prev, data.audio]
-                        
-                        if(data.length==newchunks.length){
-                            currentlyRecording.current = false;
-                            processAudio(newchunks);
-                            setMouseDragStart({trounded:0,t:0});
-                            setMouseDragEnd(null);
-                            setPlayheadLocation(0);
-                        }
-                        return newchunks
-                    });
+                    const newchunks = [...audioChunksRef.current,data.audio];
+                    audioChunksRef.current = newchunks;
+                    if(data.length==newchunks.length){
+                        currentlyRecording.current = false;
+                        processAudio(newchunks);
+                        setMouseDragStart({trounded:0,t:0});
+                        setMouseDragEnd(null);
+                        setPlayheadLocation(0);
+                    }
                 }
                 setDelayCompensation2(data.delayCompensation)
             });
@@ -245,19 +235,18 @@ export default function AudioBoard({isDemo,socket}){
             })
             
             socket.current.on("request_audio_server_to_client", (data) => {
-                setAudioChunks(currentChunks => {
-                    if(currentChunks && currentChunks.length > 0){
-                        for(let i = 0; i < currentChunks.length; i++){
+                const currentChunks = audioChunksRef.current;
+                if(currentChunks && currentChunks.length > 0){
+                    const currentChunks = audioChunksRef.current;
+                    for(let i = 0; i < currentChunks.length; i++){
                             socket.current.emit("send_audio_client_to_server", {
                                 audio: currentChunks[i],roomID,
-                                i,user: data.user,
+                                i,
                                 length: currentChunks.length,
                                 delayCompensation,
                             });
                         }
-                    }
-                    return currentChunks;
-                });
+                }
             })
             
             socket.current.on("send_bpm_server_to_client",bpm=>{
@@ -297,7 +286,6 @@ export default function AudioBoard({isDemo,socket}){
 
     useEffect(() => {
         handlePlayAudioRef.current = handlePlayAudio;
-
     });
 
 

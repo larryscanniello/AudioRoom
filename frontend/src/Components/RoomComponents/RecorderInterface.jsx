@@ -35,6 +35,9 @@ export default function RecorderInterface({
     },[])
 
     useEffect(()=>{
+
+        let animationFrameId;
+
         if(canvasContainerRef.current){
             //draws the canvas background
             const canvas = canvasContainerRef.current;
@@ -124,6 +127,7 @@ export default function RecorderInterface({
         }
 
         const drawWaveform = (canvRef,drawWaveformAudio,delayComp,tracknum) => {
+                console.log('chek011')
                 const canvasCtx = canvRef.current.getContext('2d');
                 const WIDTH = canvRef.current.width;
                 const HEIGHT = canvRef.current.height;
@@ -187,7 +191,8 @@ export default function RecorderInterface({
             }
         }
 
-        const fillLoadingAudio = (waveformRef) => {
+        
+        const fillLoadingAudio = (waveformRef,textPos) => {
             const canvasCtx = waveformRef.current.getContext("2d");
             const WIDTH = waveformRef.current.width;
             const HEIGHT = waveformRef.current.height;
@@ -195,48 +200,37 @@ export default function RecorderInterface({
             canvasCtx.clearRect(0, 0, WIDTH, HEIGHT);
 
             // Shaded loading region
-            canvasCtx.globalAlpha = 0.75;
-            canvasCtx.fillStyle = "rgb(204, 137, 49,.5)";
+            canvasCtx.globalAlpha = 0.12;
+            canvasCtx.fillStyle = "rgb(0,125,225)";
             canvasCtx.fillRect(0, 0, loadingAudio * pxPerSecond, HEIGHT);
 
             // Sine wave styling
             canvasCtx.globalAlpha = 1;
             canvasCtx.lineWidth = 1;
             canvasCtx.strokeStyle = "rgb(250,250,250)";
+
+            canvasCtx.save();
+
             canvasCtx.beginPath();
 
-            // 🔊 Sine wave parameters
-            const amplitude = (audioCtxRef.current.currentTime * 10) % (HEIGHT / 4);
-            const centerY = HEIGHT / 2;
-            const frequency = 100; // number of cycles across the width
-            const phase = (audioCtxRef.current.currentTime/100) % (2 * Math.PI);
+            canvasCtx.moveTo(0,0);
+            canvasCtx.lineTo(0,HEIGHT);
+            canvasCtx.lineTo(loadingAudio * pxPerSecond,HEIGHT);
+            canvasCtx.lineTo(loadingAudio * pxPerSecond,0);
 
-            // Draw the sine wave
-            let x = 0;
+            canvasCtx.clip();
 
-            for (let i = 0; i <= loadingAudio * pxPerSecond; i++) {
-                const y =
-                centerY +
-                amplitude * Math.sin((phase + (i / WIDTH)) * frequency * 2 * Math.PI);
+            canvasCtx.font = "14px sans-serif"
 
-                if (i === 0) {
-                canvasCtx.moveTo(x, y);
-                } else {
-                canvasCtx.lineTo(x, y);
-                }
-
-                x += 1;
+            for(let i=-68; i < loadingAudio * pxPerSecond + 68; i+=200){
+                canvasCtx.fillStyle = "rgb(0,0,0)"
+                canvasCtx.fillText("Loading audio...",textPos + i,HEIGHT/2);
             }
-
             canvasCtx.stroke();
 
-            if(audio2Ref.current==null){
-                requestAnimationFrame(()=>fillLoadingAudio(waveformRef))
-            }else{
-                return;
-            }
+            canvasCtx.restore();
 
-            
+            animationFrameId = requestAnimationFrame(()=>fillLoadingAudio(waveformRef,(textPos+1)%200))
         };
 
         if(waveform1Ref.current){
@@ -246,8 +240,8 @@ export default function RecorderInterface({
             }
         }
         if(waveform2Ref.current){
-            if(loadingAudio>0 && audio2!=null){
-                fillLoadingAudio(waveform2Ref);
+            if(loadingAudio>0 || audio2==null){
+                fillLoadingAudio(waveform2Ref,0);
             }else{
                 fillSelectedRegion(waveform2Ref);
                 if(audio2){
@@ -257,6 +251,11 @@ export default function RecorderInterface({
             }
         }
     
+        return () => {
+            if(animationFrameId){
+                cancelAnimationFrame(animationFrameId);
+            }
+        }
     
     },[audio,audio2,BPM,mouseDragStart,mouseDragEnd,zoomFactor,delayCompensation,delayCompensation2,snapToGrid,compactMode,loadingAudio]);
 

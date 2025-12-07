@@ -4,7 +4,7 @@ import { useRef, useEffect, useState } from 'react';
 
 export const useAudioRecorder = (
   {AudioCtxRef, metronomeRef,socket, roomID, setAudio,
-  setAudioChunks,setAudioURL,setDelayCompensation, setDelayCompensationAudio, 
+  audioChunksRef,setAudioURL,setDelayCompensation, setDelayCompensationAudio, 
   onDelayCompensationComplete, setMouseDragStart, setMouseDragEnd,    
   playheadRef,metronomeOn,waveform1Ref,BPM,scrollWindowRef,currentlyRecording,
   setPlayheadLocation,isDemo,delayCompensation,BPMRef,recorderRef,recordAnimationRef,
@@ -89,7 +89,7 @@ export const useAudioRecorder = (
           const audioBuffer = AudioCtxRef.current.createBuffer(1,fullBuffer.length,AudioCtxRef.current.sampleRate);
           audioBuffer.copyToChannel(fullBuffer,0);
 
-          setAudioChunks(recordedBuffers);
+          audioChunksRef.current = recordedBuffers;
           setAudio(audioBuffer);
 
           setPlayheadLocation(0);

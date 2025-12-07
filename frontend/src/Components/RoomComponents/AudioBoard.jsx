@@ -191,12 +191,13 @@ export default function AudioBoard({isDemo,socket}){
             socket.current.on("receive_audio_server_to_client", async (data) => {
                 if(data.i==0){
                     audioChunksRef.current = [data.audio];
-                    currentlyRecording.current = false;
-                    processAudio([data.audio]);
-                    setMouseDragStart({trounded:0,t:0});
-                    setMouseDragEnd(null);
-                    setPlayheadLocation(0);
-                    
+                    if(data.length==1){
+                        currentlyRecording.current = false;
+                        processAudio([data.audio]);
+                        setMouseDragStart({trounded:0,t:0});
+                        setMouseDragEnd(null);
+                        setPlayheadLocation(0);
+                    }
                 }else {
                     const newchunks = [...audioChunksRef.current,data.audio];
                     audioChunksRef.current = newchunks;

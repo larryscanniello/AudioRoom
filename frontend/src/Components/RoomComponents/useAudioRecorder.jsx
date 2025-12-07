@@ -75,8 +75,7 @@ export const useAudioRecorder = (
             }
           }
           recordedBuffers = chunks;
-          
-  
+            
           const length = recordedBuffers.reduce((sum,arr) => sum+arr.length,0)
           const fullBuffer = new Float32Array(length);
           let offset = 0;
@@ -85,7 +84,6 @@ export const useAudioRecorder = (
             offset += arr.length;
           }
         
-
           const audioBuffer = AudioCtxRef.current.createBuffer(1,fullBuffer.length,AudioCtxRef.current.sampleRate);
           audioBuffer.copyToChannel(fullBuffer,0);
 

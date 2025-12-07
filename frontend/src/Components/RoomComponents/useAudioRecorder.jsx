@@ -64,6 +64,7 @@ export const useAudioRecorder = (
         };
         
         processor.port.onmessage = (event) => {
+          //handles main recording being stopped
           let recordedBuffers = event.data.buffer;
           if(recordedBuffers.length==0){return;}
           let chunks = [];
@@ -91,6 +92,7 @@ export const useAudioRecorder = (
           setAudio(audioBuffer);
 
           setPlayheadLocation(0);
+          setLoadingAudio({track:1,time:length/AudioCtxRef.current.sampleRate});
 
           if(!isDemo){
             for (let i = 0; i < recordedBuffers.length; i++) {
@@ -116,6 +118,7 @@ export const useAudioRecorder = (
         delayCompRecorder.connect(AudioCtxRef.current.destination);
 
         delayCompRecorder.port.onmessage = (event) => {
+          //handles delay comp recording being stopped
             console.log("Delay compensation recorder stopped");
             const recordedBuffers = event.data.buffer;
             const length = recordedBuffers.reduce((sum,arr) => sum+arr.length,0)
@@ -164,6 +167,8 @@ export const useAudioRecorder = (
   //[AudioCtxRef.current, roomID, socket, delayCompensation,recorderRef.current]);
 
   const startRecording = () => {
+    //this used to have stuff, now it doesn't, but I'm keeping it for now to not break anything, and also in case I want something here later
+    //start recording logic is handled by a function in the above effect
   }
 
   // Recording control functions
@@ -176,7 +181,7 @@ const updatePlayhead = (waveformRef,now) => {
       if(otherPersonRecordingRef.current){
         otherPersonRecordingRef.current = false;
         setAudio2(null);
-        setLoadingAudio(elapsed)
+        setLoadingAudio({track:2,time:elapsed})
       }
       return;
     }

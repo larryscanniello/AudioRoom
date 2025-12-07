@@ -49,7 +49,7 @@ export default function AudioBoard({isDemo,socket}){
     const [track1Muted,setTrack1Muted] = useState(false);
     const [track2Muted,setTrack2Muted] = useState(false);
     const [compactMode,setCompactMode] = useState(height < 700 ? (4/7) : 1);
-    const [loadingAudio,setLoadingAudio] = useState(0);
+    const [loadingAudio,setLoadingAudio] = useState(null);
 
     const waveform1Ref = useRef(null);
     const waveform2Ref = useRef(null);
@@ -155,7 +155,8 @@ export default function AudioBoard({isDemo,socket}){
             setMouseDragEnd(null);
             setPlayheadLocation(0);
             setAudio2(audioBuffer);
-            setLoadingAudio(0);
+            setLoadingAudio(null);
+            socket.current.emit("client_to_server_incoming_audio_done_processing",roomID);
         }
 
 
@@ -269,6 +270,10 @@ export default function AudioBoard({isDemo,socket}){
                 recordAnimationRef.current(waveform2Ref,AudioCtxRef.current.currentTime);
                 otherPersonRecordingRef.current = true;
             });
+
+            socket.current.on("server_to_client_incoming_audio_done_processing",()=>{
+                setLoadingAudio(null);
+            })
         }
 
         

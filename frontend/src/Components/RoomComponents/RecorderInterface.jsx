@@ -18,6 +18,8 @@ export default function RecorderInterface({
     const mouseDragStartRef = useRef(mouseDragStart);
     const mouseDragEndRef = useRef(mouseDragEnd);
     const audio2Ref = useRef(null);
+    const animation1Ref = useRef(null);
+    const animation2Ref = useRef(null);
 
     //Used to set playhead location in the DOM, and also for calculations on the canvas
     const pxPerSecond = Math.floor(WAVEFORM_WINDOW_LEN*zoomFactor)/(128*60/BPM);
@@ -35,166 +37,196 @@ export default function RecorderInterface({
     },[])
 
     useEffect(()=>{
-
-        let animationFrameId;
-
-        if(canvasContainerRef.current){
-            //draws the canvas background
-            const canvas = canvasContainerRef.current;
-            const canvasContainerCtx = canvasContainerRef.current.getContext("2d");
-            const WIDTH = canvas.width;
-            const HEIGHT = canvas.height;
-            canvasContainerCtx.clearRect(0,0,WIDTH,HEIGHT);
-            canvasContainerCtx.fillStyle = "rgb(200,200,200)"
-            canvasContainerCtx.fillRect(0,0,WIDTH,HEIGHT);
-            const drawBeats = () => {
-                //draws the lower canvas beat lines
-                canvasContainerCtx.lineWidth = 1;
-                canvasContainerCtx.strokeStyle = "rgb(250,250,250)";
-                canvasContainerCtx.beginPath();
-                canvasContainerCtx.globalAlpha = 1
-                const sliceWidth =  WIDTH / 128;  // Space between each of the 128 lines
-                let audioLength, bufferLength;
-                if(audio){
-                    const dataArray = audio.getChannelData(0);
-                    bufferLength = dataArray.length;
-                    audioLength = audioCtxRef.current.sampleRate*128*(60/BPM)
-                }
-                for(let i = 0; i <= 128; i++) {
-                    if(audio){
-                        if(i/128<bufferLength/audioLength){
-                            //temporarily defunct, omits beat lines where waveform is
-                            //continue
-                        }
-                    }
-                    if(zoomFactor<8){
-                        //if zoomed in far enough, only show beat line every measure
-                        if(i%4>=1){
-                            continue
-                        }
-                    }
-                    const x = Math.round(i * sliceWidth);   
-                    canvasContainerCtx.moveTo(x, 0);
-                    canvasContainerCtx.lineTo(x, HEIGHT);
-                }
-                canvasContainerCtx.stroke();
-            }
-            drawBeats()
-            //draw the line separating the two tracks
-            canvasContainerCtx.beginPath();
-            canvasContainerCtx.strokeStyle = "rgb(0,0,0)";
-            canvasContainerCtx.lineWidth = 1.5;
-            canvasContainerCtx.globalAlpha = .3;
-            canvasContainerCtx.moveTo(0,HEIGHT/2);
-            canvasContainerCtx.lineTo(WIDTH,HEIGHT/2);
-            canvasContainerCtx.stroke();
-            canvasContainerCtx.globalAlpha = 1;
+        if(canvasContainerRef.current){ 
+            drawCanvasContainer();
         }
         if(measureTickRef.current){
-            //draws the upper measure ticks and numbers
-            const tickref = measureTickRef.current
-            const tickCtx = tickref.getContext("2d");
-            const WIDTH = tickref.width;
-            const HEIGHT = tickref.height;
-            tickCtx.clearRect(0,0,WIDTH,HEIGHT);
-            tickCtx.fillStyle = "rgb(175,175,175)"
-            tickCtx.fillRect(0,0,WIDTH,HEIGHT);
-            if(mouseDragEnd&&snapToGrid){
-                tickCtx.fillStyle = "rgb(225,125,0,.25)"
-                tickCtx.fillRect(mouseDragStart.trounded*pxPerSecond,0,(mouseDragEnd.trounded-mouseDragStart.trounded)*pxPerSecond,HEIGHT)
-            }
-            if(mouseDragEnd&&!snapToGrid){
-                tickCtx.fillStyle = "rgb(225,125,0,.25)"
-                tickCtx.fillRect(mouseDragStart.t*pxPerSecond,0,(mouseDragEnd.t-mouseDragStart.t)*pxPerSecond,HEIGHT)
-            }
-            tickCtx.lineWidth = 5;
-            const sliceWidth = WIDTH/128;
-            tickCtx.strokeStyle = "rgb(250,250,250)"
-            tickCtx.lineWidth = 1;
-            tickCtx.font = "12px sans-serif";
-            tickCtx.fillStyle = "#1a1a1a";
-            for(let i=1;i<=128;i++){
-                tickCtx.moveTo(i*sliceWidth,HEIGHT);
-                if(i%4==0){
-                    tickCtx.lineTo(i*sliceWidth,HEIGHT/2)
-                    tickCtx.fillText((i/4), (i-4)*(sliceWidth)+(2*sliceWidth/12), 4*HEIGHT/6); 
-
-                }else{
-                    tickCtx.lineTo(i*sliceWidth,5*HEIGHT/6)
-                }
-            }
-            tickCtx.stroke();
+            drawMeasureTicks();
         }
+    },[compactMode,zoomFactor]);
 
-        const drawWaveform = (canvRef,drawWaveformAudio,delayComp,tracknum) => {
-                const canvasCtx = canvRef.current.getContext('2d');
-                const WIDTH = canvRef.current.width;
-                const HEIGHT = canvRef.current.height;
-                canvasCtx.lineWidth =  1;
-                canvasCtx.strokeStyle = "rgb(0,0,0)";
-                canvasCtx.globalAlpha = 1.0
-                
-                canvasCtx.lineWidth = 1.5; // slightly thicker than 1px
-                canvasCtx.strokeStyle = "#1c1e22";
-                canvasCtx.lineCap = "round";
-                canvasCtx.lineJoin = "round";
+    useEffect(()=>{
+        if(mouseDragEnd){
+            //fillSelectedRegion(waveform1Ref);
+            //fillSelectedRegion(waveform2Ref);
+        }
+    },[mouseDragStart,mouseDragEnd]);
 
-                const dataArray = drawWaveformAudio.getChannelData(0);
-                const bufferLength = dataArray.length;
-                
-                //const sliceWidth = (WIDTH/128.0)/(audioCtxRef.current.sampleRate*(60/BPM));
-                const scaleFactor = (bufferLength)/(audioCtxRef.current.sampleRate*128*(60/BPM));
-                const samplesPerPixel = Math.ceil((bufferLength) / (WIDTH*scaleFactor));
-                canvasCtx.beginPath();
-                let lastx;
-                //algorithm: each pixel gets min/max of a range of samples
-                for (let x = 0; x < WIDTH; x++) {
-                    const start = x * samplesPerPixel+delayComp
-                    const end = Math.min(start + samplesPerPixel, bufferLength);
-                    let min = 1.0, max = -1.0;
-                    for (let i = start; i < end; i++) {
-                        const val = dataArray[i];
-                        if (val < min) min = val;
-                        if (val > max) max = val;
-                    }
-                    const y1 = ((1 + min) * HEIGHT) / 2;
-                    const y2 = ((1 + max) * HEIGHT) / 2;
-                    canvasCtx.moveTo(x, y1);
-                    canvasCtx.lineTo(x, y2);
-                    lastx = x;
-                    if(end==bufferLength){
-                        break
-                    }
-                }
-                canvasCtx.moveTo(0,HEIGHT/2);
-                canvasCtx.lineTo(lastx,HEIGHT/2);
-                if(animationFrameId){
-                    cancelAnimationFrame(animationFrameId);
-                }
-                canvasCtx.stroke();
-                canvasCtx.fillStyle = tracknum===2 ? "rgb(0,125,225)" : "rgb(0,200,160)"
-                canvasCtx.globalAlpha = .12
-                canvasCtx.fillRect(0,0,lastx,HEIGHT)
+    useEffect(()=>{
+        fillSelectedRegion(waveform1Ref);
+        if(loadingAudio && loadingAudio.track==1){
+            fillLoadingAudio(waveform1Ref,0,1);
+        }else if(audio){
+            drawWaveform(waveform1Ref,audio,delayCompensation[0],1);
+        }   
+        fillSelectedRegion(waveform2Ref);
+        if(audio2){
+            drawWaveform(waveform2Ref,audio2,delayCompensation2[0],2);
+        }else if(loadingAudio && loadingAudio.track==2){
+            fillLoadingAudio(waveform2Ref,0,2);
+        }
+        return ()=> {
+            if(animation1Ref.current){
+                cancelAnimationFrame(animation1Ref.current);
             }
-        
-        const fillSelectedRegion = (waveformRef) => {
-            const canvasCtx = waveformRef.current.getContext("2d");
-            const WIDTH = waveformRef.current.width;
-            const HEIGHT = waveformRef.current.height;
-            canvasCtx.clearRect(0,0,WIDTH,HEIGHT);   
-            canvasCtx.globalAlpha = .2
-            if(mouseDragEnd&&snapToGrid){
-                canvasCtx.fillStyle = "rgb(75,75,75,.5)"
-                canvasCtx.fillRect(mouseDragStart.trounded*pxPerSecond,0,(mouseDragEnd.trounded-mouseDragStart.trounded)*pxPerSecond,HEIGHT)
-            }
-            if(mouseDragEnd&&!snapToGrid){
-                canvasCtx.fillStyle = "rgb(75,75,75,.5)"
-                canvasCtx.fillRect(mouseDragStart.t*pxPerSecond,0,(mouseDragEnd.t-mouseDragStart.t)*pxPerSecond,HEIGHT)
+            if(animation2Ref.current){
+                cancelAnimationFrame(animation2Ref.current);
             }
         }
+    },[audio,audio2,delayCompensation,delayCompensation2,mouseDragStart,mouseDragEnd,loadingAudio]);
 
+    function drawCanvasContainer(){
+        const canvas = canvasContainerRef.current;
+        const canvasContainerCtx = canvasContainerRef.current.getContext("2d");
+        const WIDTH = canvas.width;
+        const HEIGHT = canvas.height;
+        canvasContainerCtx.clearRect(0,0,WIDTH,HEIGHT);
+        canvasContainerCtx.fillStyle = "rgb(200,200,200)"
+        canvasContainerCtx.fillRect(0,0,WIDTH,HEIGHT);
+        const drawBeats = () => {
+            //draws the lower canvas beat lines
+            canvasContainerCtx.lineWidth = 1;
+            canvasContainerCtx.strokeStyle = "rgb(250,250,250)";
+            canvasContainerCtx.beginPath();
+            canvasContainerCtx.globalAlpha = 1
+            const sliceWidth =  WIDTH / 128;  // Space between each of the 128 lines
+            let audioLength, bufferLength;
+            if(audio){
+                const dataArray = audio.getChannelData(0);
+                bufferLength = dataArray.length;
+                audioLength = audioCtxRef.current.sampleRate*128*(60/BPM)
+            }
+            for(let i = 0; i <= 128; i++) {
+                if(audio){
+                    if(i/128<bufferLength/audioLength){
+                        //temporarily defunct, omits beat lines where waveform is
+                        //continue
+                    }
+                }
+                if(zoomFactor<8){
+                    //if zoomed in far enough, only show beat line every measure
+                    if(i%4>=1){
+                        continue
+                    }
+                }
+                const x = Math.round(i * sliceWidth);   
+                canvasContainerCtx.moveTo(x, 0);
+                canvasContainerCtx.lineTo(x, HEIGHT);
+            }
+            canvasContainerCtx.stroke();
+        }
+        drawBeats()
+        //draw the line separating the two tracks
+        canvasContainerCtx.beginPath();
+        canvasContainerCtx.strokeStyle = "rgb(0,0,0)";
+        canvasContainerCtx.lineWidth = 1.5;
+        canvasContainerCtx.globalAlpha = .3;
+        canvasContainerCtx.moveTo(0,HEIGHT/2);
+        canvasContainerCtx.lineTo(WIDTH,HEIGHT/2);
+        canvasContainerCtx.stroke();
+        canvasContainerCtx.globalAlpha = 1;
+    }
+
+    function drawMeasureTicks(){
+        const tickref = measureTickRef.current
+        const tickCtx = tickref.getContext("2d");
+        const WIDTH = tickref.width;
+        const HEIGHT = tickref.height;
+        tickCtx.clearRect(0,0,WIDTH,HEIGHT);
+        tickCtx.fillStyle = "rgb(175,175,175)"
+        tickCtx.fillRect(0,0,WIDTH,HEIGHT);
+        if(mouseDragEnd&&snapToGrid){
+            tickCtx.fillStyle = "rgb(225,125,0,.25)"
+            tickCtx.fillRect(mouseDragStart.trounded*pxPerSecond,0,(mouseDragEnd.trounded-mouseDragStart.trounded)*pxPerSecond,HEIGHT)
+        }
+        if(mouseDragEnd&&!snapToGrid){
+            tickCtx.fillStyle = "rgb(225,125,0,.25)"
+            tickCtx.fillRect(mouseDragStart.t*pxPerSecond,0,(mouseDragEnd.t-mouseDragStart.t)*pxPerSecond,HEIGHT)
+        }
+        tickCtx.lineWidth = 5;
+        const sliceWidth = WIDTH/128;
+        tickCtx.strokeStyle = "rgb(250,250,250)"
+        tickCtx.lineWidth = 1;
+        tickCtx.font = "12px sans-serif";
+        tickCtx.fillStyle = "#1a1a1a";
+        for(let i=1;i<=128;i++){
+            tickCtx.moveTo(i*sliceWidth,HEIGHT);
+            if(i%4==0){
+                tickCtx.lineTo(i*sliceWidth,HEIGHT/2)
+                tickCtx.fillText((i/4), (i-4)*(sliceWidth)+(2*sliceWidth/12), 4*HEIGHT/6); 
+
+            }else{
+                tickCtx.lineTo(i*sliceWidth,5*HEIGHT/6)
+            }
+        }
+        tickCtx.stroke();
+    }
+
+    function drawWaveform(canvRef,drawWaveformAudio,delayComp,tracknum){
+        const canvasCtx = canvRef.current.getContext('2d');
+        const WIDTH = canvRef.current.width;
+        const HEIGHT = canvRef.current.height;
+        canvasCtx.lineWidth =  1;
+        canvasCtx.strokeStyle = "rgb(0,0,0)";
+        canvasCtx.globalAlpha = 1.0
         
-        const fillLoadingAudio = (waveformRef,textPos) => {
+        canvasCtx.lineWidth = 1.5; // slightly thicker than 1px
+        canvasCtx.strokeStyle = "#1c1e22";
+        canvasCtx.lineCap = "round";
+        canvasCtx.lineJoin = "round";
+
+        const dataArray = drawWaveformAudio.getChannelData(0);
+        const bufferLength = dataArray.length;
+        
+        //const sliceWidth = (WIDTH/128.0)/(audioCtxRef.current.sampleRate*(60/BPM));
+        const scaleFactor = (bufferLength)/(audioCtxRef.current.sampleRate*128*(60/BPM));
+        const samplesPerPixel = Math.ceil((bufferLength) / (WIDTH*scaleFactor));
+        canvasCtx.beginPath();
+        let lastx;
+        //algorithm: each pixel gets min/max of a range of samples
+        for (let x = 0; x < WIDTH; x++) {
+            const start = x * samplesPerPixel+delayComp
+            const end = Math.min(start + samplesPerPixel, bufferLength);
+            let min = 1.0, max = -1.0;
+            for (let i = start; i < end; i++) {
+                const val = dataArray[i];
+                if (val < min) min = val;
+                if (val > max) max = val;
+            }
+            const y1 = ((1 + min) * HEIGHT) / 2;
+            const y2 = ((1 + max) * HEIGHT) / 2;
+            canvasCtx.moveTo(x, y1);
+            canvasCtx.lineTo(x, y2);
+            lastx = x;
+            if(end==bufferLength){
+                break
+            }
+        }
+        canvasCtx.moveTo(0,HEIGHT/2);
+        canvasCtx.lineTo(lastx,HEIGHT/2);
+        canvasCtx.stroke();
+        canvasCtx.fillStyle = tracknum===2 ? "rgb(0,125,225)" : "rgb(0,200,160)"
+        canvasCtx.globalAlpha = .12
+        canvasCtx.fillRect(0,0,lastx,HEIGHT)
+    }
+
+    function fillSelectedRegion(waveformRef){
+        const canvasCtx = waveformRef.current.getContext("2d");
+        const WIDTH = waveformRef.current.width;
+        const HEIGHT = waveformRef.current.height;
+        canvasCtx.clearRect(0,0,WIDTH,HEIGHT);   
+        canvasCtx.globalAlpha = .2
+        if(mouseDragEnd&&snapToGrid){
+            canvasCtx.fillStyle = "rgb(75,75,75,.5)"
+            canvasCtx.fillRect(mouseDragStart.trounded*pxPerSecond,0,(mouseDragEnd.trounded-mouseDragStart.trounded)*pxPerSecond,HEIGHT)
+        }
+        if(mouseDragEnd&&!snapToGrid){
+            canvasCtx.fillStyle = "rgb(75,75,75,.5)"
+            canvasCtx.fillRect(mouseDragStart.t*pxPerSecond,0,(mouseDragEnd.t-mouseDragStart.t)*pxPerSecond,HEIGHT)
+        }
+    }
+
+    function fillLoadingAudio(waveformRef,textPos,track){
             const canvasCtx = waveformRef.current.getContext("2d");
             const WIDTH = waveformRef.current.width;
             const HEIGHT = waveformRef.current.height;
@@ -204,7 +236,7 @@ export default function RecorderInterface({
             // Shaded loading region
             canvasCtx.globalAlpha = 0.12;
             canvasCtx.fillStyle = "rgb(0,125,225)";
-            canvasCtx.fillRect(0, 0, loadingAudio * pxPerSecond, HEIGHT);
+            canvasCtx.fillRect(0, 0, loadingAudio.time * pxPerSecond, HEIGHT);
 
             // Sine wave styling
             canvasCtx.globalAlpha = 1;
@@ -217,32 +249,46 @@ export default function RecorderInterface({
 
             canvasCtx.moveTo(0,0);
             canvasCtx.lineTo(0,HEIGHT);
-            canvasCtx.lineTo(loadingAudio * pxPerSecond,HEIGHT);
-            canvasCtx.lineTo(loadingAudio * pxPerSecond,0);
+            canvasCtx.lineTo(loadingAudio.time * pxPerSecond,HEIGHT);
+            canvasCtx.lineTo(loadingAudio.time * pxPerSecond,0);
 
             canvasCtx.clip();
 
             canvasCtx.font = "14px sans-serif"
 
-            for(let i=-68; i < loadingAudio * pxPerSecond + 68; i+=200){
+            const textToFill = track==2?"Loading audio...":"Sending audio...";
+
+            for(let i=-68; i < loadingAudio.time * pxPerSecond + 68; i+=200){
                 canvasCtx.fillStyle = "rgb(0,0,0)"
-                canvasCtx.fillText("Loading audio...",textPos + i,HEIGHT/2);
+                canvasCtx.fillText(textToFill,textPos + i,HEIGHT/2);
             }
             canvasCtx.stroke();
-
             canvasCtx.restore();
+            if(track==1){
+                animation1Ref.current = requestAnimationFrame(()=>fillLoadingAudio(waveformRef,(textPos+1)%200,track));
+            }else{
+                animation2Ref.current = requestAnimationFrame(()=>fillLoadingAudio(waveformRef,(textPos+1)%200,track));
+            }
+            
+    }
 
-            animationFrameId = requestAnimationFrame(()=>fillLoadingAudio(waveformRef,(textPos+1)%200))
-        };
+    useEffect(()=>{
 
+        let animationFrameId;
+        /*
         if(waveform1Ref.current){
-            fillSelectedRegion(waveform1Ref);
+            if(loadingAudio && loadingAudio.track==1){
+                fillLoadingAudio(waveform1Ref,0,1);
+            }
+            //fillSelectedRegion(waveform1Ref);
             if(audio){
                 drawWaveform(waveform1Ref,audio,delayCompensation[0],1);
             }
         }
         if(waveform2Ref.current){
-            fillLoadingAudio(waveform2Ref,0);
+            if(loadingAudio && loadingAudio.track==2){
+                fillLoadingAudio(waveform2Ref,0,2);
+            }
             fillSelectedRegion(waveform2Ref);
             if(audio2){
                 drawWaveform(waveform2Ref,audio2,delayCompensation2[0],2);
@@ -254,7 +300,7 @@ export default function RecorderInterface({
                 cancelAnimationFrame(animationFrameId);
             }
         }
-    
+        */
     },[audio,audio2,BPM,mouseDragStart,mouseDragEnd,zoomFactor,delayCompensation,delayCompensation2,snapToGrid,compactMode,loadingAudio]);
 
     const handleCanvasMouseDown = (e) => {

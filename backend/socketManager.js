@@ -73,6 +73,10 @@ const socketManager = async (server,sessionMiddleware) => {
       socket.to(roomID).emit("start_recording_server_to_client");
     });
 
+    socket.on("client_to_server_incoming_audio_done_processing",(roomID)=>{
+      socket.to(roomID).emit("server_to_client_incoming_audio_done_processing");
+    })
+
   });
 
   return io;

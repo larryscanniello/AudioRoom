@@ -127,7 +127,6 @@ export default function RecorderInterface({
         }
 
         const drawWaveform = (canvRef,drawWaveformAudio,delayComp,tracknum) => {
-                console.log('chek011')
                 const canvasCtx = canvRef.current.getContext('2d');
                 const WIDTH = canvRef.current.width;
                 const HEIGHT = canvRef.current.height;

@@ -196,6 +196,7 @@ export default function AudioBoard({isDemo,socket}){
                     setMouseDragStart({trounded:0,t:0});
                     setMouseDragEnd(null);
                     setPlayheadLocation(0);
+                    
                 }else {
                     const newchunks = [...audioChunksRef.current,data.audio];
                     audioChunksRef.current = newchunks;
@@ -205,9 +206,9 @@ export default function AudioBoard({isDemo,socket}){
                         setMouseDragStart({trounded:0,t:0});
                         setMouseDragEnd(null);
                         setPlayheadLocation(0);
+                        setDelayCompensation2(data.delayCompensation)
                     }
                 }
-                setDelayCompensation2(data.delayCompensation)
             });
             
             socket.current.on("send_play_window_to_clients", (data)=>{

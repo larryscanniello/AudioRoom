@@ -168,6 +168,9 @@ export default function RecorderInterface({
                 }
                 canvasCtx.moveTo(0,HEIGHT/2);
                 canvasCtx.lineTo(lastx,HEIGHT/2);
+                if(animationFrameId){
+                    cancelAnimationFrame(animationFrameId);
+                }
                 canvasCtx.stroke();
                 canvasCtx.fillStyle = tracknum===2 ? "rgb(0,125,225)" : "rgb(0,200,160)"
                 canvasCtx.globalAlpha = .12
@@ -239,14 +242,10 @@ export default function RecorderInterface({
             }
         }
         if(waveform2Ref.current){
-            if(loadingAudio>0 || audio2==null){
-                fillLoadingAudio(waveform2Ref,0);
-            }else{
-                fillSelectedRegion(waveform2Ref);
-                if(audio2){
-                    drawWaveform(waveform2Ref,audio2,delayCompensation2[0],2);
-                }
-                
+            fillLoadingAudio(waveform2Ref,0);
+            fillSelectedRegion(waveform2Ref);
+            if(audio2){
+                drawWaveform(waveform2Ref,audio2,delayCompensation2[0],2);
             }
         }
     

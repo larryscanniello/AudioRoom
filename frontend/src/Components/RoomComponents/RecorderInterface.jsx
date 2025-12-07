@@ -50,7 +50,7 @@ export default function RecorderInterface({
             //fillSelectedRegion(waveform1Ref);
             //fillSelectedRegion(waveform2Ref);
         }
-    },[mouseDragStart,mouseDragEnd]);
+    },[mouseDragStart,mouseDragEnd,zoomFactor]);
 
     useEffect(()=>{
         fillSelectedRegion(waveform1Ref);
@@ -73,7 +73,7 @@ export default function RecorderInterface({
                 cancelAnimationFrame(animation2Ref.current);
             }
         }
-    },[audio,audio2,delayCompensation,delayCompensation2,mouseDragStart,mouseDragEnd,loadingAudio]);
+    },[audio,audio2,delayCompensation,delayCompensation2,mouseDragStart,mouseDragEnd,loadingAudio,zoomFactor]);
 
     function drawCanvasContainer(){
         const canvas = canvasContainerRef.current;

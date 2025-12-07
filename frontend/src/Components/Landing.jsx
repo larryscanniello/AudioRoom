@@ -13,7 +13,7 @@ export default function Landing() {
 
   return <div>
         <div className="flex items-center justify-center flex-col">
-          <h6 className="mt-8 text-6xl">AudioBoard</h6>
+          <h6 className="mt-8 text-6xl">audioroom</h6>
           <h4 className="mt-4 text-2xl">Video chat + shared recorder for music and audio</h4>
         </div>
         <div className="p-4"> 
@@ -23,9 +23,9 @@ export default function Landing() {
         <div className="w-full flex flex-col items-center">
             <ul className="pt-4 text-xl flex flex-col "> 
               <li className="p flex"><Wifi color={"purple"} size={25} 
-              className="w-8 h-8 p-2 mr-2 rounded border-gray-400"/><div>Join a room and connect with a partner to create, jam, learn, or instruct</div></li>
+              className="w-8 h-8 p-2 mr-2 rounded border-gray-400"/><div>Join a room and connect with a partner to collaborate</div></li>
               <li className="p flex"><Circle color={"red"} size={25} 
-              className="w-8 h-8 p-2 mr-2 rounded border-gray-400"/><div>Record with any mic - you and your partner get your own tracks</div></li>
+              className="w-8 h-8 p-2 mr-2 rounded border-gray-400"/><div>Record with any mic - you and your partner take turns</div></li>
               <li className="p flex"><Pointer color={"blue"} size={25} 
               className="w-8 h-8 p-2 mr-2 rounded border-gray-400"/>Drag to select a playback region</li>
               <li className="p flex"><Play color={"green"} size={25} 

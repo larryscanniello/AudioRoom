@@ -40,17 +40,13 @@ export default function RecorderInterface({
         if(canvasContainerRef.current){ 
             drawCanvasContainer();
         }
-        if(measureTickRef.current){
-            drawMeasureTicks();
-        }
     },[compactMode,zoomFactor]);
 
     useEffect(()=>{
-        if(mouseDragEnd){
-            //fillSelectedRegion(waveform1Ref);
-            //fillSelectedRegion(waveform2Ref);
+        if(measureTickRef.current){
+            drawMeasureTicks();
         }
-    },[mouseDragStart,mouseDragEnd,zoomFactor]);
+    },[compactMode,zoomFactor,mouseDragStart,mouseDragEnd])
 
     useEffect(()=>{
         fillSelectedRegion(waveform1Ref);

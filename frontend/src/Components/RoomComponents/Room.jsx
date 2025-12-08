@@ -34,37 +34,43 @@ export default function Room(){
 
     const videoRef = useRef(null);
     const callRef = useRef(null);
+    const hasInitialized = useRef(false);
 
-  useEffect(() => {
-    if(!videoRef.current){return;}
-    // Replace with a real Daily room URL
-    const roomUrl = 'https://audio-board.daily.co/demo-room';
-
-    // Create Daily call frame
-    const callFrame = DailyIframe.createFrame(videoRef.current,{
-      showLeaveButton: true,
-    });
-
-    callFrame.join({ url: roomUrl });
-
-    callRef.current = callFrame;
-
-    return () => {
-      // Clean up
-      if (callRef.current) {
-        callRef.current.leave();
-        callRef.current.destroy();
+     const setVideoRef = (element) => {
+      console.log('check',element);
+      videoRef.current = element;
+      
+      // Initialize Daily when the element becomes available
+      if (element && !hasInitialized.current) {
+        hasInitialized.current = true;
+        
+        const roomUrl = 'https://audio-board.daily.co/demo-room';
+        
+        const callFrame = DailyIframe.createFrame(element, {
+          showLeaveButton: true,
+        });
+        
+        callFrame.join({ url: roomUrl });
+        callRef.current = callFrame;
       }
     };
-  }, [videoRef.current]);
 
+    useEffect(() => {
+      return () => {
+        // Clean up
+        if (callRef.current) {
+          callRef.current.leave();
+          callRef.current.destroy();
+        }
+      };
+    }, []);
 
     return <div>
     {(roomResponse) ? 
     <div>
     <div className="flex items-center justify-center">
     <div
-        ref={videoRef}
+        ref={setVideoRef}
         style={{
             width: 1050,
             height: height-(height<700?235*(4/7):235),
@@ -74,15 +80,6 @@ export default function Room(){
     </div>
     </div> 
     <AudioBoard isDemo={false} socket={socket}/>
-        {/*<div className="flex flex-col items-center">
-            <div className="bg-white rounded-2xl mt-5 flex flex-col items-center">
-                <div className="text-2xl mt-4">Room ID:</div>
-                <div className="text-xs ml-4 mr-4">{roomID}</div>
-                <div className="text-2xl mt-10">Room participants:</div>
-                {userList && userList.map(([username,i],j) => <div key={j}>{username}</div>)}
-                <div className="p-4"></div>
-            </div>
-        </div>*/}
     </div> 
     : <div className="flex flex-col items-center"><div className="text-4xl pt-40">{errorMessage}</div></div>}
     </div>

@@ -59,8 +59,8 @@ export const useAudioRecorder = (
           setMouseDragEnd(null);
         }
 
-        const stopRecording = () => {
-          processor.port.postMessage({actiontype:"stop"});
+        const stopRecording = (keepRecording) => {
+          processor.port.postMessage({actiontype:"stop",keepRecording});
         };
         
         processor.port.onmessage = (event) => {
@@ -183,7 +183,9 @@ const updatePlayhead = (waveformRef,now) => {
       if(otherPersonRecordingRef.current){
         otherPersonRecordingRef.current = false;
         setAudio2(null);
-        setLoadingAudio({track:2,time:elapsed})
+        if(!keepRecordingRef.current){
+          setLoadingAudio({track:2,time:elapsed})
+        }
       }
       return;
     }

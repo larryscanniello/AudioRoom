@@ -18,7 +18,9 @@ class RecorderProcessor extends AudioWorkletProcessor {
       if (e.data.actiontype === 'stop'){ 
         this.isRecording = false;
         this.playbackPos = 0;
-        this.port.postMessage({buffer:this.recordingBuffer});
+        if(e.data.keepRecording){
+          this.port.postMessage({buffer:this.recordingBuffer});
+        }
         this.recordingBuffer = [];
       };
     };

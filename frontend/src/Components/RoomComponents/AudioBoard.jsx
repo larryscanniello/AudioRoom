@@ -74,6 +74,7 @@ export default function AudioBoard({isDemo,socket}){
     const recorderRef = useRef(null);
     const metronomeOnRef = useRef(true);
     const metronomeGainRef = useRef(true);
+    const keepRecordingRef = useRef(true);
 
     const audioChunksRef = useRef([]);
 
@@ -176,7 +177,7 @@ export default function AudioBoard({isDemo,socket}){
             }
             if(e.key===" "){
                 if(currentlyRecording.current||currentlyPlayingAudio.current){
-                    handleStop(true);
+                    handleStop(true,true);
                 }else{
                     handlePlayAudioRef.current()
                     if(numConnectedUsersRef.current>=2){
@@ -258,7 +259,7 @@ export default function AudioBoard({isDemo,socket}){
             });
 
             socket.current.on("stop_audio_server_to_client",()=>{
-                handleStop(false);
+                handleStop(false,true);
             });
 
             socket.current.on("send_latency_server_to_client",(delayComp)=>{
@@ -284,8 +285,11 @@ export default function AudioBoard({isDemo,socket}){
             })
 
             socket.current.on("server_to_client_delete_audio",(track)=>{
-                if(track==1) setAudio2(null);
-                else setAudio(null);
+                handleStop(false,false);
+                setLoadingAudio(null);
+                //did this trick in the callbacks so that these always trigger a rerender, but have the same truthiness
+                if(track==1) setAudio2(prev=>prev===null?false:null);
+                else setAudio(prev=>prev===null?false:null);
             })
 
             socket.current.emit("join_room", roomID);
@@ -487,7 +491,7 @@ export default function AudioBoard({isDemo,socket}){
         }
     }
 
-    const handleStop = (sendSocket) => {
+    const handleStop = (sendSocket,keepRecording) => {
         if(playingAudioRef.current){
             playingAudioRef.current.stop();
         }
@@ -495,7 +499,8 @@ export default function AudioBoard({isDemo,socket}){
             playingAudioRef2.current.stop();
         }
         currentlyRecording.current = false;
-        recorderRef.current.stopRecording();
+        keepRecordingRef.current = keepRecording;
+        recorderRef.current.stopRecording(keepRecording);
         metronomeRef.current.stop();
         if(numConnectedUsersRef.current >=2 && sendSocket){
             socket.current.emit("stop_audio_client_to_server",roomID)
@@ -536,8 +541,12 @@ export default function AudioBoard({isDemo,socket}){
                     >
                         <div style={{width:100,height:Math.floor(58*compactMode)}} className="border-b border-black flex flex-row items-center">
                             <button onClick={()=>{
-                                setAudio(null);
-                                socket.current.emit("client_to_server_audio_deleted",{roomID,track:1});
+                                //did this trick so that setAudio always triggers a rerender, but will still have the same truthiness
+                                setAudio(prev=>prev===false?null:false);
+                                handleStop(true,false);
+                                if(numConnectedUsersRef.current >= 2){
+                                    socket.current.emit("client_to_server_audio_deleted",{roomID,track:1});
+                                }
                             }}>
                                 <Trash2 className="scale-75"/>
                             </button>
@@ -568,8 +577,12 @@ export default function AudioBoard({isDemo,socket}){
                         </div>
                         <div style={{width:100,height:Math.floor(58*compactMode)}} className="border-b border-black flex flex-row items-center">
                             <button onClick={()=>{
-                                setAudio2(null)
-                                socket.current.emit("client_to_server_audio_deleted",{roomID,track:2});
+                                //did this trick so that setAudio2 always triggers a rerender, but will still have the same truthiness
+                                setAudio2(prev=>prev===false?null:false);
+                                handleStop(false,false);
+                                if(numConnectedUsersRef.current >= 2){
+                                    socket.current.emit("client_to_server_audio_deleted",{roomID,track:2});
+                                }
                                 }} className="scale-75">
                                 <Trash2/>
                             </button>
@@ -639,7 +652,7 @@ export default function AudioBoard({isDemo,socket}){
                         </Button>
                         <ButtonGroupSeparator/>
                         <Button variant="default" size={compactMode==1?"lg":"sm"} className="hover:bg-gray-800"
-                            onClick={()=>handleStop(true)}>
+                            onClick={()=>handleStop(true,true)}>
                             <Square color={"lightblue"} className="" style={{width:20,height:20}}/>
                         </Button>
                         <ButtonGroupSeparator/>

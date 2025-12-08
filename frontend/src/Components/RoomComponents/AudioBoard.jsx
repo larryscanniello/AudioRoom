@@ -282,6 +282,8 @@ export default function AudioBoard({isDemo,socket}){
             socket.current.on("user_disconnected_server_to_client",numConnectedUsers=>{
                 numConnectedUsersRef.current = numConnectedUsers;
             })
+
+            socket.current.emit("join_room", roomID);
         }
 
         

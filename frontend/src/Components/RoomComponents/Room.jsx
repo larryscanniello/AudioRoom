@@ -30,10 +30,6 @@ export default function Room(){
         verifyRoom()
         const newSocket = io(import.meta.env.VITE_BACKEND_URL, { withCredentials: true });
         socket.current = newSocket;
-        socket.current.emit("join_room", roomID);
-        socket.current.on("user_list_server_to_client",(userList)=>{
-            setUserList(userList)
-        })
     },[])
 
     const videoRef = useRef(null);

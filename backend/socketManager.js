@@ -3,7 +3,6 @@ const { Server } = require("socket.io");
 const sharedSession = require("express-socket.io-session");
 const pool = require('./db')
 
-
 const socketManager = async (server,sessionMiddleware) => {
   const io = new Server(server, {
     cors: {
@@ -29,9 +28,13 @@ const socketManager = async (server,sessionMiddleware) => {
     
     // Listen for a 'join_room' event
     socket.on('join_room', async (roomID) => {
-      socket.join(roomID);
       roomIDglobal = roomID;
+      await socket.join(roomID);
+
+      const size = io.sockets.adapter.rooms.get(roomID)?.size ?? 0;
+
       socket.to(roomID).emit('request_audio_server_to_client');
+      io.in(roomID).emit('user_connected_server_to_client', size);
       console.log(`User has joined room: ${roomID}`);
     });
 
@@ -76,6 +79,14 @@ const socketManager = async (server,sessionMiddleware) => {
     socket.on("client_to_server_incoming_audio_done_processing",(roomID)=>{
       socket.to(roomID).emit("server_to_client_incoming_audio_done_processing");
     })
+
+    socket.on("disconnect", () => {
+      if (!roomIDglobal) return;
+
+      const size = io.sockets.adapter.rooms.get(roomIDglobal)?.size ?? 0;
+
+      io.in(roomIDglobal).emit("user_disconnected_server_to_client", size);
+    });
 
   });
 

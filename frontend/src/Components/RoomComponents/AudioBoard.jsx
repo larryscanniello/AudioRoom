@@ -60,6 +60,7 @@ export default function AudioBoard({isDemo,socket}){
     const controlPanelRef = useRef(null);
     const autoscrollEnabledRef = useRef(false);
     const otherPersonRecordingRef = useRef(false);
+    const numConnectedUsersRef = useRef(0);
 
     const handlePlayAudioRef = useRef(null);
     const currentlyPlayingAudio = useRef(false); //this ref stores a bool depending on whether audio is playing
@@ -98,11 +99,11 @@ export default function AudioBoard({isDemo,socket}){
                                             setMouseDragStart,BPMRef,
                                             setMouseDragEnd,playheadRef,setDelayCompensation,
                                             metronomeOn,waveform1Ref,waveform2Ref,BPM,scrollWindowRef,
-                                            currentlyRecording,setPlayheadLocation,isDemo,delayCompensation,
+                                            currentlyRecording,setPlayheadLocation,numConnectedUsersRef,delayCompensation,
                                             recorderRef,recordAnimationRef,metronomeOnRef,gain2Ref,
                                             metronomeGainRef,WAVEFORM_WINDOW_LEN,autoscrollEnabledRef,
                                             otherPersonRecordingRef,setLoadingAudio,setAudio2})
-    
+    console.log(numConnectedUsersRef.current);
 
     useEffect(() => {
         //This effect runs only when component first mounts. 
@@ -168,7 +169,7 @@ export default function AudioBoard({isDemo,socket}){
                 setMouseDragEnd(null);
                 setPlayheadLocation(0);
                 scrollWindowRef.current.scrollLeft = 0;
-                if(!isDemo){
+                if(numConnectedUsersRef.current>=2){
                     socket.current.emit("send_play_window_to_server",{
                         mouseDragStart:{trounded:0,t:0},mouseDragEnd:null,snapToGrid,roomID
                     })
@@ -179,7 +180,7 @@ export default function AudioBoard({isDemo,socket}){
                     handleStop(true);
                 }else{
                     handlePlayAudioRef.current()
-                    if(!isDemo){
+                    if(numConnectedUsersRef.current>=2){
                         socket.current.emit("client_to_server_play_audio",{roomID})
                     }
                 }
@@ -274,13 +275,22 @@ export default function AudioBoard({isDemo,socket}){
             socket.current.on("server_to_client_incoming_audio_done_processing",()=>{
                 setLoadingAudio(null);
             })
+
+            socket.current.on("user_connected_server_to_client",numConnectedUsers=>{
+                console.log('check0413');
+                numConnectedUsersRef.current = numConnectedUsers;
+            })
+
+            socket.current.on("user_disconnected_server_to_client",numConnectedUsers=>{
+                numConnectedUsersRef.current = numConnectedUsers;
+            })
         }
 
         
 
 
         return ()=>{
-            if(!isDemo){
+            if(numConnectedUsersRef.current>=2){
                 socket.current.disconnect();
             }
             AudioCtxRef.current?.close();
@@ -451,7 +461,7 @@ export default function AudioBoard({isDemo,socket}){
         };
 
         const handleMouseUp = () => {
-            if(BPMRef.current&&!isDemo){
+            if(BPMRef.current&& numConnectedUsersRef.current >= 2){
                 socket.current.emit("receive_bpm_client_to_server",{roomID,BPM:BPMRef.current})
             }
             window.removeEventListener("mousemove", handleMouseMove);
@@ -482,7 +492,7 @@ export default function AudioBoard({isDemo,socket}){
         currentlyRecording.current = false;
         recorderRef.current.stopRecording();
         metronomeRef.current.stop();
-        if(!isDemo && sendSocket){
+        if(numConnectedUsersRef.current >=2 && sendSocket){
             socket.current.emit("stop_audio_client_to_server",roomID)
         }
     }
@@ -583,8 +593,8 @@ export default function AudioBoard({isDemo,socket}){
                                 scrollWindowRef={scrollWindowRef} playheadLocation={playheadLocation}
                                 setPlayheadLocation={setPlayheadLocation} audioURL={audioURL}
                                 snapToGrid={snapToGrid} currentlyPlayingAudio={currentlyPlayingAudio}
-                                setSnapToGrid={setSnapToGrid} isDemo={isDemo} waveform2Ref={waveform2Ref}
-                                audio2={audio2} delayCompensation2={delayCompensation2}
+                                setSnapToGrid={setSnapToGrid} numConnectedUsersRef={numConnectedUsersRef}
+                                waveform2Ref={waveform2Ref} audio2={audio2} delayCompensation2={delayCompensation2}
                                 WAVEFORM_WINDOW_LEN={WAVEFORM_WINDOW_LEN} autoscrollEnabledRef={autoscrollEnabledRef}
                                 setZoomFactor={setZoomFactor} compactMode={compactMode} loadingAudio={loadingAudio}
                     />
@@ -604,7 +614,7 @@ export default function AudioBoard({isDemo,socket}){
                         <Button variant="default" size={compactMode==1?"lg":"sm"} className="hover:bg-gray-800"
                             onClick={()=>{
                                     handlePlayAudio();
-                                    if(!isDemo){
+                                    if(numConnectedUsersRef.current>=2){
                                         socket.current.emit("client_to_server_play_audio",{roomID})
                                     } 
                                 }}>
@@ -621,7 +631,7 @@ export default function AudioBoard({isDemo,socket}){
                             onClick={()=>{
                                 if(!currentlyPlayingAudio.current&&!currentlyRecording.current){
                                     recorderRef.current.startRecording(audio2,delayCompensation2);
-                                    if(!isDemo){
+                                    if(numConnectedUsersRef.current >= 2){
                                         socket.current.emit("start_recording_client_to_server",roomID);
                                     }
                                 }

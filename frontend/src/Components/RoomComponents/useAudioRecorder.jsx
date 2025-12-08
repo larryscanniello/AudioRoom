@@ -7,7 +7,7 @@ export const useAudioRecorder = (
   audioChunksRef,setAudioURL,setDelayCompensation, setDelayCompensationAudio, 
   onDelayCompensationComplete, setMouseDragStart, setMouseDragEnd,    
   playheadRef,metronomeOn,waveform1Ref,BPM,scrollWindowRef,currentlyRecording,
-  setPlayheadLocation,isDemo,delayCompensation,BPMRef,recorderRef,recordAnimationRef,
+  setPlayheadLocation,numConnectedUsersRef,delayCompensation,BPMRef,recorderRef,recordAnimationRef,
   metronomeOnRef,gain2Ref,metronomeGainRef,WAVEFORM_WINDOW_LEN,autoscrollEnabledRef,
   setLoadingAudio,otherPersonRecordingRef,setAudio2,
 }
@@ -92,9 +92,11 @@ export const useAudioRecorder = (
           setAudio(audioBuffer);
 
           setPlayheadLocation(0);
-          setLoadingAudio({track:1,time:length/AudioCtxRef.current.sampleRate});
+          if(numConnectedUsersRef.current>=2){
+            setLoadingAudio({track:1,time:length/AudioCtxRef.current.sampleRate});
+          }
 
-          if(!isDemo){
+          if(numConnectedUsersRef.current>=2){
             for (let i = 0; i < recordedBuffers.length; i++) {
               socket.current.emit("send_audio_client_to_server", {
                 audio: recordedBuffers[i],
@@ -142,7 +144,7 @@ export const useAudioRecorder = (
                 }
             }
             setDelayCompensation([greatestIndex])
-            if(!isDemo){
+            if(numConnectedUsersRef.current>=2){
               socket.current.emit("send_latency_client_to_server",{
               roomID,delayCompensation:[greatestIndex]
             })

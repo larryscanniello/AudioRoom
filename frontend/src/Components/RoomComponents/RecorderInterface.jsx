@@ -7,7 +7,7 @@ export default function RecorderInterface({
     waveform1Ref,waveform2Ref,playheadRef,setMouseDragStart,
     setMouseDragEnd,socket,roomID,scrollWindowRef,
     playheadLocation,setPlayheadLocation,snapToGrid,
-    currentlyPlayingAudio,isDemo,audio2,delayCompensation2,
+    currentlyPlayingAudio,numConnectedUsersRef,audio2,delayCompensation2,
     WAVEFORM_WINDOW_LEN,autoscrollEnabledRef,setZoomFactor,
     compactMode,loadingAudio
 }){
@@ -340,7 +340,7 @@ export default function RecorderInterface({
             if(Math.abs(mousedragstart.t*pxPerSecond-x)<=5){
                 setPlayheadLocation(mousedragstart.t)
                 setMouseDragEnd(null);
-                if(!isDemo){
+                if(numConnectedUsersRef.current >= 2){
                     socket.current.emit("send_play_window_to_server",{
                         mouseDragStart:mousedragstart,mouseDragEnd:null,roomID,snapToGrid
                     })
@@ -366,7 +366,7 @@ export default function RecorderInterface({
                     setMouseDragStart({trounded:xrounded/pxPerSecond,t:x/pxPerSecond})
                     setMouseDragEnd(mousedragstart)
                 }
-                if(!isDemo){
+                if(numConnectedUsersRef.current >= 2){
                     socket.current.emit("send_play_window_to_server",{
                         mouseDragStart:mousedragstart,mouseDragEnd:pos,roomID,snapToGrid
                     })

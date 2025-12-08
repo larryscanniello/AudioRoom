@@ -103,7 +103,6 @@ export default function AudioBoard({isDemo,socket}){
                                             recorderRef,recordAnimationRef,metronomeOnRef,gain2Ref,
                                             metronomeGainRef,WAVEFORM_WINDOW_LEN,autoscrollEnabledRef,
                                             otherPersonRecordingRef,setLoadingAudio,setAudio2})
-    console.log(numConnectedUsersRef.current);
 
     useEffect(() => {
         //This effect runs only when component first mounts. 
@@ -277,7 +276,6 @@ export default function AudioBoard({isDemo,socket}){
             })
 
             socket.current.on("user_connected_server_to_client",numConnectedUsers=>{
-                console.log('check0413');
                 numConnectedUsersRef.current = numConnectedUsers;
             })
 

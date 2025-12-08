@@ -80,6 +80,11 @@ const socketManager = async (server,sessionMiddleware) => {
       socket.to(roomID).emit("server_to_client_incoming_audio_done_processing");
     })
 
+    socket.on("client_to_server_audio_deleted",({roomID,track})=>{
+      socket.to(roomID).emit("server_to_client_delete_audio",track);
+    })
+
+
     socket.on("disconnect", () => {
       if (!roomIDglobal) return;
 

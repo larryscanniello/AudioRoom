@@ -37,7 +37,6 @@ export default function Room(){
     const hasInitialized = useRef(false);
 
      const setVideoRef = (element) => {
-      console.log('check',element);
       videoRef.current = element;
       
       // Initialize Daily when the element becomes available

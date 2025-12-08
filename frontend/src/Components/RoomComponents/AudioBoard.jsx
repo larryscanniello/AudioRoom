@@ -5,7 +5,7 @@ import { useAudioRecorder } from "./useAudioRecorder";
 import RecorderInterface from "./RecorderInterface";
 import { Button } from "@/Components/ui/button"
 import { Play, Square, Circle,SkipBack,Lock,LockOpen,
-    Columns4,Magnet} from "lucide-react"
+    Columns4,Magnet,Trash2} from "lucide-react"
 import {
   ButtonGroup,
   ButtonGroupSeparator,
@@ -283,6 +283,11 @@ export default function AudioBoard({isDemo,socket}){
                 numConnectedUsersRef.current = numConnectedUsers;
             })
 
+            socket.current.on("server_to_client_delete_audio",(track)=>{
+                if(track==1) setAudio2(null);
+                else setAudio(null);
+            })
+
             socket.current.emit("join_room", roomID);
         }
 
@@ -530,7 +535,13 @@ export default function AudioBoard({isDemo,socket}){
                         style={{width:100,height:Math.floor(115*compactMode)}}
                     >
                         <div style={{width:100,height:Math.floor(58*compactMode)}} className="border-b border-black flex flex-row items-center">
-                            <button className={"border-1 border-black text-white text-xs w-8 h-6 ml-1 rounded-sm " + (track1Muted ? "bg-amber-600" : "")}
+                            <button onClick={()=>{
+                                setAudio(null);
+                                socket.current.emit("client_to_server_audio_deleted",{roomID,track:1});
+                            }}>
+                                <Trash2 className="scale-75"/>
+                            </button>
+                            <button className={"border-1 border-black text-white text-xs w-8 h-5 ml-1 pr-1 pl-1 rounded-sm " + (track1Muted ? "bg-amber-600" : "")}
                                 onClick={(e)=>{
                                     e.preventDefault();
                                     if(!track1Muted){
@@ -556,7 +567,13 @@ export default function AudioBoard({isDemo,socket}){
                             </Slider>
                         </div>
                         <div style={{width:100,height:Math.floor(58*compactMode)}} className="border-b border-black flex flex-row items-center">
-                            <button className={"border-1 border-black text-xs text-white w-8 h-6 ml-1 rounded-sm " + (track2Muted ? "bg-amber-600" : "")}
+                            <button onClick={()=>{
+                                setAudio2(null)
+                                socket.current.emit("client_to_server_audio_deleted",{roomID,track:2});
+                                }} className="scale-75">
+                                <Trash2/>
+                            </button>
+                            <button className={"border-1 border-black text-xs text-white w-8 h-5 ml-1 pr-1 pl-1 rounded-sm " + (track2Muted ? "bg-amber-600" : "")}
                                 onClick={(e)=>{
                                         e.preventDefault();
                                         if(!track2Muted){

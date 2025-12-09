@@ -5,7 +5,7 @@ import { useAudioRecorder } from "./useAudioRecorder";
 import RecorderInterface from "./RecorderInterface";
 import { Button } from "@/Components/ui/button"
 import { Play, Square, Circle,SkipBack,Lock,LockOpen,
-    Columns4,Magnet,Trash2} from "lucide-react"
+    Columns4,Magnet,Trash2,Repeat2} from "lucide-react"
 import {
   ButtonGroup,
   ButtonGroupSeparator,
@@ -50,6 +50,7 @@ export default function AudioBoard({isDemo,socket}){
     const [track2Muted,setTrack2Muted] = useState(false);
     const [compactMode,setCompactMode] = useState(height < 700 ? (4/7) : 1);
     const [loadingAudio,setLoadingAudio] = useState(null);
+    const [looping,setLooping] = useState(true);
 
     const waveform1Ref = useRef(null);
     const waveform2Ref = useRef(null);
@@ -75,6 +76,7 @@ export default function AudioBoard({isDemo,socket}){
     const metronomeOnRef = useRef(true);
     const metronomeGainRef = useRef(true);
     const keepRecordingRef = useRef(true);
+    const loopingRef = useRef(looping);
 
     const audioChunksRef = useRef([]);
 
@@ -292,6 +294,10 @@ export default function AudioBoard({isDemo,socket}){
                 else setAudio(prev=>prev===null?false:null);
             })
 
+            socket.current.on("looping_server_to_client",(looping)=>{
+                setLooping(looping);
+            })
+
             socket.current.emit("join_room", roomID);
         }
 
@@ -309,11 +315,9 @@ export default function AudioBoard({isDemo,socket}){
         
     }, []);
 
+    
 
-    useEffect(() => {
-        handlePlayAudioRef.current = handlePlayAudio;
-    });
-
+    loopingRef.current = looping;
 
     if(metronomeRef.current){
         metronomeRef.current.tempo = BPM;
@@ -331,23 +335,38 @@ export default function AudioBoard({isDemo,socket}){
             playingAudioRef2.current.disconnect();
             playingAudioRef2.current = null;
         }
+
+        const getBuffer = (localAudio,startTime,endTime) => {
+            const startSample = Math.floor(startTime * AudioCtxRef.current.sampleRate);
+            const endSample = Math.floor(endTime * AudioCtxRef.current.sampleRate);
+            const length = endSample - startSample;
+            const stereoBuffer = AudioCtxRef.current.createBuffer(2,length,AudioCtxRef.current.sampleRate);
+            if(localAudio){
+                stereoBuffer.getChannelData(0).set(localAudio.getChannelData(0).subarray(startSample,endSample));
+                stereoBuffer.getChannelData(1).set(localAudio.getChannelData(0).subarray(startSample,endSample));
+            }
+            return stereoBuffer
+        }
+
         const source = AudioCtxRef.current.createBufferSource();
         const source2 = AudioCtxRef.current.createBufferSource();
         source.connect(gainRef.current);
         source2.connect(gain2Ref.current);
         
+        /*
         const stereoBuffer = AudioCtxRef.current.createBuffer(2, audio ? audio.length:1, AudioCtxRef.current.sampleRate);
         if(audio){
             stereoBuffer.getChannelData(0).set(audio.getChannelData(0));
             stereoBuffer.getChannelData(1).set(audio.getChannelData(0));
         }
-        source.buffer = stereoBuffer;
+        
         const stereoBuffer2 = AudioCtxRef.current.createBuffer(2, audio2?audio2.length:1, AudioCtxRef.current.sampleRate);
         if(audio2){
             stereoBuffer2.getChannelData(0).set(audio2.getChannelData(0));
             stereoBuffer2.getChannelData(1).set(audio2.getChannelData(0));
         }
         source2.buffer = stereoBuffer2
+        */
         //currentPlayingAudio is set to 2 when audio is playing; when one source ends it -= 1
         source.onended = () => {
             source.disconnect();
@@ -361,7 +380,7 @@ export default function AudioBoard({isDemo,socket}){
         const pixelsPerSecond = rect.width/((60/BPM)*128)
         //totalTime is is length of time if audio the length of entire canvas is played
         const totalTime = (128*60/BPM) 
-        const duration = Math.max(source.buffer.length,source2.buffer.length)/AudioCtxRef.current.sampleRate;
+        //const duration = Math.max(source.buffer.length,source2.buffer.length)/AudioCtxRef.current.sampleRate;
         //startTime, endTime are relative to the audio, not absolute times, in seconds
         let startTime = 0;
         let endTime = totalTime;
@@ -385,18 +404,21 @@ export default function AudioBoard({isDemo,socket}){
             metronomeRef.current.currentBeatInBar = Math.floor(currBeat)%4
         }
         if(mouseDragEnd&&!snapToGrid){
-            endTime = totalTime * Math.min(1,mouseDragEnd.t*pixelsPerSecond/ waveform1Ref.current.width);
+            endTime = mouseDragEnd.t//totalTime * Math.min(1,mouseDragEnd.t*pixelsPerSecond/ waveform1Ref.current.width);
         }else if(mouseDragEnd&&snapToGrid){
-            endTime = totalTime * Math.min(1,mouseDragEnd.trounded*pixelsPerSecond/ waveform1Ref.current.width);
+            endTime = mouseDragEnd.trounded//totalTime * Math.min(1,mouseDragEnd.trounded*pixelsPerSecond/ waveform1Ref.current.width);
         }
 
         //updatePlayhead uses requestAnimationFrame to animate the playhead
         //note we need the start parameter to keep track of where in the audio we are starting
         //as opposed to now which is the current time absolutely
+
+        
+
         const updatePlayhead = (start) => {
             const elapsed = Math.max(AudioCtxRef.current.currentTime - now,0);
-            setPlayheadLocation(start+elapsed);
-            const x = (start+elapsed) * pixelsPerSecond;
+            looping ? setPlayheadLocation(start+(elapsed%(endTime-startTime))) : setPlayheadLocation(start+elapsed);
+            const x = looping ? (start+(elapsed%(endTime-startTime)))*pixelsPerSecond : (start+elapsed) * pixelsPerSecond;
             //auto scroll right if playhead moves far right enough
             const visibleStart = scrollWindowRef.current.scrollLeft
             const visibleEnd = visibleStart + WAVEFORM_WINDOW_LEN
@@ -404,7 +426,7 @@ export default function AudioBoard({isDemo,socket}){
                 scrollWindowRef.current.scrollLeft = 750 + visibleStart;
             }
             
-            if(start+elapsed<endTime&&currentlyPlayingAudio.current){
+            if((start+elapsed<endTime&&currentlyPlayingAudio.current)||(looping && currentlyPlayingAudio.current)){
                 requestAnimationFrame(()=>{updatePlayhead(start)});
             }else if(!mouseDragEnd){
                 //if no region has been dragged, and end is reached, reset playhead to the beginning
@@ -437,13 +459,20 @@ export default function AudioBoard({isDemo,socket}){
         //the .05 added to now previously was for playhead rendering purposes, we need to subtract it here
         metronomeRef.current.start(now-.05+timeToNextMeasure);
         //source.start arguments are (time to wait to play audio,location in audio to start,duration to play)
-        source.start(now,startTime+secondsToDelay,totalTime-startTime);
-        source2.start(now,startTime+secondsToDelay2,totalTime-startTime);
+        source.buffer = getBuffer(audio,startTime+secondsToDelay,endTime);
+        source2.buffer = getBuffer(audio2,startTime+secondsToDelay2,endTime);
+        source.loop = looping;
+        source2.loop = looping;
+        source.start(now);
+        source2.start(now);
         playingAudioRef.current = source;
         playingAudioRef2.current = source2;
         currentlyPlayingAudio.current = 2;
         updatePlayhead(startTime)
     }
+
+    handlePlayAudioRef.current = handlePlayAudio;
+
 
     const handleTempoMouseDown = (e) => {
         //handles the BPM adjuster
@@ -451,13 +480,13 @@ export default function AudioBoard({isDemo,socket}){
             return
         }
         e.preventDefault();
-        const startY = e.clientY;
+        const startX = e.clientX;
         const startBPM = BPM;
 
         const handleMouseMove = (e) => {
-            const deltaY = (startY - e.clientY)/2;
+            const deltaX = (startX - e.clientX)/2;
             setBPM(prev=>{
-                const newbpm = startBPM + Math.floor(deltaY)
+                const newbpm = startBPM - Math.floor(deltaX)
                 if(30<=newbpm&&newbpm<=400){
                     BPMRef.current = newbpm
                     return newbpm
@@ -541,8 +570,10 @@ export default function AudioBoard({isDemo,socket}){
                         <div style={{width:100,height:Math.floor(58*compactMode)}} className="border-b border-black flex flex-row items-center">
                             <button onClick={()=>{
                                 //did this trick so that setAudio always triggers a rerender, but will still have the same truthiness
-                                setAudio(prev=>prev===false?null:false);
-                                handleStop(true,false);
+                                setAudio(prev=>{
+                                    if(prev) handleStop(true,false);
+                                    return prev===false?null:false
+                                });
                                 if(numConnectedUsersRef.current >= 2){
                                     socket.current.emit("client_to_server_audio_deleted",{roomID,track:1});
                                 }
@@ -571,14 +602,15 @@ export default function AudioBoard({isDemo,socket}){
                                     setTrack1Vol(value);
                                 }} 
                             >
-
                             </Slider>
                         </div>
                         <div style={{width:100,height:Math.floor(58*compactMode)}} className="border-b border-black flex flex-row items-center">
                             <button onClick={()=>{
                                 //did this trick so that setAudio2 always triggers a rerender, but will still have the same truthiness
-                                setAudio2(prev=>prev===false?null:false);
-                                handleStop(false,false);
+                                setAudio2(prev=>{
+                                    if(prev) handleStop(false,false);
+                                    prev===false?null:false}
+                                );
                                 if(numConnectedUsersRef.current >= 2){
                                     socket.current.emit("client_to_server_audio_deleted",{roomID,track:2});
                                 }
@@ -627,15 +659,15 @@ export default function AudioBoard({isDemo,socket}){
                                 WAVEFORM_WINDOW_LEN={WAVEFORM_WINDOW_LEN} autoscrollEnabledRef={autoscrollEnabledRef}
                                 setZoomFactor={setZoomFactor} compactMode={compactMode} loadingAudio={loadingAudio}
                     />
-                    <Button variant="default" size={compactMode==1?"lg":"sm"} onClick={()=>setSnapToGrid(prev=>!prev)} 
+                    {/*<Button variant="default" size={compactMode==1?"lg":"sm"} onClick={()=>setSnapToGrid(prev=>!prev)} 
                         className="border-1 border-gray-300 hover:bg-gray-800"
                         style={{position:"absolute",right:15,top:Math.floor(120*compactMode),transform:"scale(.7)"}}>
                         <Magnet color={snapToGrid ? "lightblue" : "white"} style={{transform:"rotate(315deg)"+(compactMode==1?"scale(1.5)":"scale(1)")}}></Magnet>
                         <Columns4 color={snapToGrid ? "lightblue" : "white"} style={{transform:compactMode==1?"scale(1.5)":"scale(1)"}}></Columns4>
-                    </Button>
+                    </Button>*/}
                 </div>
                 
-                <div className="row-start-3 grid grid-cols-[20px_375px_125px_125px_125px_125px]" 
+                <div className="row-start-3 grid grid-cols-[20px_420px_125px_125px_125px_125px]" 
                     style={{height:Math.floor(32*compactMode)}}>
                     <ButtonGroup className="rounded border-1 border-gray-300 col-start-2"
                         style={{transform:compactMode!=1?"scale(.7) translate(-55px,-10px)":""}}
@@ -678,6 +710,19 @@ export default function AudioBoard({isDemo,socket}){
                         </Button>
                         <ButtonGroupSeparator/>
                         <Button variant="default" size={compactMode==1?"lg":"sm"} className="hover:bg-gray-800"
+                            onClick={()=>{
+                                if(!currentlyPlayingAudio.current && !currentlyRecording.current){
+                                    setLooping(prev=>{
+                                        socket.current.emit("looping_client_to_server",{looping:!prev,roomID});
+                                        return !prev;
+                                    })
+                                };
+                            }}
+                        >
+                            <Repeat2 style={{width:20,height:20}} color={looping ? "lightskyblue" : "white"}/>
+                        </Button>
+                        <ButtonGroupSeparator/>
+                        <Button variant="default" size={compactMode==1?"lg":"sm"} className="hover:bg-gray-800"
                                 onClick={()=>{
                                         setMetronomeOn(prev=>{
                                             metronomeOnRef.current = !prev;
@@ -695,7 +740,7 @@ export default function AudioBoard({isDemo,socket}){
                                                 />
                         </Button>
                         <ButtonGroupSeparator/>
-                        <Button className={compactMode==1?"test-lg":"text-md"} variant="default" size={compactMode==1?"lg":"sm"} onMouseDown={handleTempoMouseDown}>
+                        <Button className={compactMode==1?"test-lg":"text-sm"} variant="default" size={compactMode==1?"lg":"sm"} onMouseDown={handleTempoMouseDown}>
                             {BPM}
                         </Button>
                     </ButtonGroup>

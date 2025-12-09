@@ -38,7 +38,7 @@ export default class Metronome
         const osc = this.audioContext.createOscillator();
         const envelope = this.audioContext.createGain();
         
-        osc.frequency.value = (beatNumber % this.beatsPerBar == 0) ? 1000 : 800;
+        osc.frequency.value = (beatNumber % this.beatsPerBar == 0) ? 1000 : 1000;//800;
         envelope.gain.value = 1;
         envelope.gain.exponentialRampToValueAtTime(1, time + 0.001);
         envelope.gain.exponentialRampToValueAtTime(0.001, time + 0.02);

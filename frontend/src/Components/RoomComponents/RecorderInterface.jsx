@@ -69,7 +69,7 @@ export default function RecorderInterface({
                 cancelAnimationFrame(animation2Ref.current);
             }
         }
-    },[audio,audio2,delayCompensation,delayCompensation2,mouseDragStart,mouseDragEnd,loadingAudio,zoomFactor]);
+    },[audio,audio2,delayCompensation,delayCompensation2,mouseDragStart,mouseDragEnd,loadingAudio,zoomFactor,BPM]);
 
     function drawCanvasContainer(){
         const canvas = canvasContainerRef.current;

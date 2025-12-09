@@ -321,7 +321,6 @@ export default function AudioBoard({isDemo,socket}){
 
     const handlePlayAudio = () => {
         //This function handles the dirty work of playing audio correctly no matter where the playhead is
-        if(!audio&&!audio2) return;
         if(currentlyPlayingAudio.current || currentlyRecording.current) return;
         autoscrollEnabledRef.current = true;
         if (playingAudioRef.current) {
@@ -351,11 +350,9 @@ export default function AudioBoard({isDemo,socket}){
         source2.buffer = stereoBuffer2
         //currentPlayingAudio is set to 2 when audio is playing; when one source ends it -= 1
         source.onended = () => {
-            currentlyPlayingAudio.current -= 1;
             source.disconnect();
         }
         source2.onended = () => {
-            currentlyPlayingAudio.current -= 1;
             source2.disconnect();
         }
         const rect = waveform1Ref.current.getBoundingClientRect();
@@ -363,11 +360,11 @@ export default function AudioBoard({isDemo,socket}){
         //Divides full width of canvas by the total time in seconds 128 beats takes
         const pixelsPerSecond = rect.width/((60/BPM)*128)
         //totalTime is is length of time if audio the length of entire canvas is played
-        const totalTime = (128*60/BPM)
+        const totalTime = (128*60/BPM) 
         const duration = Math.max(source.buffer.length,source2.buffer.length)/AudioCtxRef.current.sampleRate;
         //startTime, endTime are relative to the audio, not absolute times, in seconds
         let startTime = 0;
-        let endTime = Math.min(duration,totalTime);
+        let endTime = totalTime;
         let timeToNextMeasure = 0; //seconds
         if(mouseDragStart&&(!mouseDragEnd||!snapToGrid)){
             //This if handles startTime if no region is selected and there is no snap to grid
@@ -407,7 +404,7 @@ export default function AudioBoard({isDemo,socket}){
                 scrollWindowRef.current.scrollLeft = 750 + visibleStart;
             }
             
-            if(start+elapsed<endTime&&(currentlyPlayingAudio.current)){
+            if(start+elapsed<endTime&&currentlyPlayingAudio.current){
                 requestAnimationFrame(()=>{updatePlayhead(start)});
             }else if(!mouseDragEnd){
                 //if no region has been dragged, and end is reached, reset playhead to the beginning
@@ -415,16 +412,17 @@ export default function AudioBoard({isDemo,socket}){
                 setMouseDragStart({trounded:x/pixelsPerSecond,t:x/pixelsPerSecond})
                 setMouseDragEnd(null)
                 setPlayheadLocation(x/pixelsPerSecond);
+                currentlyPlayingAudio.current = false;
             }else{
                 //if a region has been dragged, reset playhead to 
                 metronomeRef.current.stop();
                 setPlayheadLocation(start)
+                currentlyPlayingAudio.current = false;
             }
-            
         }
         const secondsToDelay = delayCompensation/AudioCtxRef.current.sampleRate; //convert delayComp in samples to seconds
         const secondsToDelay2 = delayCompensation2/AudioCtxRef.current.sampleRate;
-        const audiolength = Math.max(audio ? audio.getChannelData(0) : 0,audio2 ? audio2.getChannelData(0) : 0);
+        /*const audiolength = Math.max(audio ? audio.getChannelData(0) : 0,audio2 ? audio2.getChannelData(0) : 0);
         if(startTime+secondsToDelay>=audiolength/AudioCtxRef.current.sampleRate){
             //if someone tries to play audio after the end of the audio, play audio from the beginning
             startTime = 0;
@@ -433,14 +431,14 @@ export default function AudioBoard({isDemo,socket}){
             setMouseDragStart({trounded:0,t:0})
             setMouseDragEnd(null)
             start = 0;
-        }
+        }*/
         //add .05 to match the delay of audio/metronome (metronome needs delay for first beat to sound)
         let now = AudioCtxRef.current.currentTime+.05;
         //the .05 added to now previously was for playhead rendering purposes, we need to subtract it here
         metronomeRef.current.start(now-.05+timeToNextMeasure);
         //source.start arguments are (time to wait to play audio,location in audio to start,duration to play)
-        source.start(now,startTime+secondsToDelay,endTime-startTime);
-        source2.start(now,startTime+secondsToDelay2,endTime-startTime);
+        source.start(now,startTime+secondsToDelay,totalTime-startTime);
+        source2.start(now,startTime+secondsToDelay2,totalTime-startTime);
         playingAudioRef.current = source;
         playingAudioRef2.current = source2;
         currentlyPlayingAudio.current = 2;
@@ -499,6 +497,7 @@ export default function AudioBoard({isDemo,socket}){
             playingAudioRef2.current.stop();
         }
         currentlyRecording.current = false;
+        currentlyPlayingAudio.current = false;
         keepRecordingRef.current = keepRecording;
         recorderRef.current.stopRecording(keepRecording);
         metronomeRef.current.stop();

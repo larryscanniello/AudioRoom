@@ -256,7 +256,7 @@ recordAnimationRef.current = updatePlayhead;
         metronomeGainRef.current.gain.value = prevMetronomeGain;
       }, 400);
       setTimeout(()=>{
-        delayCompensationRecorderRef.current.port.postMessage({actiontype:"stop"});
+        delayCompensationRecorderRef.current.port.postMessage({actiontype:"stop",keepRecording:true});
       },1000)
     }
   }

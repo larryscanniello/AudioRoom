@@ -417,8 +417,8 @@ export default function AudioBoard({isDemo,socket}){
 
         const updatePlayhead = (start) => {
             const elapsed = Math.max(AudioCtxRef.current.currentTime - now,0);
-            looping ? setPlayheadLocation(start+(elapsed%(endTime-startTime))) : setPlayheadLocation(start+elapsed);
-            const x = looping ? (start+(elapsed%(endTime-startTime)))*pixelsPerSecond : (start+elapsed) * pixelsPerSecond;
+            (looping && mouseDragEnd) ? setPlayheadLocation(start+(elapsed%(endTime-startTime))) : setPlayheadLocation(start+elapsed);
+            const x = (looping && mouseDragEnd) ? (start+(elapsed%(endTime-startTime)))*pixelsPerSecond : (start+elapsed) * pixelsPerSecond;
             //auto scroll right if playhead moves far right enough
             const visibleStart = scrollWindowRef.current.scrollLeft
             const visibleEnd = visibleStart + WAVEFORM_WINDOW_LEN
@@ -426,7 +426,7 @@ export default function AudioBoard({isDemo,socket}){
                 scrollWindowRef.current.scrollLeft = 750 + visibleStart;
             }
             
-            if((start+elapsed<endTime&&currentlyPlayingAudio.current)||(looping && currentlyPlayingAudio.current)){
+            if((start+elapsed<endTime&&currentlyPlayingAudio.current)||(looping && mouseDragEnd && currentlyPlayingAudio.current)){
                 requestAnimationFrame(()=>{updatePlayhead(start)});
             }else if(!mouseDragEnd){
                 //if no region has been dragged, and end is reached, reset playhead to the beginning
@@ -461,8 +461,8 @@ export default function AudioBoard({isDemo,socket}){
         //source.start arguments are (time to wait to play audio,location in audio to start,duration to play)
         source.buffer = getBuffer(audio,startTime+secondsToDelay,endTime);
         source2.buffer = getBuffer(audio2,startTime+secondsToDelay2,endTime);
-        source.loop = looping;
-        source2.loop = looping;
+        source.loop = mouseDragEnd ? looping : false;
+        source2.loop = mouseDragEnd ? looping : false;
         source.start(now);
         source2.start(now);
         playingAudioRef.current = source;

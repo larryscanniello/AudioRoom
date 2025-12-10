@@ -713,7 +713,9 @@ export default function AudioBoard({isDemo,socket}){
                             onClick={()=>{
                                 if(!currentlyPlayingAudio.current && !currentlyRecording.current){
                                     setLooping(prev=>{
-                                        socket.current.emit("looping_client_to_server",{looping:!prev,roomID});
+                                        if(numConnectedUsersRef.current >= 2){
+                                            socket.current.emit("looping_client_to_server",{looping:!prev,roomID});
+                                        }
                                         return !prev;
                                     })
                                 };
@@ -803,10 +805,9 @@ export default function AudioBoard({isDemo,socket}){
 
                         </PopoverContent>
                     </Popover>
-                    {/*<a download href={audioURL} className={"flex items-center col-start-5 " + (audio ? "hover:underline" : "opacity-25")}>
-                    Download
-                    </a>*/}
-                    
+                    <div>
+                        Other user's audio played
+                    </div>
                 </div>
             </div>
         </div>

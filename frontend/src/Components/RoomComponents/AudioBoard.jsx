@@ -805,9 +805,6 @@ export default function AudioBoard({isDemo,socket}){
 
                         </PopoverContent>
                     </Popover>
-                    <div>
-                        Other user's audio played
-                    </div>
                 </div>
             </div>
         </div>

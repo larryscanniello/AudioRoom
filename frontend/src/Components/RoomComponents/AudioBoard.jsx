@@ -22,6 +22,7 @@ import { FaMagnifyingGlass } from "react-icons/fa6";
 import demoacoustic from "/audio/audioboarddemoacoustic.mp3"
 import demoelectric from "/audio/audioboarddemoelectric.mp3"
 import { useWindowSize } from "../useWindowSize";
+import "./AudioBoard.css";
 
 const WAVEFORM_WINDOW_LEN = 900;
 
@@ -51,6 +52,8 @@ export default function AudioBoard({isDemo,socket}){
     const [compactMode,setCompactMode] = useState(height < 700 ? (4/7) : 1);
     const [loadingAudio,setLoadingAudio] = useState(null);
     const [looping,setLooping] = useState(true);
+    const [commMessage,setCommMessage] = useState("");
+    const [commMessageFadingOut,setCommMessageFadingOut] = useState(false);
 
     const waveform1Ref = useRef(null);
     const waveform2Ref = useRef(null);
@@ -60,6 +63,10 @@ export default function AudioBoard({isDemo,socket}){
     const scrollWindowRef = useRef(null);
     const controlPanelRef = useRef(null);
     const autoscrollEnabledRef = useRef(false);
+
+    const pxPerSecondRef = useRef(null);
+    const convertTimeToMeasuresRef = useRef(null);
+
     const otherPersonRecordingRef = useRef(false);
     const numConnectedUsersRef = useRef(0);
 
@@ -77,6 +84,7 @@ export default function AudioBoard({isDemo,socket}){
     const metronomeGainRef = useRef(true);
     const keepRecordingRef = useRef(true);
     const loopingRef = useRef(looping);
+    const commsClearTimeoutRef = useRef(null);
 
     const audioChunksRef = useRef([]);
 
@@ -179,9 +187,9 @@ export default function AudioBoard({isDemo,socket}){
             }
             if(e.key===" "){
                 if(currentlyRecording.current||currentlyPlayingAudio.current){
-                    handleStop(true,true);
+                    handleStop(true,true,false);
                 }else{
-                    handlePlayAudioRef.current()
+                    handlePlayAudioRef.current(false)
                     if(numConnectedUsersRef.current>=2){
                         socket.current.emit("client_to_server_play_audio",{roomID})
                     }
@@ -220,24 +228,37 @@ export default function AudioBoard({isDemo,socket}){
                 setMouseDragStart(data.mouseDragStart);
                 setMouseDragEnd(data.mouseDragEnd);
                 let start;
-                if(data.snapToGrid){
+                if(data.mouseDragEnd){
                     start = data.mouseDragStart.trounded
                 }else{
                     start = data.mouseDragStart.t
                 }
                 //start = data.mouseDragEnd ? data.mouseDragStart.trounded : data.mouseDragStart ? data.mouseDragStart.t : 0;
                 setPlayheadLocation(start)
+                if(numConnectedUsersRef.current >= 2 && !data.mouseDragEnd){
+                    socket.current.emit("comm_playhead_moved_partner_to_click_client_to_server",{locationByMeasure:convertTimeToMeasuresRef.current(start),roomID});
+                }else if(numConnectedUsersRef.current >=2){
+                    socket.current.emit("comm_region_selected_partner_to_click_client_to_server",{
+                        roomID,
+                        mouseDragStart:convertTimeToMeasuresRef.current(start),
+                        mouseDragEnd:convertTimeToMeasuresRef.current(data.mouseDragEnd.trounded),
+                    })
+                }
             })
 
             socket.current.on("server_to_client_play_audio",(data)=>{
-                handlePlayAudioRef.current();
+                handlePlayAudioRef.current(true);
             })
 
             socket.current.on("handle_skipback_server_to_client",()=>{
+                
                 setMouseDragEnd(null);
                 setMouseDragStart({trounded:0,t:0});
                 scrollWindowRef.current.scrollLeft = 0;
                 setPlayheadLocation(0);
+                if(numConnectedUsersRef.current >= 2){
+                    socket.current.emit("comm_playhead_moved_client_to_server",{roomID,locationByMeasure:"1.1"});
+                }
             })
             
             socket.current.on("request_audio_server_to_client", (data) => {
@@ -258,10 +279,14 @@ export default function AudioBoard({isDemo,socket}){
             socket.current.on("send_bpm_server_to_client",bpm=>{
                 setBPM(bpm);
                 BPMRef.current = bpm;
+                socket.current.emit("comm_BPM_changed_partner_to_click_client_to_server",{roomID,bpm});
+                clearTimeout(commsClearTimeoutRef.current);
+                setCommMessage({text:`Partner changed BPM to ${bpm}`,time:performance.now()});
+                commsClearTimeoutRef.current = setTimeout(()=>setCommMessage(""),5000)
             });
 
             socket.current.on("stop_audio_server_to_client",()=>{
-                handleStop(false,true);
+                handleStop(false,true,true);
             });
 
             socket.current.on("send_latency_server_to_client",(delayComp)=>{
@@ -287,16 +312,92 @@ export default function AudioBoard({isDemo,socket}){
             })
 
             socket.current.on("server_to_client_delete_audio",(track)=>{
-                handleStop(false,false);
+                handleStop(false,false,true);
                 setLoadingAudio(null);
                 //did this trick in the callbacks so that these always trigger a rerender, but have the same truthiness
                 if(track==1) setAudio2(prev=>prev===null?false:null);
                 else setAudio(prev=>prev===null?false:null);
-            })
+            });
 
             socket.current.on("looping_server_to_client",(looping)=>{
                 setLooping(looping);
-            })
+                socket.current.emit("comm_looping_changed_partner_to_click_client_to_server",{roomID,looping});
+            });
+
+            socket.current.on("comm_audio_played_server_to_client",()=>{
+                
+                clearTimeout(commsClearTimeoutRef.current);
+                setCommMessage({text:"Partner audio played",time:performance.now()});
+                commsClearTimeoutRef.current = setTimeout(()=>setCommMessageFadingOut(true),5000)
+            });
+
+            socket.current.on("comm_audio_stopped_server_to_client",()=>{
+                clearTimeout(commsClearTimeoutRef.current);
+                setCommMessage({text:"Partner audio stopped",time:performance.now()});
+                commsClearTimeoutRef.current = setTimeout(()=>setCommMessage(""),5000)
+            });
+
+            socket.current.on("comm_recording_started_server_to_client",()=>{
+                clearTimeout(commsClearTimeoutRef.current);
+                setCommMessage({text:"Partner is recording",time:performance.now()});
+                commsClearTimeoutRef.current = setTimeout(()=>setCommMessage(""),5000)
+            });
+
+            socket.current.on("comm_recording_stopped_server_to_client",()=>{
+                clearTimeout(commsClearTimeoutRef.current);
+                setCommMessage({text:"Partner recording stopped",time:performance.now()});
+                commsClearTimeoutRef.current = setTimeout(()=>setCommMessage(""),5000)
+            });
+
+            socket.current.on("comm_looping_changed_server_to_client",status=>{
+                clearTimeout(commsClearTimeoutRef.current);
+                setCommMessage({text:`Partner turned looping ${status?"on":"off"}`,time:performance.now()});
+                commsClearTimeoutRef.current = setTimeout(()=>setCommMessage(""),5000)
+            });
+
+            socket.current.on("comm_looping_changed_partner_to_click_server_to_client",looping=>{
+                clearTimeout(commsClearTimeoutRef.current);
+                setCommMessage({text:`Partner looping turned ${looping?"on":"off"}`,time:performance.now()});
+                commsClearTimeoutRef.current = setTimeout(()=>setCommMessage(""),5000)
+            });
+
+            socket.current.on("comm_metronome_onoff_changed_server_to_client",status=>{
+                clearTimeout(commsClearTimeoutRef.current);
+                //setCommMessage({text:`Partner turned metronome ${status?"on":"off"}`,time:performance.now()});
+                commsClearTimeoutRef.current = setTimeout(()=>setCommMessage(""),5000)
+            });
+
+            socket.current.on("comm_playhead_moved_click_to_other_server_to_client",locationByMeasure=>{
+                clearTimeout(commsClearTimeoutRef.current);
+                setCommMessage({text:`Partner moved playhead to measure ${locationByMeasure}`,time:performance.now()});
+                commsClearTimeoutRef.current = setTimeout(()=>setCommMessage(""),5000)
+            });
+
+            socket.current.on("comm_playhead_moved_partner_to_click_server_to_client",locationByMeasure=>{
+                clearTimeout(commsClearTimeoutRef.current);
+                setCommMessage({text:`Partner playhead moved to measure ${locationByMeasure}`,time:performance.now()});
+                commsClearTimeoutRef.current = setTimeout(()=>setCommMessage(""),5000);
+            });
+
+            socket.current.on("comm_region_selected_server_to_client",data=>{
+                clearTimeout(commsClearTimeoutRef.current);
+                setCommMessage({text:`Partner selected region ${data.mouseDragStart} to ${data.mouseDragEnd}`,time:performance.now()});
+                commsClearTimeoutRef.current = setTimeout(()=>setCommMessage(""),5000)
+            });
+
+            socket.current.on("comm_region_selected_partner_to_click_client_to_server",data=>{
+                clearTimeout(commsClearTimeoutRef.current);
+                setCommMessage({text:`Partner selected region is ${data.mouseDragStart} to ${data.mouseDragEnd}`,time:performance.now()});
+                commsClearTimeoutRef.current = setTimeout(()=>setCommMessage(""),5000)
+            });
+
+             socket.current.on("comm_BPM_changed_partner_to_click_server_to_client",bpm=>{
+                clearTimeout(commsClearTimeoutRef.current);
+                setCommMessage({text:`Partner's BPM changed to ${bpm}`,time:performance.now()});
+                commsClearTimeoutRef.current = setTimeout(()=>setCommMessage(""),5000)
+            });
+            
+
 
             socket.current.emit("join_room", roomID);
         }
@@ -323,7 +424,7 @@ export default function AudioBoard({isDemo,socket}){
         metronomeRef.current.tempo = BPM;
     }
 
-    const handlePlayAudio = () => {
+    const handlePlayAudio = (fromOtherPerson) => {
         //This function handles the dirty work of playing audio correctly no matter where the playhead is
         if(currentlyPlayingAudio.current || currentlyRecording.current) return;
         autoscrollEnabledRef.current = true;
@@ -469,6 +570,9 @@ export default function AudioBoard({isDemo,socket}){
         playingAudioRef2.current = source2;
         currentlyPlayingAudio.current = 2;
         updatePlayhead(startTime)
+        if(numConnectedUsersRef.current>=2 && fromOtherPerson){
+            socket.current.emit("comm_audio_played_client_to_server",roomID);
+        }
     }
 
     handlePlayAudioRef.current = handlePlayAudio;
@@ -514,21 +618,28 @@ export default function AudioBoard({isDemo,socket}){
             setMouseDragStart({trounded:0,t:0});
             scrollWindowRef.current.scrollLeft = 0;
             setPlayheadLocation(0);
-            socket.current.emit("handle_skipback_client_to_server",roomID)
+            if(numConnectedUsersRef.current >= 2){
+                socket.current.emit("handle_skipback_client_to_server",roomID);
+            }
         }
     }
 
-    const handleStop = (sendSocket,keepRecording) => {
+    const handleStop = (sendSocket,keepRecording,fromOtherPerson,stoppingRecording) => {
         if(playingAudioRef.current){
             playingAudioRef.current.stop();
         }
         if(playingAudioRef2.current){
             playingAudioRef2.current.stop();
         }
-        currentlyRecording.current = false;
-        currentlyPlayingAudio.current = false;
         keepRecordingRef.current = keepRecording;
-        recorderRef.current.stopRecording(keepRecording);
+        if(currentlyRecording.current){
+            recorderRef.current.stopRecording(keepRecording);
+        }
+        currentlyRecording.current = false;
+        if(numConnectedUsersRef.current >= 2 && fromOtherPerson && currentlyPlayingAudio.current){
+            socket.current.emit("comm_audio_stopped_client_to_server",roomID);
+        }
+        currentlyPlayingAudio.current = false;
         metronomeRef.current.stop();
         if(numConnectedUsersRef.current >=2 && sendSocket){
             socket.current.emit("stop_audio_client_to_server",roomID)
@@ -571,7 +682,7 @@ export default function AudioBoard({isDemo,socket}){
                             <button onClick={()=>{
                                 //did this trick so that setAudio always triggers a rerender, but will still have the same truthiness
                                 setAudio(prev=>{
-                                    if(prev) handleStop(true,false);
+                                    if(prev) handleStop(true,false,false);
                                     return prev===false?null:false
                                 });
                                 if(numConnectedUsersRef.current >= 2){
@@ -608,7 +719,7 @@ export default function AudioBoard({isDemo,socket}){
                             <button onClick={()=>{
                                 //did this trick so that setAudio2 always triggers a rerender, but will still have the same truthiness
                                 setAudio2(prev=>{
-                                    if(prev) handleStop(false,false);
+                                    if(prev) handleStop(false,false,false);
                                     prev===false?null:false}
                                 );
                                 if(numConnectedUsersRef.current >= 2){
@@ -658,6 +769,7 @@ export default function AudioBoard({isDemo,socket}){
                                 waveform2Ref={waveform2Ref} audio2={audio2} delayCompensation2={delayCompensation2}
                                 WAVEFORM_WINDOW_LEN={WAVEFORM_WINDOW_LEN} autoscrollEnabledRef={autoscrollEnabledRef}
                                 setZoomFactor={setZoomFactor} compactMode={compactMode} loadingAudio={loadingAudio}
+                                pxPerSecondRef={pxPerSecondRef} convertTimeToMeasuresRef={convertTimeToMeasuresRef}
                     />
                     {/*<Button variant="default" size={compactMode==1?"lg":"sm"} onClick={()=>setSnapToGrid(prev=>!prev)} 
                         className="border-1 border-gray-300 hover:bg-gray-800"
@@ -667,14 +779,14 @@ export default function AudioBoard({isDemo,socket}){
                     </Button>*/}
                 </div>
                 
-                <div className="row-start-3 grid grid-cols-[20px_420px_125px_125px_125px_125px]" 
+                <div className="row-start-3 grid grid-cols-[20px_420px_125px_200px_250px]" 
                     style={{height:Math.floor(32*compactMode)}}>
                     <ButtonGroup className="rounded border-1 border-gray-300 col-start-2"
                         style={{transform:compactMode!=1?"scale(.7) translate(-55px,-10px)":""}}
                     >
                         <Button variant="default" size={compactMode==1?"lg":"sm"} className="hover:bg-gray-800"
                             onClick={()=>{
-                                    handlePlayAudio();
+                                    handlePlayAudio(false);
                                     if(numConnectedUsersRef.current>=2){
                                         socket.current.emit("client_to_server_play_audio",{roomID})
                                     } 
@@ -683,7 +795,7 @@ export default function AudioBoard({isDemo,socket}){
                         </Button>
                         <ButtonGroupSeparator/>
                         <Button variant="default" size={compactMode==1?"lg":"sm"} className="hover:bg-gray-800"
-                            onClick={()=>handleStop(true,true)}>
+                            onClick={()=>handleStop(true,true,false)}>
                             <Square color={"lightblue"} className="" style={{width:20,height:20}}/>
                         </Button>
                         <ButtonGroupSeparator/>
@@ -715,6 +827,7 @@ export default function AudioBoard({isDemo,socket}){
                                     setLooping(prev=>{
                                         if(numConnectedUsersRef.current >= 2){
                                             socket.current.emit("looping_client_to_server",{looping:!prev,roomID});
+                                            socket.current.emit("comm_looping_changed_client_to_server",{status:!prev,roomID});
                                         }
                                         return !prev;
                                     })
@@ -732,6 +845,9 @@ export default function AudioBoard({isDemo,socket}){
                                                 metronomeGainRef.current.gain.value = 1.0;
                                             }else{
                                                 metronomeGainRef.current.gain.value = 0.0;
+                                            }
+                                            if(numConnectedUsersRef.current >= 2){
+                                                socket.current.emit("comm_metronome_onoff_changed_client_to_server",{status:!prev,roomID});
                                             }
                                             return !prev;
                                         })
@@ -802,9 +918,14 @@ export default function AudioBoard({isDemo,socket}){
                                     > 
                                 </Slider>
                             </div>
-
+                            
                         </PopoverContent>
                     </Popover>
+                    {commMessage.text && <div className="flex flex-col items-center justify-center">
+                            <div className={"col-start-5 text-white fade-in-element text-sm"} key={commMessage.time}>
+                                {commMessage.text}
+                            </div>
+                    </div>}
                 </div>
             </div>
         </div>

@@ -88,6 +88,53 @@ const socketManager = async (server,sessionMiddleware) => {
       socket.to(data.roomID).emit("looping_server_to_client",data.looping);
     })
 
+    socket.on("comm_audio_played_client_to_server",(roomID)=>{
+      socket.to(roomID).emit("comm_audio_played_server_to_client");
+    });
+
+    socket.on("comm_audio_stopped_client_to_server",roomID=>{
+      socket.to(roomID).emit("comm_audio_stopped_server_to_client");
+    });
+
+    socket.on("comm_recording_started_client_to_server",(roomID)=>{
+      socket.to(roomID).emit("comm_recording_started_server_to_client");
+    });
+
+    socket.on("comm_recording_stopped_client_to_server",roomID=>{
+      socket.to(roomID).emit("comm_recording_stopped_server_to_client");
+    });
+
+    socket.on("comm_looping_changed_client_to_server",data=>{
+      socket.to(data.roomID).emit("comm_looping_changed_server_to_client",data.status)
+    })
+
+    socket.on("comm_looping_changed_partner_to_click_client_to_server",data=>{
+      socket.to(data.roomID).emit("comm_looping_changed_partner_to_click_server_to_client",data.looping);
+    })
+
+    socket.on("comm_metronome_onoff_changed_client_to_server",data=>{
+      socket.to(data.roomID).emit("comm_metronome_onoff_changed_server_to_client",data.status)
+    })
+
+    socket.on("comm_playhead_moved_click_to_other_client_to_server",data=>{
+      socket.to(data.roomID).emit("comm_playhead_moved_click_to_other_server_to_client",data.locationByMeasure);
+    })
+
+    socket.on("comm_playhead_moved_partner_to_click_client_to_server",data=>{
+      socket.to(data.roomID).emit("comm_playhead_moved_partner_to_click_server_to_client",data.locationByMeasure);
+    })
+
+    socket.on("comm_region_selected_client_to_server",data=>{
+      socket.to(data.roomID).emit("comm_region_selected_server_to_client",data);
+    })
+
+    socket.on("comm_region_selected_partner_to_click_client_to_server",data=>{
+      socket.to(data.roomID).emit("comm_region_selected_partner_to_click_client_to_server",data);
+    })
+
+    socket.on("comm_BPM_changed_partner_to_click_client_to_server",data=>{
+      socket.to(data.roomID).emit("comm_BPM_changed_partner_to_click_server_to_client",data.bpm);
+    })
 
     socket.on("disconnect", () => {
       if (!roomIDglobal) return;

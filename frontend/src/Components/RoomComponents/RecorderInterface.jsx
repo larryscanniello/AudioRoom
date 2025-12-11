@@ -9,7 +9,7 @@ export default function RecorderInterface({
     playheadLocation,setPlayheadLocation,snapToGrid,
     currentlyPlayingAudio,numConnectedUsersRef,audio2,delayCompensation2,
     WAVEFORM_WINDOW_LEN,autoscrollEnabledRef,setZoomFactor,
-    compactMode,loadingAudio
+    compactMode,loadingAudio,pxPerSecondRef,convertTimeToMeasuresRef
 }){
 
     const canvasContainerRef = useRef(null);
@@ -23,9 +23,15 @@ export default function RecorderInterface({
 
     //Used to set playhead location in the DOM, and also for calculations on the canvas
     const pxPerSecond = Math.floor(WAVEFORM_WINDOW_LEN*zoomFactor)/(128*60/BPM);
+    pxPerSecondRef.current = pxPerSecond;
     const playheadPx = playheadLocation*pxPerSecond;
 
     audio2Ref.current = audio2;
+
+    convertTimeToMeasuresRef.current = (time) => {
+                const locationinBeats = (((time * pxPerSecond)+1)/ measureTickRef.current.width)*128; //add 1 because, look at the start of the window - the first line isn't there
+                return (1+Math.floor(locationinBeats/4)).toString() + "." + (1+Math.floor(locationinBeats%4)).toString();
+    }
 
     useEffect(()=>{
         const handleScroll = () => {
@@ -46,7 +52,7 @@ export default function RecorderInterface({
         if(measureTickRef.current){
             drawMeasureTicks();
         }
-    },[compactMode,zoomFactor,mouseDragStart,mouseDragEnd])
+    },[compactMode,zoomFactor,mouseDragStart,mouseDragEnd,BPM])
 
     useEffect(()=>{
         fillSelectedRegion(waveform1Ref);
@@ -268,37 +274,6 @@ export default function RecorderInterface({
             
     }
 
-    useEffect(()=>{
-
-        let animationFrameId;
-        /*
-        if(waveform1Ref.current){
-            if(loadingAudio && loadingAudio.track==1){
-                fillLoadingAudio(waveform1Ref,0,1);
-            }
-            //fillSelectedRegion(waveform1Ref);
-            if(audio){
-                drawWaveform(waveform1Ref,audio,delayCompensation[0],1);
-            }
-        }
-        if(waveform2Ref.current){
-            if(loadingAudio && loadingAudio.track==2){
-                fillLoadingAudio(waveform2Ref,0,2);
-            }
-            fillSelectedRegion(waveform2Ref);
-            if(audio2){
-                drawWaveform(waveform2Ref,audio2,delayCompensation2[0],2);
-            }
-        }
-    
-        return () => {
-            if(animationFrameId){
-                cancelAnimationFrame(animationFrameId);
-            }
-        }
-        */
-    },[audio,audio2,BPM,mouseDragStart,mouseDragEnd,zoomFactor,delayCompensation,delayCompensation2,snapToGrid,compactMode,loadingAudio]);
-
     const handleCanvasMouseDown = (e) => {
         if(currentlyPlayingAudio.current) return;
         const rect = canvasContainerRef.current.getBoundingClientRect();
@@ -332,6 +307,7 @@ export default function RecorderInterface({
                 }
         }
         const handleCanvasMouseUp = (e) => {
+            
             isDraggingPlaybackRegion.current = false;
             const rect = canvasContainerRef.current.getBoundingClientRect();
             const x = Math.max(0,Math.min(rect.width,e.clientX-rect.left))
@@ -344,11 +320,13 @@ export default function RecorderInterface({
                     socket.current.emit("send_play_window_to_server",{
                         mouseDragStart:mousedragstart,mouseDragEnd:null,roomID,snapToGrid
                     })
+                    socket.current.emit("comm_playhead_moved_click_to_other_client_to_server",{locationByMeasure:convertTimeToMeasuresRef.current(mousedragstart.t),roomID});
                 }
             }else{
                 const endrounded = rect.width*Math.ceil(x*128/rect.width)/128
                 const pos = {trounded:endrounded/pxPerSecond, t:x/pxPerSecond}
                 //check if region has been dragged forwards or backwards. Always put start at the left
+
                 if(x/pxPerSecond>=mousedragstart.t){
                     if(snapToGrid){
                         setPlayheadLocation(mousedragstart.trounded)
@@ -369,6 +347,11 @@ export default function RecorderInterface({
                 if(numConnectedUsersRef.current >= 2){
                     socket.current.emit("send_play_window_to_server",{
                         mouseDragStart:mousedragstart,mouseDragEnd:pos,roomID,snapToGrid
+                    })
+                    socket.current.emit("comm_region_selected_client_to_server",{
+                        roomID,
+                        mouseDragStart:convertTimeToMeasuresRef.current(mousedragstart.trounded),
+                        mouseDragEnd:convertTimeToMeasuresRef.current(pos.trounded),
                     })
                 }
             }

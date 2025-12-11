@@ -52,7 +52,7 @@ export default function RecorderInterface({
         if(measureTickRef.current){
             drawMeasureTicks();
         }
-    },[compactMode,zoomFactor,mouseDragStart,mouseDragEnd,BPM])
+    },[compactMode,zoomFactor,mouseDragStart,mouseDragEnd,BPM,compactMode])
 
     useEffect(()=>{
         fillSelectedRegion(waveform1Ref);
@@ -75,7 +75,7 @@ export default function RecorderInterface({
                 cancelAnimationFrame(animation2Ref.current);
             }
         }
-    },[audio,audio2,delayCompensation,delayCompensation2,mouseDragStart,mouseDragEnd,loadingAudio,zoomFactor,BPM]);
+    },[audio,audio2,delayCompensation,delayCompensation2,mouseDragStart,mouseDragEnd,loadingAudio,zoomFactor,BPM,compactMode]);
 
     function drawCanvasContainer(){
         const canvas = canvasContainerRef.current;

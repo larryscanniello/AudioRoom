@@ -202,7 +202,6 @@ export default function AudioBoard({isDemo,socket}){
         if(!isDemo){
             socket.current.on("receive_audio_server_to_client", async (data) => {
                 const packet = new Float32Array(data.packet);
-                console.log(packet);
                 if(data.first){
                     audioChunksRef.current = [packet];
                     if(data.last){

@@ -78,8 +78,6 @@ export const useAudioRecorder = (
             audioChunksRef.current.push(packet);
           }
 
-          console.log('packetsender',packet);
-
           if(numConnectedUsersRef.current >= 2){
             socket.current.emit("send_audio_client_to_server",{
               packet,
@@ -120,33 +118,42 @@ export const useAudioRecorder = (
 
         delayCompRecorder.port.onmessage = (event) => {
           //handles delay comp recording being stopped
-            console.log("Delay compensation recorder stopped");
-            const recordedBuffers = event.data.buffer;
-            const length = recordedBuffers.reduce((sum,arr) => sum+arr.length,0)
-            const fullBuffer = new Float32Array(length);
-            let offset = 0;
-            for(const arr of recordedBuffers){
-              fullBuffer.set(arr,offset)
-              offset += arr.length;
+
+            if(event.data.first){
+              audioChunksRef.current = [event.data.packet]
+            }else{
+              audioChunksRef.current.push(event.data.packet)
             }
-            let greatestAvg = 0;
-            let greatestIndex = 0;
-            const dataArray = fullBuffer;
-            for(let i=0;i<dataArray.length-50;i++){
-                let avg = 0
-                for(let j=i;j<i+50;j++){
-                    avg += Math.abs(dataArray[j])/50;
-                }
-                if(avg>greatestAvg){
-                    greatestAvg = avg;
-                    greatestIndex = i
-                }
-            }
-            setDelayCompensation([greatestIndex])
-            if(numConnectedUsersRef.current>=2){
-              socket.current.emit("send_latency_client_to_server",{
-              roomID,delayCompensation:[greatestIndex]
-            })
+
+            if(event.data.last){
+              console.log("Delay compensation recorder stopped");
+              const recordedBuffers = audioChunksRef.current;
+              const length = recordedBuffers.reduce((sum,arr) => sum+arr.length,0)
+              const fullBuffer = new Float32Array(length);
+              let offset = 0;
+              for(const arr of recordedBuffers){
+                fullBuffer.set(arr,offset)
+                offset += arr.length;
+              }
+              let greatestAvg = 0;
+              let greatestIndex = 0;
+              const dataArray = fullBuffer;
+              for(let i=0;i<dataArray.length-50;i++){
+                  let avg = 0
+                  for(let j=i;j<i+50;j++){
+                      avg += Math.abs(dataArray[j])/50;
+                  }
+                  if(avg>greatestAvg){
+                      greatestAvg = avg;
+                      greatestIndex = i
+                  }
+              }
+              setDelayCompensation([greatestIndex])
+              if(numConnectedUsersRef.current>=2){
+                socket.current.emit("send_latency_client_to_server",{
+                roomID,delayCompensation:[greatestIndex]
+              })
+              }
             }
         };
 
@@ -247,7 +254,9 @@ recordAnimationRef.current = updatePlayhead;
       metRef.current.tempo = 120;
       metronomeGainRef.current.gain.value = 1.0;
       metRef.current.start(now);
-      delayCompensationRecorderRef.current.port.postMessage({actiontype:"start",buffer:[]});
+      delayCompensationRecorderRef.current.port.postMessage({actiontype:"start",
+            buffer: [],
+            delayCompensation:[0]});
       console.log("Delay compensation recording started");
       setTimeout(() => {
         metronomeRef.current.stop();

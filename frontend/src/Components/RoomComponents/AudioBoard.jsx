@@ -328,7 +328,7 @@ export default function AudioBoard({isDemo,socket}){
                 
                 clearTimeout(commsClearTimeoutRef.current);
                 setCommMessage({text:"Partner audio played",time:performance.now()});
-                commsClearTimeoutRef.current = setTimeout(()=>setCommMessageFadingOut(true),5000)
+                commsClearTimeoutRef.current = setTimeout(()=>setCommMessage(""),5000)
             });
 
             socket.current.on("comm_audio_stopped_server_to_client",()=>{

@@ -1,7 +1,6 @@
 // useAudioRecorder.js
 import { useRef, useEffect, useState } from 'react';
 
-
 export const useAudioRecorder = (
   {AudioCtxRef, metronomeRef,socket, roomID, setAudio,
   audioChunksRef,setAudioURL,setDelayCompensation, setDelayCompensationAudio, 
@@ -71,51 +70,45 @@ export const useAudioRecorder = (
         
         processor.port.onmessage = (event) => {
           //handles main recording being stopped
-          let recordedBuffers = event.data.buffer;
-          if(recordedBuffers.length==0){return;}
-          let chunks = [];
-          for(let i=0;i<recordedBuffers.length;i++){
-            if(i%16==0){
-              chunks.push(recordedBuffers[i]);
-            }else{
-              chunks[Math.floor(i/16)] = [...chunks[Math.floor(i/16)],...recordedBuffers[i]];
+          let packet = event.data.packet;
+
+          if(event.data.first){
+            audioChunksRef.current = [packet];
+          }else{
+            audioChunksRef.current.push(packet);
+          }
+
+          console.log('packetsender',packet);
+
+          if(numConnectedUsersRef.current >= 2){
+            socket.current.emit("send_audio_client_to_server",{
+              packet,
+              roomID,
+              first:event.data.first,
+              last:event.data.last,
+              delayCompensation:delayCompensationRef.current
+            })
+          }
+
+          if(event.data.last){
+            const length = audioChunksRef.current.reduce((sum,arr) => sum+arr.length,0)
+            const fullBuffer = new Float32Array(length);
+            let offset = 0;
+            for(const arr of audioChunksRef.current){
+              fullBuffer.set(arr,offset);
+              offset += arr.length;
+            }
+
+            const audioBuffer = AudioCtxRef.current.createBuffer(1,fullBuffer.length,AudioCtxRef.current.sampleRate);
+            audioBuffer.copyToChannel(fullBuffer,0);
+
+            setAudio(audioBuffer);
+
+            setPlayheadLocation(0);
+            if(numConnectedUsersRef.current>=2){
+              //setLoadingAudio({track:1,time:length/AudioCtxRef.current.sampleRate});
             }
           }
-          recordedBuffers = chunks;
-            
-          const length = recordedBuffers.reduce((sum,arr) => sum+arr.length,0)
-          const fullBuffer = new Float32Array(length);
-          let offset = 0;
-          for(const arr of recordedBuffers){
-            fullBuffer.set(arr,offset)
-            offset += arr.length;
-          }
-        
-          const audioBuffer = AudioCtxRef.current.createBuffer(1,fullBuffer.length,AudioCtxRef.current.sampleRate);
-          audioBuffer.copyToChannel(fullBuffer,0);
-
-          audioChunksRef.current = recordedBuffers;
-          setAudio(audioBuffer);
-
-          setPlayheadLocation(0);
-          if(numConnectedUsersRef.current>=2){
-            setLoadingAudio({track:1,time:length/AudioCtxRef.current.sampleRate});
-          }
-
-          if(numConnectedUsersRef.current>=2){
-            for (let i = 0; i < recordedBuffers.length; i++) {
-              socket.current.emit("send_audio_client_to_server", {
-                audio: recordedBuffers[i],
-                roomID,
-                i,
-                user: "all",
-                length: recordedBuffers.length,
-                delayCompensation:delayCompensationRef.current
-              });
-            }
-          }
-
-          recordedBuffersRef.current = [];
         }
 
         recorderRef.current = {processor,startRecording,stopRecording};
@@ -189,9 +182,9 @@ const updatePlayhead = (waveformRef,now) => {
       if(otherPersonRecordingRef.current){
         otherPersonRecordingRef.current = false;
         setAudio2(null);
-        if(!keepRecordingRef.current){
-          setLoadingAudio({track:2,time:elapsed})
-        }
+        //if(!keepRecordingRef.current){
+          //setLoadingAudio({track:2,time:elapsed})
+        //}
       }
       return;
     }

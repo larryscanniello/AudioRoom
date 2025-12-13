@@ -166,7 +166,7 @@ export default function AudioBoard({isDemo,socket}){
             setMouseDragEnd(null);
             setPlayheadLocation(0);
             setAudio2(audioBuffer);
-            setLoadingAudio(null);
+            //setLoadingAudio(null);
             socket.current.emit("client_to_server_incoming_audio_done_processing",roomID);
         }
 
@@ -201,19 +201,21 @@ export default function AudioBoard({isDemo,socket}){
         
         if(!isDemo){
             socket.current.on("receive_audio_server_to_client", async (data) => {
-                if(data.i==0){
-                    audioChunksRef.current = [data.audio];
-                    if(data.length==1){
+                const packet = new Float32Array(data.packet);
+                console.log(packet);
+                if(data.first){
+                    audioChunksRef.current = [packet];
+                    if(data.last){
                         currentlyRecording.current = false;
-                        processAudio([data.audio]);
+                        processAudio([data.packet]);
                         setMouseDragStart({trounded:0,t:0});
                         setMouseDragEnd(null);
                         setPlayheadLocation(0);
                     }
                 }else {
-                    const newchunks = [...audioChunksRef.current,data.audio];
+                    const newchunks = [...audioChunksRef.current,packet];
                     audioChunksRef.current = newchunks;
-                    if(data.length==newchunks.length){
+                    if(data.last){
                         currentlyRecording.current = false;
                         processAudio(newchunks);
                         setMouseDragStart({trounded:0,t:0});
@@ -300,7 +302,7 @@ export default function AudioBoard({isDemo,socket}){
             });
 
             socket.current.on("server_to_client_incoming_audio_done_processing",()=>{
-                setLoadingAudio(null);
+                //setLoadingAudio(null);
             })
 
             socket.current.on("user_connected_server_to_client",numConnectedUsers=>{
@@ -313,7 +315,7 @@ export default function AudioBoard({isDemo,socket}){
 
             socket.current.on("server_to_client_delete_audio",(track)=>{
                 handleStop(false,false,true);
-                setLoadingAudio(null);
+                //setLoadingAudio(null);
                 //did this trick in the callbacks so that these always trigger a rerender, but have the same truthiness
                 if(track==1) setAudio2(prev=>prev===null?false:null);
                 else setAudio(prev=>prev===null?false:null);

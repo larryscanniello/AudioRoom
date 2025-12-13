@@ -7,15 +7,6 @@
   }
 }
 
-@keyframes fadeOut {
-    from{
-        opacity: 1;
-    }
-    to{
-        opacity: 0;
-    }
-}
-
 .fade-in-element {
   opacity: 0; /* Start hidden */
   animation: fadeIn .25s forwards; /* Apply the animation for 2 seconds, staying at the final state */

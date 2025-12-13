@@ -4,9 +4,11 @@ class RecorderProcessor extends AudioWorkletProcessor {
 
     this.isRecording = false;
     this.isPlayingBack = true;
-    this.recordingBuffer = [];
+    this.recordingBuffer = new Float32Array(0);
     this.playbackBuffer = null;
     this.playbackPos = 0;
+    this.packetSize = 4096;
+    this.firstPacket = true;
 
     this.port.onmessage = (e) => {
       if (e.data.actiontype === 'start'){ 
@@ -14,12 +16,13 @@ class RecorderProcessor extends AudioWorkletProcessor {
         this.isRecording = true;
         this.playbackBuffer = e.data.buffer
         this.playbackPos = e.data.delayCompensation[0]-(Math.floor(.05*sampleRate)); //compensate for metronome delay
+        this.firstPacket = true;
       };
       if (e.data.actiontype === 'stop'){ 
         this.isRecording = false;
         this.playbackPos = 0;
-        if(e.data.keepRecording){
-          this.port.postMessage({buffer:this.recordingBuffer});
+        if(e.data.keepRecording && this.recordingBuffer.length>0){
+          this.port.postMessage({packet:this.recordingBuffer,first:this.firstPacket,last:true});
         }
         this.recordingBuffer = [];
       };
@@ -29,7 +32,19 @@ class RecorderProcessor extends AudioWorkletProcessor {
     const input = inputs[0];
     if (!input || !input[0]) return true;
     if(this.isRecording){
-      this.recordingBuffer.push(new Float32Array(input[0]));
+      //do all this nonsense to keep the recordingbuffer a float 32 array
+      const existingBuffer = this.recordingBuffer;
+      const newInput = new Float32Array(input[0]);
+      const newLength = existingBuffer.length + newInput.length;
+      const newBuffer = new Float32Array(newLength);
+      newBuffer.set(existingBuffer, 0);
+      newBuffer.set(newInput, existingBuffer.length);
+      this.recordingBuffer = newBuffer;
+      if(this.recordingBuffer.length==this.packetSize){
+        this.port.postMessage({packet:this.recordingBuffer,first:this.firstPacket,last:false});
+        this.recordingBuffer = new Float32Array(0);
+        this.firstPacket = false;
+      }
       if(this.playbackPos<this.playbackBuffer.length){
         const output = outputs[0];
         const outL = output[0];

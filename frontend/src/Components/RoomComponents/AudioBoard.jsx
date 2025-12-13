@@ -26,7 +26,7 @@ import "./AudioBoard.css";
 
 const WAVEFORM_WINDOW_LEN = 900;
 
-export default function AudioBoard({isDemo,socket}){
+export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnteredRoom}){
 
     const [width,height] = useWindowSize();
 
@@ -53,7 +53,7 @@ export default function AudioBoard({isDemo,socket}){
     const [loadingAudio,setLoadingAudio] = useState(null);
     const [looping,setLooping] = useState(true);
     const [commMessage,setCommMessage] = useState("");
-    const [commMessageFadingOut,setCommMessageFadingOut] = useState(false);
+    const [popoverOpen,setPopoverOpen] = useState(isDemo ? false : true);
 
     const waveform1Ref = useRef(null);
     const waveform2Ref = useRef(null);
@@ -417,7 +417,12 @@ export default function AudioBoard({isDemo,socket}){
         
     }, []);
 
-    
+    useEffect(()=>{
+        if(!popoverOpen){
+            setFirstEnteredRoom(false);
+            setDisplayDelayCompensationMessage(false);
+        }
+    },[popoverOpen])
 
     loopingRef.current = looping;
 
@@ -649,9 +654,9 @@ export default function AudioBoard({isDemo,socket}){
 
     let delayCompensationStep;
     if(AudioCtxRef.current){
-        delayCompensationStep = Math.floor(AudioCtxRef.current.sampleRate * .01);
+        delayCompensationStep = Math.floor(AudioCtxRef.current.sampleRate * .005);
     }else{
-        delayCompensationStep = 410;
+        delayCompensationStep = 205;
     }
     
 
@@ -880,15 +885,23 @@ export default function AudioBoard({isDemo,socket}){
                             }}>
                         </Slider>
                     </div>
-                    <Popover>
+                    <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
                         <PopoverTrigger className={"col-start-4 hover:underline text-blue-200 "+(compactMode!=1?"-translate-y-2":"")}>Latency</PopoverTrigger>
-                        <PopoverContent onCloseAutoFocus={()=>setDisplayDelayCompensationMessage(false)}>
-                            <div>Place your microphone near your speakers,
-                                turn your volume up,
-                            then hit the record button.</div>  
-                            <div className="grid place-items-center p-4">
+                        <PopoverContent className="w-132">
+                            <div>
+                                <div className="flex flex-col items-center justify-center">
+                                    <div className="text-xl font-bold">Quick Setup: Latency Calibration</div>
+                                </div>
+                                <div className="text-sm">For synchronized web audio, it is essential to do a latency test. Three steps:</div>
+                                <div className="text-xs">1. If you are using a non-computer mic, place your mic near your speakers.</div>
+                                <div className="text-xs">2. Turn your volume up. The louder the better.</div>
+                                <div className="text-xs">3. Press the button below. It will emit a test click.</div>
+                                </div>
+                            
+                            
+                            <div className="grid place-items-center p-2">
                                 <Button 
-                                    variant="default" size="lg" className="bg-white hover:bg-gray-300 border-1 border-gray-400"
+                                    variant="default" size="lg" className="bg-white hover:bg-gray-300 border-1 border-gray-400 text-red-500"
                                     onClick={()=>{
                                         if(!currentlyPlayingAudio.current && !currentlyRecording.current){
                                             startDelayCompensationRecording(metronomeRef);
@@ -896,13 +909,18 @@ export default function AudioBoard({isDemo,socket}){
                                         }
                                     }}
                                     >
-                                    <Circle color={"red"}className="" style={{width:20,height:20}}/>
+                                    Start Latency Test
                                 </Button>
                             </div>
                             {displayDelayCompensationMessage && <div className="text-green-600">
-                                Latency compensatation attempted successfully.</div>}
-                            <div className="pt-4">Alternatively, adjust it manually:
-                                <Slider style={{width:100}} max={20000} step={delayCompensationStep}
+                                Latency compensatation applied. Delay: {Math.round(1000 * delayCompensation[0] / (AudioCtxRef.current? AudioCtxRef.current.sampleRate:48000))} ms</div>}
+                            <div className="text-xs">Note: Due to the limitations of web browsers, some slight latency drift is possible over time. 
+                                Press the latency button to readjust at any time. Any changes will be immediately reflected on your 
+                                partner's recorder.</div>
+                            
+                            {!firstEnteredRoom && <div className="flex flex-col items-center justify-center"><div className="font-bold">Adjust latency compensation manually:
+                                </div>
+                                {!firstEnteredRoom && <div className="flex flex-row"><Slider style={{width:100}} max={20000} step={delayCompensationStep}
                                     onValueChange={(value)=>{
                                         if(!currentlyPlayingAudio.current && !currentlyRecording.current){
                                             setDelayCompensation(value);
@@ -914,15 +932,23 @@ export default function AudioBoard({isDemo,socket}){
                                         roomID,delayCompensation:value})
                                         }
                                     }}
-                                    className="p-4"
+                                    className="pt-2 pb-2"
                                     value={delayCompensation}
                                     > 
-                                </Slider>
-                            </div>
+                                </Slider><div className="pl-2">{Math.round(1000 * delayCompensation[0] / (AudioCtxRef.current? AudioCtxRef.current.sampleRate : 48000))} ms</div></div>}
+
                             
+                            </div>}
+                            <div className="flex flex-col items-center justify-center">
+                            </div>
+                            <div className="flex flex-col items-center justify-center">
+                                <button className="text-xl hover:underline" onClick={()=>setPopoverOpen(false)}>
+                                    Close
+                                </button>
+                            </div>
                         </PopoverContent>
                     </Popover>
-                    {commMessage.text && <div className="flex flex-col items-center justify-center">
+                    {commMessage.text && <div className={"flex flex-col items-center justify-center " + (compactMode<1?"-translate-y-1.5":"")}>
                             <div className={"col-start-5 text-white fade-in-element text-sm"} key={commMessage.time}>
                                 {commMessage.text}
                             </div>

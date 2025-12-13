@@ -12,6 +12,7 @@ export default function Room(){
     const [userList,setUserList] = useState([])
     const [width,height] = useWindowSize();
     const [errorMessage,setErrorMessage] = useState("Loading...")
+    const [firstEnteredRoom,setFirstEnteredRoom] = useState(true);
 
     useEffect(()=>{
         async function verifyRoom(){
@@ -64,8 +65,11 @@ export default function Room(){
       };
     }, []);
 
+    const handleBackdropClick = ()=>{}
+    const onClose = () => {}
+
     return <div>
-    {(roomResponse) ? 
+    {(roomResponse) ?
     <div>
     <div className="flex items-center justify-center">
     <div
@@ -78,8 +82,8 @@ export default function Room(){
     >
     </div>
     </div> 
-    <AudioBoard isDemo={false} socket={socket}/>
-    </div> 
+    <AudioBoard isDemo={false} socket={socket} firstEnteredRoom={firstEnteredRoom} setFirstEnteredRoom={setFirstEnteredRoom}/>
+    </div>
     : <div className="flex flex-col items-center"><div className="text-4xl pt-40">{errorMessage}</div></div>}
     </div>
 }

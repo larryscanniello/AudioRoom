@@ -100,8 +100,7 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
         }else{
             setCompactMode(1);
         }
-    },[height])
-    
+    },[height])    
 
     const { roomID } = useParams();
 
@@ -381,8 +380,6 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
 
             socket.current.on("comm_event", (data) => {
                 clearTimeout(commsClearTimeoutRef.current);
-
-                console.log(data);
 
                 const messageBuilder = commMessageMap[data.type];
                 if (!messageBuilder) return;

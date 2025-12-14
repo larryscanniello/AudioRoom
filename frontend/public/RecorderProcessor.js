@@ -9,9 +9,12 @@ class RecorderProcessor extends AudioWorkletProcessor {
     this.playbackPos = 0;
     this.packetSize = 4096;
     this.firstPacket = true;
+    this.emptyPacket = false;
+    this.sessionId = null;
 
     this.port.onmessage = (e) => {
       if (e.data.actiontype === 'start'){ 
+        this.sessionId = e.data.sessionId;
         this.recordingBuffer = [];
         this.isRecording = true;
         this.playbackBuffer = e.data.buffer
@@ -19,12 +22,14 @@ class RecorderProcessor extends AudioWorkletProcessor {
         this.firstPacket = true;
       };
       if (e.data.actiontype === 'stop'){ 
+        if (e.data.sessionId !== this.sessionId || this.sessionId === null) return;
         this.isRecording = false;
         this.playbackPos = 0;
-        if(e.data.keepRecording && this.recordingBuffer.length>0){
+        if(e.data.keepRecording && (this.recordingBuffer.length > 0 || this.emptyPacket)){
           this.port.postMessage({packet:this.recordingBuffer,first:this.firstPacket,last:true});
         }
         this.recordingBuffer = [];
+        this.sessionId = null;
       };
     };
   }
@@ -40,10 +45,12 @@ class RecorderProcessor extends AudioWorkletProcessor {
       newBuffer.set(existingBuffer, 0);
       newBuffer.set(newInput, existingBuffer.length);
       this.recordingBuffer = newBuffer;
+      this.emptyPacket = false;
       if(this.recordingBuffer.length==this.packetSize){
         this.port.postMessage({packet:this.recordingBuffer,first:this.firstPacket,last:false});
         this.recordingBuffer = new Float32Array(0);
         this.firstPacket = false;
+        this.emptyPacket = true;
       }
       if(this.playbackPos<this.playbackBuffer.length){
         const output = outputs[0];

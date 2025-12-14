@@ -16,6 +16,8 @@ export const useAudioRecorder = (
   const streamRef = useRef(null);
   const recordedBuffersRef = useRef(null);
   const delayCompensationRef = useRef(null);
+  const delayChunksRef = useRef(null);
+  const sessionIdRef = useRef(null);
   
   delayCompensationRef.current = delayCompensation;
 
@@ -47,11 +49,15 @@ export const useAudioRecorder = (
         
 
         const startRecording = (audio2,delayComp) => {
+          const sessionId = crypto.randomUUID();
+          sessionIdRef.current = sessionId;
+
           recordedBuffersRef.current = [];
           processor.port.postMessage({
             actiontype:"start",
             buffer:audio2 ? audio2.getChannelData(0).slice():[],
-            delayCompensation:delayComp
+            delayCompensation:delayComp,
+            sessionId,
           });
           handleRecording(metronomeRef);
           setMouseDragStart({trounded:0,t:0});
@@ -65,7 +71,7 @@ export const useAudioRecorder = (
         }
 
         const stopRecording = (keepRecording) => {
-          processor.port.postMessage({actiontype:"stop",keepRecording});
+          processor.port.postMessage({actiontype:"stop",keepRecording,sessionId:sessionIdRef.current});
           if(numConnectedUsersRef.current >= 2 && !otherPersonRecordingRef.current){
             socket.current.emit("comm_event",{
               type:"recording_stopped",
@@ -125,14 +131,14 @@ export const useAudioRecorder = (
           //handles delay comp recording being stopped
 
             if(event.data.first){
-              audioChunksRef.current = [event.data.packet]
+              delayChunksRef.current = [event.data.packet]
             }else{
-              audioChunksRef.current.push(event.data.packet)
+              delayChunksRef.current.push(event.data.packet)
             }
 
             if(event.data.last){
               console.log("Delay compensation recorder stopped");
-              const recordedBuffers = audioChunksRef.current;
+              const recordedBuffers = delayChunksRef.current;
               const length = recordedBuffers.reduce((sum,arr) => sum+arr.length,0)
               const fullBuffer = new Float32Array(length);
               let offset = 0;
@@ -194,7 +200,7 @@ const updatePlayhead = (waveformRef,now) => {
     if(!currentlyRecording.current){
       if(otherPersonRecordingRef.current){
         otherPersonRecordingRef.current = false;
-        setAudio2(null);
+        //setAudio2(null);
         //if(!keepRecordingRef.current){
           //setLoadingAudio({track:2,time:elapsed})
         //}
@@ -254,15 +260,19 @@ recordAnimationRef.current = updatePlayhead;
 
   const startDelayCompensationRecording = (metRef) => {
     if (delayCompensationRecorderRef.current && metRef.current) {
+      const sessionId = crypto.randomUUID();
       const prevtempo = metRef.current.tempo;
       const prevMetronomeGain = metronomeGainRef.current.gain.value;
       const now = AudioCtxRef.current.currentTime;
       metRef.current.tempo = 120;
       metronomeGainRef.current.gain.value = 1.0;
       metRef.current.start(now);
-      delayCompensationRecorderRef.current.port.postMessage({actiontype:"start",
+      delayCompensationRecorderRef.current.port.postMessage({
+            actiontype:"start",
             buffer: [],
-            delayCompensation:[0]});
+            delayCompensation:[0],
+            sessionId,
+          });
       console.log("Delay compensation recording started");
       setTimeout(() => {
         metronomeRef.current.stop();
@@ -270,7 +280,11 @@ recordAnimationRef.current = updatePlayhead;
         metronomeGainRef.current.gain.value = prevMetronomeGain;
       }, 400);
       setTimeout(()=>{
-        delayCompensationRecorderRef.current.port.postMessage({actiontype:"stop",keepRecording:true});
+        delayCompensationRecorderRef.current.port.postMessage({
+          actiontype:"stop",
+          keepRecording:true,
+          sessionId
+        });
       },1000)
     }
   }

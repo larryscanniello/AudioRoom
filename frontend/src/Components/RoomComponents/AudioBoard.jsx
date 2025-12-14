@@ -54,6 +54,8 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
     const [looping,setLooping] = useState(true);
     const [commMessage,setCommMessage] = useState("");
     const [popoverOpen,setPopoverOpen] = useState(isDemo ? false : true);
+    const [popoverMoreInfo,setPopoverMoreInfo] = useState(false);
+    const [latencyTestRes,setLatencyTestRes] = useState(null);
 
     const waveform1Ref = useRef(null);
     const waveform2Ref = useRef(null);
@@ -113,7 +115,7 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
                                             currentlyRecording,setPlayheadLocation,numConnectedUsersRef,delayCompensation,
                                             recorderRef,recordAnimationRef,metronomeOnRef,gain2Ref,
                                             metronomeGainRef,WAVEFORM_WINDOW_LEN,autoscrollEnabledRef,
-                                            otherPersonRecordingRef,setLoadingAudio,setAudio2})
+                                            otherPersonRecordingRef,setLoadingAudio,setAudio2,setLatencyTestRes})
 
     useEffect(() => {
         //This effect runs only when component first mounts. 
@@ -419,8 +421,10 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
 
     useEffect(()=>{
         if(!popoverOpen){
+            setTimeout(()=>{
             setFirstEnteredRoom(false);
             setDisplayDelayCompensationMessage(false);
+            },1000)
         }
     },[popoverOpen])
 
@@ -890,9 +894,9 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
                         <PopoverContent className="w-132">
                             <div>
                                 <div className="flex flex-col items-center justify-center">
-                                    <div className="text-xl font-bold">Quick Setup: Latency Calibration</div>
+                                    <div className="text-xl font-bold">{firstEnteredRoom && "Quick Setup: " } Latency Calibration</div>
                                 </div>
-                                <div className="text-sm">For synchronized web audio, it is essential to do a latency test. Three steps:</div>
+                                {/*<div className="text-sm">For synchronized web audio, it is essential to do a latency test. Three steps:</div>*/}
                                 <div className="text-xs">1. If you are using a non-computer mic, place your mic near your speakers.</div>
                                 <div className="text-xs">2. Turn your volume up. The louder the better.</div>
                                 <div className="text-xs">3. Press the button below. It will emit a test click.</div>
@@ -912,11 +916,8 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
                                     Start Latency Test
                                 </Button>
                             </div>
-                            {displayDelayCompensationMessage && <div className="text-green-600">
-                                Latency compensatation applied. Delay: {Math.round(1000 * delayCompensation[0] / (AudioCtxRef.current? AudioCtxRef.current.sampleRate:48000))} ms</div>}
-                            <div className="text-xs">Note: Due to the limitations of web browsers, some slight latency drift is possible over time. 
-                                Press the latency button to readjust at any time. Any changes will be immediately reflected on your 
-                                partner's recorder.</div>
+                            {latencyTestRes && <div className="text-green-600">
+                                Latency compensation applied. Delay: {Math.round(1000 * latencyTestRes / (AudioCtxRef.current? AudioCtxRef.current.sampleRate:48000))} ms</div>}
                             
                             {!firstEnteredRoom && <div className="flex flex-col items-center justify-center"><div className="font-bold">Adjust latency compensation manually:
                                 </div>
@@ -941,6 +942,21 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
                             </div>}
                             <div className="flex flex-col items-center justify-center">
                             </div>
+                            <div className="flex flex-col items-center justify-center">
+                                <button className="hover:underline text-sm" onClick={()=>setPopoverMoreInfo(prev=>!prev)}>
+                                    Latency Info
+                                </button>
+                            </div>
+                            {popoverMoreInfo && <div className="text-xs">
+                                <ul className="list-disc">
+                                <li>Recording in the browser introduces signficant latency, but this latency is measurable, predictable, and can be mitigated through calibration.</li>
+                                <li>
+                                Over time, the browser may take slightly longer or shorter to process audio.
+                                Press the latency button to recalibrate at any time. Any changes will be immediately reflected on both yours and your 
+                                partner's recorders.</li>
+                                </ul>
+                                </div>
+                                }
                             <div className="flex flex-col items-center justify-center">
                                 <button className="text-xl hover:underline" onClick={()=>setPopoverOpen(false)}>
                                     Close

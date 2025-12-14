@@ -8,7 +8,7 @@ export const useAudioRecorder = (
   playheadRef,metronomeOn,waveform1Ref,BPM,scrollWindowRef,currentlyRecording,
   setPlayheadLocation,numConnectedUsersRef,delayCompensation,BPMRef,recorderRef,recordAnimationRef,
   metronomeOnRef,gain2Ref,metronomeGainRef,WAVEFORM_WINDOW_LEN,autoscrollEnabledRef,
-  setLoadingAudio,otherPersonRecordingRef,setAudio2,
+  setLoadingAudio,otherPersonRecordingRef,setAudio2,setLatencyTestRes
 }
 ) => {
   const mediaRecorderRef = useRef(null);
@@ -149,6 +149,7 @@ export const useAudioRecorder = (
                   }
               }
               setDelayCompensation([greatestIndex])
+              setLatencyTestRes(greatestIndex);
               if(numConnectedUsersRef.current>=2){
                 socket.current.emit("send_latency_client_to_server",{
                 roomID,delayCompensation:[greatestIndex]

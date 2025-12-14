@@ -562,8 +562,8 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
         //the .05 added to now previously was for playhead rendering purposes, we need to subtract it here
         metronomeRef.current.start(now-.05+timeToNextMeasure);
         //source.start arguments are (time to wait to play audio,location in audio to start,duration to play)
-        source.buffer = getBuffer(audio,startTime+secondsToDelay,endTime);
-        source2.buffer = getBuffer(audio2,startTime+secondsToDelay2,endTime);
+        source.buffer = getBuffer(audio,startTime+secondsToDelay,endTime+secondsToDelay);
+        source2.buffer = getBuffer(audio2,startTime+secondsToDelay2,endTime+secondsToDelay2);
         source.loop = mouseDragEnd ? looping : false;
         source2.loop = mouseDragEnd ? looping : false;
         source.start(now);

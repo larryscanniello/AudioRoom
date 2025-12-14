@@ -57,14 +57,19 @@ export const useAudioRecorder = (
           setMouseDragStart({trounded:0,t:0});
           setMouseDragEnd(null);
           if(numConnectedUsersRef.current >=2){
-            socket.current.emit("comm_recording_started_client_to_server",roomID);
+            socket.current.emit("comm_event",
+              {roomID,
+                type:"recording_started",
+              });
           }
         }
 
         const stopRecording = (keepRecording) => {
           processor.port.postMessage({actiontype:"stop",keepRecording});
           if(numConnectedUsersRef.current >= 2 && !otherPersonRecordingRef.current){
-            socket.current.emit("comm_recording_stopped_client_to_server",roomID);
+            socket.current.emit("comm_event",{
+              type:"recording_stopped",
+              roomID});
           }
         };
         

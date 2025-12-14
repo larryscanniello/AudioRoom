@@ -25,6 +25,7 @@ import { useWindowSize } from "../useWindowSize";
 import "./AudioBoard.css";
 
 const WAVEFORM_WINDOW_LEN = 900;
+const COMM_TIMEOUT_TIME = 5000;
 
 export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnteredRoom}){
 
@@ -239,9 +240,12 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
                 //start = data.mouseDragEnd ? data.mouseDragStart.trounded : data.mouseDragStart ? data.mouseDragStart.t : 0;
                 setPlayheadLocation(start)
                 if(numConnectedUsersRef.current >= 2 && !data.mouseDragEnd){
-                    socket.current.emit("comm_playhead_moved_partner_to_click_client_to_server",{locationByMeasure:convertTimeToMeasuresRef.current(start),roomID});
+                    socket.current.emit("comm_event",
+                        {type:"notify_that_partner_playhead_moved",
+                            locationByMeasure:convertTimeToMeasuresRef.current(start),roomID});
                 }else if(numConnectedUsersRef.current >=2){
-                    socket.current.emit("comm_region_selected_partner_to_click_client_to_server",{
+                    socket.current.emit("comm_event",{
+                        type:"notify_that_partner_region_selection_changed",
                         roomID,
                         mouseDragStart:convertTimeToMeasuresRef.current(start),
                         mouseDragEnd:convertTimeToMeasuresRef.current(data.mouseDragEnd.trounded),
@@ -260,7 +264,10 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
                 scrollWindowRef.current.scrollLeft = 0;
                 setPlayheadLocation(0);
                 if(numConnectedUsersRef.current >= 2){
-                    socket.current.emit("comm_playhead_moved_client_to_server",{roomID,locationByMeasure:"1.1"});
+                    socket.current.emit("comm_event",
+                        {   type: "notify_that_partner_playhead_moved",
+                            roomID,
+                            locationByMeasure:"1.1"});
                 }
             })
             
@@ -282,10 +289,14 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
             socket.current.on("send_bpm_server_to_client",bpm=>{
                 setBPM(bpm);
                 BPMRef.current = bpm;
-                socket.current.emit("comm_BPM_changed_partner_to_click_client_to_server",{roomID,bpm});
+                socket.current.emit("comm_event",
+                    {roomID,
+                    bpm,
+                    type:"notify_that_partner_BPM_changed"
+                });
                 clearTimeout(commsClearTimeoutRef.current);
                 setCommMessage({text:`Partner changed BPM to ${bpm}`,time:performance.now()});
-                commsClearTimeoutRef.current = setTimeout(()=>setCommMessage(""),5000)
+                commsClearTimeoutRef.current = setTimeout(()=>setCommMessage(""),COMM_TIMEOUT_TIME)
             });
 
             socket.current.on("stop_audio_server_to_client",()=>{
@@ -294,6 +305,10 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
 
             socket.current.on("send_latency_server_to_client",(delayComp)=>{
                 setDelayCompensation2(delayComp);
+                clearTimeout(commsClearTimeoutRef.current);
+                setCommMessage({text:`Track 2 latency adjusted`,time:performance.now()});
+                commsClearTimeoutRef.current = setTimeout(()=>setCommMessage(""),COMM_TIMEOUT_TIME);
+                socket.current.emit("comm_event",{roomID,type:"notify_that_partner_latency_comp_changed"})
             });
 
             socket.current.on("start_recording_server_to_client",()=>{
@@ -324,83 +339,62 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
 
             socket.current.on("looping_server_to_client",(looping)=>{
                 setLooping(looping);
-                socket.current.emit("comm_looping_changed_partner_to_click_client_to_server",{roomID,looping});
+                socket.current.emit("comm_event",
+                    {type:"notify_that_partner_received_looping_change",
+                        roomID,looping});
             });
 
-            socket.current.on("comm_audio_played_server_to_client",()=>{
-                
+            const commMessageMap = {
+                partner_joined: () => "Partner joined room",
+                partner_left: () => "Partner left room",
+                partner_played_audio: () => "Partner played audio",
+                notify_that_partner_audio_played: () => "Partner audio played",
+                partner_stopped_audio: () => "Partner stopped audio",
+                notify_that_partner_audio_stopped: () => "Partner audio stopped",
+                recording_started: () => "Partner is recording",
+                recording_stopped: () => "Partner recording stopped",
+                looping_changed_by_partner: ({ roomID,status }) =>
+                    `Partner turned looping ${status ? "on" : "off"}`,
+                notify_that_partner_received_looping_change: ({roomID,looping}) =>
+                    `Partner looping turned ${looping ? "on" : "off"}`,
+                metronome_changed_by_partner: ({ roomID,status }) =>
+                    `Partner turned metronome ${status ? "on" : "off"}`,
+                notify_that_partner_received_metronome_change: ({roomID,status}) => 
+                    `Parter metronome turned ${status ? "on" : "off"}`,
+                playhead_moved_by_partner: ({ roomID,locationByMeasure }) =>
+                    `Partner moved playhead to ${locationByMeasure}`,
+                notify_that_partner_playhead_moved: ({roomID,locationByMeasure}) => 
+                    `Partner playhead moved to ${locationByMeasure}`,
+                region_selected_by_partner: ({ roomID,mouseDragStart, mouseDragEnd }) =>
+                    `Partner selected region ${mouseDragStart} to ${mouseDragEnd}`,
+                notify_that_partner_region_selection_changed: ({roomID,mouseDragStart,mouseDragEnd}) =>
+                    `Partner select region is ${mouseDragStart} to ${mouseDragEnd}`,
+                partner_changed_BPM: ({ roomID,bpm }) =>
+                    `Partner changed BPM to ${bpm}`,
+                notify_that_partner_BPM_changed: ({roomID,bpm}) =>
+                    `Partner BPM changed to ${bpm}`,
+                partner_changed_latency_comp: () =>
+                    `Track 2 latency adjusted`,
+                notify_that_partner_latency_comp_changed: () =>
+                    `Partner received latency adjustment`
+            };
+
+            socket.current.on("comm_event", (data) => {
                 clearTimeout(commsClearTimeoutRef.current);
-                setCommMessage({text:"Partner audio played",time:performance.now()});
-                commsClearTimeoutRef.current = setTimeout(()=>setCommMessage(""),5000)
-            });
 
-            socket.current.on("comm_audio_stopped_server_to_client",()=>{
-                clearTimeout(commsClearTimeoutRef.current);
-                setCommMessage({text:"Partner audio stopped",time:performance.now()});
-                commsClearTimeoutRef.current = setTimeout(()=>setCommMessage(""),5000)
-            });
+                console.log(data);
 
-            socket.current.on("comm_recording_started_server_to_client",()=>{
-                clearTimeout(commsClearTimeoutRef.current);
-                setCommMessage({text:"Partner is recording",time:performance.now()});
-                commsClearTimeoutRef.current = setTimeout(()=>setCommMessage(""),5000)
-            });
+                const messageBuilder = commMessageMap[data.type];
+                if (!messageBuilder) return;
 
-            socket.current.on("comm_recording_stopped_server_to_client",()=>{
-                clearTimeout(commsClearTimeoutRef.current);
-                setCommMessage({text:"Partner recording stopped",time:performance.now()});
-                commsClearTimeoutRef.current = setTimeout(()=>setCommMessage(""),5000)
-            });
+                const text = messageBuilder(data);
+                if (text) {
+                    setCommMessage({ text, time: performance.now() });
+                }
 
-            socket.current.on("comm_looping_changed_server_to_client",status=>{
-                clearTimeout(commsClearTimeoutRef.current);
-                setCommMessage({text:`Partner turned looping ${status?"on":"off"}`,time:performance.now()});
-                commsClearTimeoutRef.current = setTimeout(()=>setCommMessage(""),5000)
+                commsClearTimeoutRef.current = setTimeout(
+                    () => setCommMessage(""),COMM_TIMEOUT_TIME);
             });
-
-            socket.current.on("comm_looping_changed_partner_to_click_server_to_client",looping=>{
-                clearTimeout(commsClearTimeoutRef.current);
-                setCommMessage({text:`Partner looping turned ${looping?"on":"off"}`,time:performance.now()});
-                commsClearTimeoutRef.current = setTimeout(()=>setCommMessage(""),5000)
-            });
-
-            socket.current.on("comm_metronome_onoff_changed_server_to_client",status=>{
-                clearTimeout(commsClearTimeoutRef.current);
-                //setCommMessage({text:`Partner turned metronome ${status?"on":"off"}`,time:performance.now()});
-                commsClearTimeoutRef.current = setTimeout(()=>setCommMessage(""),5000)
-            });
-
-            socket.current.on("comm_playhead_moved_click_to_other_server_to_client",locationByMeasure=>{
-                clearTimeout(commsClearTimeoutRef.current);
-                setCommMessage({text:`Partner moved playhead to measure ${locationByMeasure}`,time:performance.now()});
-                commsClearTimeoutRef.current = setTimeout(()=>setCommMessage(""),5000)
-            });
-
-            socket.current.on("comm_playhead_moved_partner_to_click_server_to_client",locationByMeasure=>{
-                clearTimeout(commsClearTimeoutRef.current);
-                setCommMessage({text:`Partner playhead moved to measure ${locationByMeasure}`,time:performance.now()});
-                commsClearTimeoutRef.current = setTimeout(()=>setCommMessage(""),5000);
-            });
-
-            socket.current.on("comm_region_selected_server_to_client",data=>{
-                clearTimeout(commsClearTimeoutRef.current);
-                setCommMessage({text:`Partner selected region ${data.mouseDragStart} to ${data.mouseDragEnd}`,time:performance.now()});
-                commsClearTimeoutRef.current = setTimeout(()=>setCommMessage(""),5000)
-            });
-
-            socket.current.on("comm_region_selected_partner_to_click_client_to_server",data=>{
-                clearTimeout(commsClearTimeoutRef.current);
-                setCommMessage({text:`Partner selected region is ${data.mouseDragStart} to ${data.mouseDragEnd}`,time:performance.now()});
-                commsClearTimeoutRef.current = setTimeout(()=>setCommMessage(""),5000)
-            });
-
-             socket.current.on("comm_BPM_changed_partner_to_click_server_to_client",bpm=>{
-                clearTimeout(commsClearTimeoutRef.current);
-                setCommMessage({text:`Partner's BPM changed to ${bpm}`,time:performance.now()});
-                commsClearTimeoutRef.current = setTimeout(()=>setCommMessage(""),5000)
-            });
-            
-
 
             socket.current.emit("join_room", roomID);
         }
@@ -424,7 +418,8 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
             setTimeout(()=>{
             setFirstEnteredRoom(false);
             setDisplayDelayCompensationMessage(false);
-            },1000)
+            setPopoverMoreInfo(false);
+            },400)
         }
     },[popoverOpen])
 
@@ -581,7 +576,10 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
         currentlyPlayingAudio.current = 2;
         updatePlayhead(startTime)
         if(numConnectedUsersRef.current>=2 && fromOtherPerson){
-            socket.current.emit("comm_audio_played_client_to_server",roomID);
+            socket.current.emit("comm_event",{type:"notify_that_partner_audio_played",roomID});
+            clearTimeout(commsClearTimeoutRef.current);
+            setCommMessage({text:"Partner played audio",time:performance.now()});
+            setTimeout(()=>setCommMessage(""),COMM_TIMEOUT_TIME);
         }
     }
 
@@ -647,12 +645,15 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
         }
         currentlyRecording.current = false;
         if(numConnectedUsersRef.current >= 2 && fromOtherPerson && currentlyPlayingAudio.current){
-            socket.current.emit("comm_audio_stopped_client_to_server",roomID);
+            socket.current.emit("comm_event",{roomID,type:"notify_that_partner_audio_stopped"});
+            clearTimeout(commsClearTimeoutRef.current);
+            setCommMessage({text:"Partner stopped audio",time:performance.now()});
+            setTimeout(()=>setCommMessage(""),COMM_TIMEOUT_TIME);
         }
         currentlyPlayingAudio.current = false;
         metronomeRef.current.stop();
         if(numConnectedUsersRef.current >=2 && sendSocket){
-            socket.current.emit("stop_audio_client_to_server",roomID)
+            socket.current.emit("stop_audio_client_to_server",roomID);
         }
     }
 
@@ -837,7 +838,8 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
                                     setLooping(prev=>{
                                         if(numConnectedUsersRef.current >= 2){
                                             socket.current.emit("looping_client_to_server",{looping:!prev,roomID});
-                                            socket.current.emit("comm_looping_changed_client_to_server",{status:!prev,roomID});
+                                            socket.current.emit("comm_event",
+                                                {type:"looping_changed_by_partner",status:!prev,roomID});
                                         }
                                         return !prev;
                                     })
@@ -857,7 +859,8 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
                                                 metronomeGainRef.current.gain.value = 0.0;
                                             }
                                             if(numConnectedUsersRef.current >= 2){
-                                                socket.current.emit("comm_metronome_onoff_changed_client_to_server",{status:!prev,roomID});
+                                                socket.current.emit("comm_event",
+                                                    {type:"metronome_changed_by_partner",status:!prev,roomID});
                                             }
                                             return !prev;
                                         })
@@ -928,7 +931,7 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
                                         }
                                         }}
                                     onValueCommit={(value)=>{
-                                        if(!currentlyPlayingAudio.current && !currentlyRecording.current){
+                                        if(!currentlyPlayingAudio.current && !currentlyRecording.current && numConnectedUsersRef.current >= 2){
                                         socket.current.emit("send_latency_client_to_server",{
                                         roomID,delayCompensation:value})
                                         }
@@ -936,7 +939,9 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
                                     className="pt-2 pb-2"
                                     value={delayCompensation}
                                     > 
-                                </Slider><div className="pl-2">{Math.round(1000 * delayCompensation[0] / (AudioCtxRef.current? AudioCtxRef.current.sampleRate : 48000))} ms</div></div>}
+                                </Slider>
+                                <div className="pl-2">{Math.round(1000 * delayCompensation[0] / (AudioCtxRef.current? AudioCtxRef.current.sampleRate : 48000))} ms
+                                    </div></div>}
 
                             
                             </div>}
@@ -949,12 +954,18 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
                             </div>
                             {popoverMoreInfo && <div className="text-xs">
                                 <ul className="list-disc">
-                                <li>Recording in the browser introduces signficant latency, but this latency is measurable, predictable, and can be mitigated through calibration.</li>
+                                <li>Recording in the browser introduces significant latency, but this latency is measurable, predictable, and can be mitigated through calibration.</li>
                                 <li>
                                 Over time, the browser may take slightly longer or shorter to process audio.
                                 Press the latency button to recalibrate at any time. Any changes will be immediately reflected on both yours and your 
                                 partner's recorders.</li>
                                 </ul>
+                                <li>
+                                    If you change your audio configuration (mic, interface, etc.) you may need to recalibrate.
+                                </li>
+                                <li>
+                                    Bluetooth headphones are not supported.
+                                </li>
                                 </div>
                                 }
                             <div className="flex flex-col items-center justify-center">

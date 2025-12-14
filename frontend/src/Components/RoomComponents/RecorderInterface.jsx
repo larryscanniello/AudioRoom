@@ -29,8 +29,8 @@ export default function RecorderInterface({
     audio2Ref.current = audio2;
 
     convertTimeToMeasuresRef.current = (time) => {
-                const locationinBeats = (((time * pxPerSecond)+1)/ measureTickRef.current.width)*128; //add 1 because, look at the start of the window - the first line isn't there
-                return (1+Math.floor(locationinBeats/4)).toString() + "." + (1+Math.floor(locationinBeats%4)).toString();
+        const locationinBeats = (((time * pxPerSecond)+1)/ measureTickRef.current.width)*128; //add 1 because, look at the start of the window - the first line isn't there
+        return (1+Math.floor(locationinBeats/4)).toString() + "." + (1+Math.floor(locationinBeats%4)).toString();
     }
 
     useEffect(()=>{
@@ -320,7 +320,10 @@ export default function RecorderInterface({
                     socket.current.emit("send_play_window_to_server",{
                         mouseDragStart:mousedragstart,mouseDragEnd:null,roomID,snapToGrid
                     })
-                    socket.current.emit("comm_playhead_moved_click_to_other_client_to_server",{locationByMeasure:convertTimeToMeasuresRef.current(mousedragstart.t),roomID});
+                    socket.current.emit("comm_event",{
+                        locationByMeasure:convertTimeToMeasuresRef.current(mousedragstart.t),
+                        type:"playhead_moved_by_partner",
+                        roomID});
                 }
             }else{
                 const endrounded = rect.width*Math.ceil(x*128/rect.width)/128
@@ -348,8 +351,9 @@ export default function RecorderInterface({
                     socket.current.emit("send_play_window_to_server",{
                         mouseDragStart:mousedragstart,mouseDragEnd:pos,roomID,snapToGrid
                     })
-                    socket.current.emit("comm_region_selected_client_to_server",{
+                    socket.current.emit("comm_event",{
                         roomID,
+                        type:"region_selected_by_partner",
                         mouseDragStart:convertTimeToMeasuresRef.current(mousedragstart.trounded),
                         mouseDragEnd:convertTimeToMeasuresRef.current(pos.trounded),
                     })

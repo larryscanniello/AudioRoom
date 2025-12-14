@@ -11,7 +11,7 @@ import {
   ButtonGroupSeparator,
   ButtonGroupText,
 } from "@/Components/ui/button-group"
-import { PiMetronomeDuotone } from "react-icons/pi";
+import { PiKeyReturnLight, PiMetronomeDuotone } from "react-icons/pi";
 import { Slider } from "@/Components/ui/slider"
 import {
   Popover,
@@ -195,6 +195,13 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
                     if(numConnectedUsersRef.current>=2){
                         socket.current.emit("client_to_server_play_audio",{roomID})
                     }
+                }
+            }
+            if(e.key==="r"){
+                if(currentlyRecording.current || currentlyPlayingAudio.current) return;
+                recorderRef.current.startRecording(audio2,delayCompensation2);
+                if(numConnectedUsersRef.current >= 2){
+                    socket.current.emit("start_recording_client_to_server",roomID);
                 }
             }
         }

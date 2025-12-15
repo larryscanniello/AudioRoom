@@ -74,6 +74,7 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
     const numConnectedUsersRef = useRef(0);
 
     const handlePlayAudioRef = useRef(null);
+    const handleStreamAudioRef = useRef(null);
     const currentlyPlayingAudio = useRef(false); //this ref stores a bool depending on whether audio is playing
     const currentlyRecording = useRef(false);
     const playingAudioRef = useRef(null); //this ref stores an audio context source 
@@ -88,6 +89,7 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
     const keepRecordingRef = useRef(true);
     const loopingRef = useRef(looping);
     const commsClearTimeoutRef = useRef(null);
+    const streamingTimeRef = useRef(null);
 
     const audioChunksRef = useRef([]);
 
@@ -172,6 +174,8 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
             socket.current.emit("client_to_server_incoming_audio_done_processing",roomID);
         }
 
+        
+
 
         const handleKeyDown = (e) => {
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
@@ -211,6 +215,7 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
         if(!isDemo){
             socket.current.on("receive_audio_server_to_client", async (data) => {
                 const packet = new Float32Array(data.packet);
+                handleStreamAudioRef.current(new Float32Array(data.packet),data.first,data.playbackSampleIndex);
                 if(data.first){
                     audioChunksRef.current = [packet];
                     if(data.last){
@@ -374,7 +379,7 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
                 region_selected_by_partner: ({ roomID,mouseDragStart, mouseDragEnd }) =>
                     `Partner selected region ${mouseDragStart} to ${mouseDragEnd}`,
                 notify_that_partner_region_selection_changed: ({roomID,mouseDragStart,mouseDragEnd}) =>
-                    `Partner select region is ${mouseDragStart} to ${mouseDragEnd}`,
+                    `Partner selected region is ${mouseDragStart} to ${mouseDragEnd}`,
                 partner_changed_BPM: ({ roomID,bpm }) =>
                     `Partner changed BPM to ${bpm}`,
                 notify_that_partner_BPM_changed: ({roomID,bpm}) =>
@@ -431,6 +436,34 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
 
     if(metronomeRef.current){
         metronomeRef.current.tempo = BPM;
+    }
+
+    const streamAudio = (packet,first,samplePos) => {
+        const incomingAudioSource = AudioCtxRef.current.createBufferSource();
+        const stereoBuffer = AudioCtxRef.current.createBuffer(2,4096,AudioCtxRef.current.sampleRate);
+        stereoBuffer.getChannelData(0).set(packet);
+        stereoBuffer.getChannelData(1).set(packet);
+        incomingAudioSource.buffer = stereoBuffer;
+        let startTime;
+        if(first){
+            streamingTimeRef.current = AudioCtxRef.current.currentTime + .05;
+        }else{
+            streamingTimeRef.current += (4096 / AudioCtxRef.current.sampleRate);
+        }
+        startTime = streamingTimeRef.current;
+        incomingAudioSource.connect(AudioCtxRef.current.destination);
+        const playbackAudioSource = AudioCtxRef.current.createBufferSource();
+        const playbackBuffer = AudioCtxRef.current.createBuffer(2,4096,AudioCtxRef.current.sampleRate)
+        const startSample = samplePos;
+        const endSample = samplePos + 4096;
+        if(audio && samplePos >= 0){
+            playbackBuffer.getChannelData(0).set(audio.getChannelData(0).subarray(startSample,endSample));
+            playbackBuffer.getChannelData(1).set(audio.getChannelData(0).subarray(startSample,endSample));
+        }
+        playbackAudioSource.buffer = playbackBuffer;
+
+        playbackAudioSource.start(startTime);
+        incomingAudioSource.start(startTime);
     }
 
     const handlePlayAudio = (fromOtherPerson) => {
@@ -588,7 +621,7 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
     }
 
     handlePlayAudioRef.current = handlePlayAudio;
-
+    handleStreamAudioRef.current = streamAudio;
 
     const handleTempoMouseDown = (e) => {
         //handles the BPM adjuster

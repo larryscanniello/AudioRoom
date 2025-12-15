@@ -26,7 +26,11 @@ class RecorderProcessor extends AudioWorkletProcessor {
         this.isRecording = false;
         this.playbackPos = 0;
         if(e.data.keepRecording && (this.recordingBuffer.length > 0 || this.emptyPacket)){
-          this.port.postMessage({packet:this.recordingBuffer,first:this.firstPacket,last:true});
+          this.port.postMessage({
+            packet:this.recordingBuffer,
+            first:this.firstPacket,
+            last:true,
+            playbackPos:this.playbackPos-this.packetSize});
         }
         this.recordingBuffer = [];
         this.sessionId = null;
@@ -47,7 +51,10 @@ class RecorderProcessor extends AudioWorkletProcessor {
       this.recordingBuffer = newBuffer;
       this.emptyPacket = false;
       if(this.recordingBuffer.length==this.packetSize){
-        this.port.postMessage({packet:this.recordingBuffer,first:this.firstPacket,last:false});
+        this.port.postMessage({packet:this.recordingBuffer,
+                                first:this.firstPacket,
+                                last:false,
+                                playbackPos:this.playbackPos-this.packetSize});
         this.recordingBuffer = new Float32Array(0);
         this.firstPacket = false;
         this.emptyPacket = true;

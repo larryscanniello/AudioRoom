@@ -95,7 +95,8 @@ export const useAudioRecorder = (
               roomID,
               first:event.data.first,
               last:event.data.last,
-              delayCompensation:delayCompensationRef.current
+              delayCompensation:delayCompensationRef.current,
+              playbackSampleIndex:event.data.playbackPos,
             })
           }
 

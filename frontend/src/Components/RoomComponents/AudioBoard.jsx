@@ -57,6 +57,7 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
     const [popoverOpen,setPopoverOpen] = useState(isDemo ? false : true);
     const [popoverMoreInfo,setPopoverMoreInfo] = useState(false);
     const [latencyTestRes,setLatencyTestRes] = useState(null);
+    const [monitoringOn,setMonitoringOn] = useState(false);
 
     const waveform1Ref = useRef(null);
     const waveform2Ref = useRef(null);
@@ -439,6 +440,7 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
     }
 
     const streamAudio = (packet,first,samplePos) => {
+        if(!monitoringOn) return;
         const incomingAudioSource = AudioCtxRef.current.createBufferSource();
         const stereoBuffer = AudioCtxRef.current.createBuffer(2,4096,AudioCtxRef.current.sampleRate);
         stereoBuffer.getChannelData(0).set(packet);
@@ -719,9 +721,12 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
                         className="col-start-2"
                         style={{width:100,height:Math.floor(150*compactMode)}}
                     >
-                    <div className="bg-[rgb(86,86,133)]"
+                    <div className="bg-[rgb(86,86,133)] flex flex-col justify-center items-center text-xs text-white"
                             style={{width:100,height:Math.floor(35*compactMode)}}
                     >
+                        <button className={"border-1 border-black rounded-2xl px-1 " + (monitoringOn?"bg-[rgb(106,106,133)":"bg-amber-600")}
+                        onClick={()=>setMonitoringOn(prev=>!prev)}
+                        >Monitoring</button>
                     </div>
                     <div className="bg-[rgb(114,120,155)]"
                         style={{width:100,height:Math.floor(115*compactMode)}}

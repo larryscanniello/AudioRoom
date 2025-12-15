@@ -11,6 +11,7 @@ class RecorderProcessor extends AudioWorkletProcessor {
     this.firstPacket = true;
     this.emptyPacket = false;
     this.sessionId = null;
+    this.latencyFrames = 0;
 
     this.port.onmessage = (e) => {
       if (e.data.actiontype === 'start'){ 
@@ -18,7 +19,8 @@ class RecorderProcessor extends AudioWorkletProcessor {
         this.recordingBuffer = [];
         this.isRecording = true;
         this.playbackBuffer = e.data.buffer
-        this.playbackPos = e.data.delayCompensation[0]-(Math.floor(.05*sampleRate)); //compensate for metronome delay
+        this.latencyFrames = e.data.delayCompensation[0]
+        this.playbackPos = this.latencyFrames-(Math.floor(.05*sampleRate)); //compensate for metronome delay
         this.firstPacket = true;
       };
       if (e.data.actiontype === 'stop'){ 
@@ -30,7 +32,7 @@ class RecorderProcessor extends AudioWorkletProcessor {
             packet:this.recordingBuffer,
             first:this.firstPacket,
             last:true,
-            playbackPos:this.playbackPos-this.packetSize});
+            playbackPos:this.playbackPos-this.latencyFrames});
         }
         this.recordingBuffer = [];
         this.sessionId = null;
@@ -54,7 +56,7 @@ class RecorderProcessor extends AudioWorkletProcessor {
         this.port.postMessage({packet:this.recordingBuffer,
                                 first:this.firstPacket,
                                 last:false,
-                                playbackPos:this.playbackPos-this.packetSize});
+                                playbackPos:this.playbackPos-this.latencyFrames});
         this.recordingBuffer = new Float32Array(0);
         this.firstPacket = false;
         this.emptyPacket = true;

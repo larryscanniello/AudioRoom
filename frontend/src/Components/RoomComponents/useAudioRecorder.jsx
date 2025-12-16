@@ -18,6 +18,7 @@ export const useAudioRecorder = (
   const delayCompensationRef = useRef(null);
   const delayChunksRef = useRef(null);
   const sessionIdRef = useRef(null);
+  const streamOnPlayIdRef = useRef(null);
   
   delayCompensationRef.current = delayCompensation;
 
@@ -70,6 +71,25 @@ export const useAudioRecorder = (
           }
         }
 
+        await AudioCtxRef.current.audioWorklet.addModule("/StreamOnPlayProcessor.js");
+        const streamOnPlayProcessor = new AudioWorkletNode(AudioCtxRef.current,'StreamOnPlayProcessor');
+        source.connect(streamOnPlayProcessor);
+        streamOnPlayProcessor.connect(AudioCtxRef.current.destination);
+
+        const startStreamOnPlay = (audio,audio2,delayComp,looping) => {
+          const sessionId = crypto.randomUUID();
+          streamOnPlayIdRef.current = sessionId;
+
+          streamOnPlayProcessor.port.postMessage({
+            actiontype:"start",
+            buffer1:audio?audio.getChannelData(0).slice():[],
+            buffer2:audio2?audio2.getChannelData(0).slice():[],
+            sessionId,
+            delayCompensation:delayComp,
+            looping
+          })
+        }
+
         const stopRecording = (keepRecording) => {
           processor.port.postMessage({actiontype:"stop",keepRecording,sessionId:sessionIdRef.current});
           if(numConnectedUsersRef.current >= 2 && !otherPersonRecordingRef.current){
@@ -78,6 +98,24 @@ export const useAudioRecorder = (
               roomID});
           }
         };
+
+        const stopStreamOnPlay = () => {
+          streamOnPlayProcessor.port.postMessage({actiontype:"stop",sessionId:streamOnPlayIdRef.current});
+        }
+
+        streamOnPlayProcessor.port.onmessage = event => {
+          let packet = event.data.packet;
+          if(numConnectedUsersRef.current >= 2){
+            socket.current.emit("send_audio_client_to_server",{
+              packet,
+              roomID,
+              first:event.data.first,
+              last:event.data.last,
+              type:"streamOnPlay",
+            })
+          }
+
+        }
         
         processor.port.onmessage = (event) => {
           //handles main recording being stopped
@@ -97,6 +135,7 @@ export const useAudioRecorder = (
               last:event.data.last,
               delayCompensation:delayCompensationRef.current,
               playbackSampleIndex:event.data.playbackPos,
+              type:"streamOnRecord",
             })
           }
 
@@ -121,7 +160,7 @@ export const useAudioRecorder = (
           }
         }
 
-        recorderRef.current = {processor,startRecording,stopRecording};
+        recorderRef.current = {processor,startRecording,stopRecording,startStreamOnPlay,stopStreamOnPlay};
         // Setup delay compensation recorder
         const delayCompRecorder = new AudioWorkletNode(AudioCtxRef.current,'RecorderProcessor');
         delayCompensationRecorderRef.current = delayCompRecorder;

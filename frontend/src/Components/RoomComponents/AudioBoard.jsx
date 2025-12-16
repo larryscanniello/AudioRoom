@@ -58,6 +58,7 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
     const [popoverMoreInfo,setPopoverMoreInfo] = useState(false);
     const [latencyTestRes,setLatencyTestRes] = useState(null);
     const [monitoringOn,setMonitoringOn] = useState(false);
+    const [otherPersonMonitoringOn,setOtherPersonMonitoringOn] = useState(false);
 
     const waveform1Ref = useRef(null);
     const waveform2Ref = useRef(null);
@@ -217,27 +218,30 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
             socket.current.on("receive_audio_server_to_client", async (data) => {
                 const packet = new Float32Array(data.packet);
                 handleStreamAudioRef.current(new Float32Array(data.packet),data.first,data.playbackSampleIndex);
-                if(data.first){
-                    audioChunksRef.current = [packet];
-                    if(data.last){
-                        currentlyRecording.current = false;
-                        processAudio([data.packet]);
-                        setMouseDragStart({trounded:0,t:0});
-                        setMouseDragEnd(null);
-                        setPlayheadLocation(0);
-                    }
-                }else {
-                    const newchunks = [...audioChunksRef.current,packet];
-                    audioChunksRef.current = newchunks;
-                    if(data.last){
-                        currentlyRecording.current = false;
-                        processAudio(newchunks);
-                        setMouseDragStart({trounded:0,t:0});
-                        setMouseDragEnd(null);
-                        setPlayheadLocation(0);
-                        setDelayCompensation2(data.delayCompensation)
+                if(data.type==="streamOnRecord"){
+                    if(data.first){
+                        audioChunksRef.current = [packet];
+                        if(data.last){
+                            currentlyRecording.current = false;
+                            processAudio([data.packet]);
+                            setMouseDragStart({trounded:0,t:0});
+                            setMouseDragEnd(null);
+                            setPlayheadLocation(0);
+                        }
+                    }else {
+                        const newchunks = [...audioChunksRef.current,packet];
+                        audioChunksRef.current = newchunks;
+                        if(data.last){
+                            currentlyRecording.current = false;
+                            processAudio(newchunks);
+                            setMouseDragStart({trounded:0,t:0});
+                            setMouseDragEnd(null);
+                            setPlayheadLocation(0);
+                            setDelayCompensation2(data.delayCompensation)
+                        }
                     }
                 }
+                
             });
             
             socket.current.on("send_play_window_to_clients", (data)=>{
@@ -339,6 +343,9 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
 
             socket.current.on("user_disconnected_server_to_client",numConnectedUsers=>{
                 numConnectedUsersRef.current = numConnectedUsers;
+                if(numConnectedUsers<2){
+                    setOtherPersonMonitoringOn(false);
+                }
             })
 
             socket.current.on("server_to_client_delete_audio",(track)=>{
@@ -405,6 +412,10 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
                 commsClearTimeoutRef.current = setTimeout(
                     () => setCommMessage(""),COMM_TIMEOUT_TIME);
             });
+
+            socket.current.on("monitoring_change_server_to_client",status=>{
+                setOtherPersonMonitoringOn(status);
+            })
 
             socket.current.emit("join_room", roomID);
         }
@@ -606,12 +617,16 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
         //source.start arguments are (time to wait to play audio,location in audio to start,duration to play)
         source.buffer = getBuffer(audio,startTime+secondsToDelay,endTime+secondsToDelay);
         source2.buffer = getBuffer(audio2,startTime+secondsToDelay2,endTime+secondsToDelay2);
-        source.loop = mouseDragEnd ? looping : false;
-        source2.loop = mouseDragEnd ? looping : false;
-        source.start(now);
-        source2.start(now);
-        playingAudioRef.current = source;
-        playingAudioRef2.current = source2;
+        if(otherPersonMonitoringOn){
+            recorderRef.current.startStreamOnPlay(source.buffer,source2.buffer,delayCompensation,looping)
+        }else if(!monitoringOn){
+            source.loop = mouseDragEnd ? looping : false;
+            source2.loop = mouseDragEnd ? looping : false;
+            source.start(now);
+            source2.start(now);
+            playingAudioRef.current = source;
+            playingAudioRef2.current = source2;
+        }
         currentlyPlayingAudio.current = 2;
         updatePlayhead(startTime)
         if(numConnectedUsersRef.current>=2 && fromOtherPerson){
@@ -683,6 +698,7 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
             recorderRef.current.stopRecording(keepRecording);
         }
         currentlyRecording.current = false;
+        recorderRef.current.stopStreamOnPlay();
         if(numConnectedUsersRef.current >= 2 && fromOtherPerson && currentlyPlayingAudio.current){
             socket.current.emit("comm_event",{roomID,type:"notify_that_partner_audio_stopped"});
             clearTimeout(commsClearTimeoutRef.current);
@@ -724,8 +740,10 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
                     <div className="bg-[rgb(86,86,133)] flex flex-col justify-center items-center text-xs text-white"
                             style={{width:100,height:Math.floor(35*compactMode)}}
                     >
-                        <button className={"border-1 border-black rounded-2xl px-1 " + (monitoringOn?"bg-[rgb(106,106,133)":"bg-amber-600")}
-                        onClick={()=>setMonitoringOn(prev=>!prev)}
+                        <button className={"border-1 border-black rounded-2xl px-1 " + (monitoringOn?"bg-amber-600":"bg-[rgb(106,106,133)")}
+                        onClick={()=>setMonitoringOn(prev=>{
+                            socket.current.emit("monitoring_change_client_to_server",{roomID,status:!prev});
+                            return !prev;})}
                         >Monitoring</button>
                     </div>
                     <div className="bg-[rgb(114,120,155)]"
@@ -943,8 +961,9 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
                                 </div>
                                 {/*<div className="text-sm">For synchronized web audio, it is essential to do a latency test. Three steps:</div>*/}
                                 <div className="text-xs">1. If you are using a non-computer mic, place your mic near your speakers.</div>
-                                <div className="text-xs">2. Turn your volume up. The louder the better.</div>
-                                <div className="text-xs">3. Press the button below. It will emit a test click.</div>
+                                <div className="text-xs">2. Unplug your headphones.</div>
+                                <div className="text-xs">3. Turn your volume up. The louder the better.</div>
+                                <div className="text-xs">4. Press the button below. It will emit a test click.</div>
                                 </div>
                             
                             

@@ -95,6 +95,10 @@ const socketManager = async (server,sessionMiddleware) => {
       socket.to(data.roomID).emit("comm_event",data);
     })
 
+    socket.on("monitoring_change_client_to_server",data=>{
+      socket.to(data.roomID).emit("monitoring_change_server_to_client",data.status);
+    })
+
     socket.on("disconnect", () => {
       if (!roomIDglobal) return;
 

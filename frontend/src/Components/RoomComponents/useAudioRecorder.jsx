@@ -77,9 +77,11 @@ export const useAudioRecorder = (
         streamOnPlayProcessor.connect(AudioCtxRef.current.destination);
 
         const startStreamOnPlay = (audio,audio2,delayComp,looping) => {
+          console.log('startstream',audio,audio2,delayComp,looping)
           const sessionId = crypto.randomUUID();
+          console.log('checkCrypto')
           streamOnPlayIdRef.current = sessionId;
-
+          streamOnPlayProcessor.port.postMessage({actiontype:"check"});
           streamOnPlayProcessor.port.postMessage({
             actiontype:"start",
             buffer1:audio?audio.getChannelData(0).slice():null,

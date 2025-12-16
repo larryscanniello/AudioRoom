@@ -18,6 +18,9 @@ class StreamOnPlayProcessor extends AudioWorkletProcessor {
     this.looping = false;
 
     this.port.onmessage = (e) => {
+        if(e.data.actiontype === 'check'){
+            console.log('check - message reached processor');
+        }
       if (e.data.actiontype === 'start'){ 
         console.log('started',e.data);
         this.sessionId = e.data.sessionId;

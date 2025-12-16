@@ -342,9 +342,11 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
             })
 
             socket.current.on("user_disconnected_server_to_client",numConnectedUsers=>{
+                
                 numConnectedUsersRef.current = numConnectedUsers;
                 if(numConnectedUsers<2){
                     setOtherPersonMonitoringOn(false);
+                    console.log("checkopmonitoringoff");
                 }
             })
 
@@ -414,6 +416,7 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
             });
 
             socket.current.on("monitoring_change_server_to_client",status=>{
+                console.log('checkotherpersonmonitoringchange',status);
                 setOtherPersonMonitoringOn(status);
             })
 
@@ -743,6 +746,7 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
                     >
                         <button className={"border-1 border-black rounded-2xl px-1 " + (monitoringOn?"bg-amber-600":"bg-[rgb(106,106,133)")}
                         onClick={()=>setMonitoringOn(prev=>{
+                            console.log('checksetmonitoringon',!prev);
                             socket.current.emit("monitoring_change_client_to_server",{roomID,status:!prev});
                             return !prev;})}
                         >Monitoring</button>

@@ -82,8 +82,8 @@ export const useAudioRecorder = (
 
           streamOnPlayProcessor.port.postMessage({
             actiontype:"start",
-            buffer1:audio?audio.getChannelData(0).slice():[],
-            buffer2:audio2?audio2.getChannelData(0).slice():[],
+            buffer1:audio?audio.getChannelData(0).slice():null,
+            buffer2:audio2?audio2.getChannelData(0).slice():null,
             sessionId,
             delayCompensation:delayComp,
             looping

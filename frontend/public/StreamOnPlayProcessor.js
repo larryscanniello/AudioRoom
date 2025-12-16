@@ -5,8 +5,8 @@ class StreamOnPlayProcessor extends AudioWorkletProcessor {
     this.isStreaming = false;
     this.isPlayingBack = true;
     this.recordingBuffer = new Float32Array(0);
-    this.playbackBuffer1 = null;
-    this.playbackBuffer2 = null;
+    this.playbackBuffer1 = new Float32Array(0);
+    this.playbackBuffer2 = new Float32Array(0);
     this.gain1 = 1.0;
     this.gain2 = 1.0;
     this.playbackPos = 0;
@@ -19,21 +19,23 @@ class StreamOnPlayProcessor extends AudioWorkletProcessor {
 
     this.port.onmessage = (e) => {
       if (e.data.actiontype === 'start'){ 
+        console.log('started',e.data);
         this.sessionId = e.data.sessionId;
         this.looping = e.data.looping;
-        this.recordingBuffer = [];
+        this.recordingBuffer = new Float32Array(0);
         this.isStreaming = true;
-        this.playbackBuffer1 = e.data.buffer1;
-        this.playbackBuffer2 = e.data.buffer2;
+        this.playbackBuffer1 = e.data.buffer1 ?? new Float32Array(0);
+        this.playbackBuffer2 = e.data.buffer2 ?? new Float32Array(0);
         this.latencyFrames = e.data.delayCompensation[0]
         this.playbackPos = this.latencyFrames-(Math.floor(.05*sampleRate)); //compensate for metronome delay
         this.firstPacket = true;
       };
       if (e.data.actiontype === 'stop'){ 
+        console.log('stopped',e.data);
         if (e.data.sessionId !== this.sessionId || this.sessionId === null) return;
         this.isStreaming = false;
         this.playbackPos = 0;
-        this.recordingBuffer = [];
+        this.recordingBuffer = new Float32Array(0);
         this.sessionId = null;
       };
     };

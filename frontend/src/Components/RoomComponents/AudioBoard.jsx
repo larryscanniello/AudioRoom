@@ -617,6 +617,7 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
         //source.start arguments are (time to wait to play audio,location in audio to start,duration to play)
         source.buffer = getBuffer(audio,startTime+secondsToDelay,endTime+secondsToDelay);
         source2.buffer = getBuffer(audio2,startTime+secondsToDelay2,endTime+secondsToDelay2);
+        console.log('otherpersonmonon',otherPersonMonitoringOn);
         if(otherPersonMonitoringOn){
             recorderRef.current.startStreamOnPlay(source.buffer,source2.buffer,delayCompensation,looping)
         }else if(!monitoringOn){

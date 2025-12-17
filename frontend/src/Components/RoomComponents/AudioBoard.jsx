@@ -755,7 +755,7 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
                                 return !prev;
                             }
                             return prev;})}
-                        >Alt Monitoring</button>
+                        >Monitoring</button>
                     </div>
                     <div className="bg-[rgb(114,120,155)]"
                         style={{width:100,height:Math.floor(115*compactMode)}}

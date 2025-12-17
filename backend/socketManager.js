@@ -99,6 +99,10 @@ const socketManager = async (server,sessionMiddleware) => {
       socket.to(data.roomID).emit("monitoring_change_server_to_client",data.status);
     })
 
+    socket.on("PDF_transfer_client_to_server",data=>{
+      socket.to(data.roomID).emit("PDF_transfer_server_to_client",data.message);
+    })
+
     socket.on("disconnect", () => {
       if (!roomIDglobal) return;
 

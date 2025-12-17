@@ -345,6 +345,7 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
                 numConnectedUsersRef.current = numConnectedUsers;
                 if(numConnectedUsers<2){
                     setOtherPersonMonitoringOn(false);
+                    setMonitoringOn(false);
                     console.log("checkopmonitoringoff");
                 }
             })
@@ -754,7 +755,7 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
                                 return !prev;
                             }
                             return prev;})}
-                        >Hear Partner</button>
+                        >Alt Monitoring</button>
                     </div>
                     <div className="bg-[rgb(114,120,155)]"
                         style={{width:100,height:Math.floor(115*compactMode)}}

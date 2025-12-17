@@ -417,6 +417,9 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
 
             socket.current.on("monitoring_change_server_to_client",status=>{
                 console.log('checkotherpersonmonitoringchange',status);
+                if(status){
+                    setMonitoringOn(false);
+                }
                 setOtherPersonMonitoringOn(status);
             })
 
@@ -620,7 +623,6 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
         //source.start arguments are (time to wait to play audio,location in audio to start,duration to play)
         source.buffer = getBuffer(audio,startTime+secondsToDelay,endTime+secondsToDelay);
         source2.buffer = getBuffer(audio2,startTime+secondsToDelay2,endTime+secondsToDelay2);
-        console.log('otherpersonmonon',otherPersonMonitoringOn);
         if(otherPersonMonitoringOn){
             recorderRef.current.startStreamOnPlay(source.buffer,source2.buffer,delayCompensation,looping)
         }else if(!monitoringOn){
@@ -747,9 +749,12 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
                         <button className={"border-1 border-black rounded-2xl px-1 " + (monitoringOn?"bg-amber-600":"bg-[rgb(106,106,133)")}
                         onClick={()=>setMonitoringOn(prev=>{
                             console.log('checksetmonitoringon',!prev);
-                            socket.current.emit("monitoring_change_client_to_server",{roomID,status:!prev});
-                            return !prev;})}
-                        >Monitoring</button>
+                            if(numConnectedUsersRef.current >= 2 && !currentlyPlayingAudio.current && !currentlyRecording.current){ 
+                                socket.current.emit("monitoring_change_client_to_server",{roomID,status:!prev});
+                                return !prev;
+                            }
+                            return prev;})}
+                        >Hear Partner</button>
                     </div>
                     <div className="bg-[rgb(114,120,155)]"
                         style={{width:100,height:Math.floor(115*compactMode)}}

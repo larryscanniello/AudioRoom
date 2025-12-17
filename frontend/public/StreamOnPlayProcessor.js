@@ -44,7 +44,6 @@ class StreamOnPlayProcessor extends AudioWorkletProcessor {
     };
   }
   process(inputs,outputs) {
-    console.log('process_is_running',this.isStreaming);
     const input = inputs[0];
     if (!input || !input[0]) return true;
     if(this.isStreaming){

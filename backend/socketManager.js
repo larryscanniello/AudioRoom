@@ -96,7 +96,6 @@ const socketManager = async (server,sessionMiddleware) => {
     })
 
     socket.on("monitoring_change_client_to_server",data=>{
-      console.log('monitoringsocketcheck',data);
       socket.to(data.roomID).emit("monitoring_change_server_to_client",data.status);
     })
 

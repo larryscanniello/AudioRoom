@@ -342,7 +342,6 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
             })
 
             socket.current.on("user_disconnected_server_to_client",numConnectedUsers=>{
-                
                 numConnectedUsersRef.current = numConnectedUsers;
                 if(numConnectedUsers<2){
                     setOtherPersonMonitoringOn(false);
@@ -619,7 +618,7 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
         //add .05 to match the delay of audio/metronome (metronome needs delay for first beat to sound)
         let now = AudioCtxRef.current.currentTime+.05;
         //the .05 added to now previously was for playhead rendering purposes, we need to subtract it here
-        metronomeRef.current.start(now-.05+timeToNextMeasure);
+        
         //source.start arguments are (time to wait to play audio,location in audio to start,duration to play)
         source.buffer = getBuffer(audio,startTime+secondsToDelay,endTime+secondsToDelay);
         source2.buffer = getBuffer(audio2,startTime+secondsToDelay2,endTime+secondsToDelay2);
@@ -630,6 +629,7 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
             source2.loop = mouseDragEnd ? looping : false;
             source.start(now);
             source2.start(now);
+            metronomeRef.current.start(now-.05+timeToNextMeasure);
             playingAudioRef.current = source;
             playingAudioRef2.current = source2;
         }
@@ -990,8 +990,8 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
                                     Start Latency Test
                                 </Button>
                             </div>
-                            {latencyTestRes && <div className="text-green-600">
-                                Latency compensation applied. Delay: {Math.round(1000 * latencyTestRes / (AudioCtxRef.current? AudioCtxRef.current.sampleRate:48000))} ms</div>}
+                            {!!latencyTestRes && <div className="text-green-600">
+                                Latency compensation applied.</div>}
                             
                             {!firstEnteredRoom && <div className="flex flex-col items-center justify-center"><div className="font-bold">Adjust latency compensation manually:
                                 </div>
@@ -1011,8 +1011,7 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
                                     value={delayCompensation}
                                     > 
                                 </Slider>
-                                <div className="pl-2">{Math.round(1000 * delayCompensation[0] / (AudioCtxRef.current? AudioCtxRef.current.sampleRate : 48000))} ms
-                                    </div></div>}
+                                </div>}
 
                             
                             </div>}
@@ -1025,7 +1024,7 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
                             </div>
                             {popoverMoreInfo && <div className="text-xs">
                                 <ul className="list-disc">
-                                <li>Recording in the browser introduces significant latency, but this latency is measurable, predictable, and can be mitigated through calibration.</li>
+                                <li>Recording in the browser introduces latency, but this latency is measurable, predictable, and can be mitigated through calibration.</li>
                                 <li>
                                 Over time, the browser may take slightly longer or shorter to process audio.
                                 Press the latency button to recalibrate at any time. Any changes will be immediately reflected on both yours and your 

@@ -19,6 +19,7 @@ export const useAudioRecorder = (
   const delayChunksRef = useRef(null);
   const sessionIdRef = useRef(null);
   const streamOnPlayIdRef = useRef(null);
+  const streamOnPlayProcessorRef = useRef(null);
   
   delayCompensationRef.current = delayCompensation;
 
@@ -75,22 +76,9 @@ export const useAudioRecorder = (
         const streamOnPlayProcessor = new AudioWorkletNode(AudioCtxRef.current,'StreamOnPlayProcessor');
         source.connect(streamOnPlayProcessor);
         streamOnPlayProcessor.connect(AudioCtxRef.current.destination);
+        streamOnPlayProcessorRef.current = streamOnPlayProcessor;
 
-        const startStreamOnPlay = (audio,audio2,delayComp,looping) => {
-          console.log('startstream',audio,audio2,delayComp,looping)
-          const sessionId = crypto.randomUUID();
-          console.log('checkCrypto')
-          streamOnPlayIdRef.current = sessionId;
-          streamOnPlayProcessor.port.postMessage({actiontype:"check"});
-          streamOnPlayProcessor.port.postMessage({
-            actiontype:"start",
-            buffer1:audio?audio.getChannelData(0).slice():null,
-            buffer2:audio2?audio2.getChannelData(0).slice():null,
-            sessionId,
-            delayCompensation:delayComp,
-            looping
-          })
-        }
+        
 
         const stopRecording = (keepRecording) => {
           processor.port.postMessage({actiontype:"stop",keepRecording,sessionId:sessionIdRef.current});
@@ -228,6 +216,30 @@ export const useAudioRecorder = (
   
   //[AudioCtxRef.current, roomID, socket, delayCompensation,recorderRef.current]);
 
+  useEffect(()=>{
+    if(streamOnPlayProcessorRef.current){
+      streamOnPlayProcessorRef.current.port.postMessage({
+        actiontype:"metronome",
+        metronomeOn,BPM,
+      })
+    } 
+  },[metronomeOn,BPM])
+
+  const startStreamOnPlay = (audio,audio2,delayComp,looping) => {
+    const sessionId = crypto.randomUUID();
+    streamOnPlayIdRef.current = sessionId;
+    streamOnPlayProcessorRef.current?.port.postMessage({
+      actiontype:"start",
+      buffer1:audio?audio.getChannelData(0).slice():null,
+      buffer2:audio2?audio2.getChannelData(0).slice():null,
+      sessionId,
+      delayCompensation:delayComp,
+      looping,
+      clickBuffer:metronomeRef.current.clickBuffer,
+      BPM,metronomeOn
+    })
+  }
+
   const startRecording = () => {
     //this used to have stuff, now it doesn't, but I'm keeping it for now to not break anything, and also in case I want something here later
     //start recording logic is handled by a function in the above effect
@@ -336,6 +348,7 @@ recordAnimationRef.current = updatePlayhead;
     startRecording,
     stopRecording,
     startDelayCompensationRecording,
+    startStreamOnPlay,
     isRecorderReady: !!recorderRef.current
   };
 };

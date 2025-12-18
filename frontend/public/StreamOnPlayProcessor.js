@@ -7,6 +7,7 @@ class StreamOnPlayProcessor extends AudioWorkletProcessor {
     this.recordingBuffer = new Float32Array(0);
     this.playbackBuffer1 = new Float32Array(0);
     this.playbackBuffer2 = new Float32Array(0);
+    this.clickBuffer = null;
     this.gain1 = 1.0;
     this.gain2 = 1.0;
     this.playbackPos = 0;
@@ -16,13 +17,15 @@ class StreamOnPlayProcessor extends AudioWorkletProcessor {
     this.sessionId = null;
     this.latencyFrames = 0;
     this.looping = false;
+    this.BPM = 120;
+    this.metronomeOn = true;
+    this.nextClickBeat = 0;
+    this.isClicking = false;
+    this.clickOffset = 0;
+    this.cycles = 0;
 
     this.port.onmessage = (e) => {
-        if(e.data.actiontype === 'check'){
-            console.log('check - message reached processor');
-        }
       if (e.data.actiontype === 'start'){ 
-        console.log('started',e.data);
         this.sessionId = e.data.sessionId;
         this.looping = e.data.looping;
         this.recordingBuffer = new Float32Array(0);
@@ -32,15 +35,25 @@ class StreamOnPlayProcessor extends AudioWorkletProcessor {
         this.latencyFrames = e.data.delayCompensation[0]
         this.playbackPos = this.latencyFrames-(Math.floor(.05*sampleRate)); //compensate for metronome delay
         this.firstPacket = true;
+        this.clickBuffer = e.data.clickBuffer;
+        this.samplesPerBeat = sampleRate * 60 / e.data.BPM;
+        this.metronomeOn = e.data.metronomeOn;
+        this.nextClickBeat = 0;
+        this.isClicking = false;
+        this.clickOffset = 0;
+        this.cycles = 0;
       };
       if (e.data.actiontype === 'stop'){ 
-        console.log('stopped',e.data);
         if (e.data.sessionId !== this.sessionId || this.sessionId === null) return;
         this.isStreaming = false;
         this.playbackPos = 0;
         this.recordingBuffer = new Float32Array(0);
         this.sessionId = null;
       };
+      if (e.data.actiontype === 'metronome'){
+        this.metronomeOn = e.data.metronomeOn;
+        this.BPM = e.data.BPM;
+      }
     };
   }
   process(inputs,outputs) {
@@ -86,9 +99,30 @@ class StreamOnPlayProcessor extends AudioWorkletProcessor {
             outR[i] = this.playbackBuffer1[this.playbackPos] * this.gain1 ?? 0;
             outL[i] += this.playbackBuffer2[this.playbackPos] * this.gain2 ?? 0;
             outR[i] += this.playbackBuffer2[this.playbackPos] * this.gain2 ?? 0;
+            let targetSample = this.nextClickBeat * this.samplesPerBeat;
+            if(this.playbackPos + (this.cycles * this.playbackBuffer1.length) >= targetSample){
+                this.clickOffset = 0;
+                this.isClicking = true;
+                this.nextClickBeat++;
+            }
+            if(this.isClicking){
+                if(this.metronomeOn){
+                    outL[i] += this.clickBuffer[this.clickOffset];
+                    outR[i] += this.clickBuffer[this.clickOffset];
+                }
+                this.clickOffset++;
+                if(this.clickOffset >= this.clickBuffer.length){
+                    this.isClicking = false;
+                }
+            }
           }
           if(this.looping){
-            this.playbackPos = (this.playbackPos + 1) % this.playbackBuffer1.length;
+            if(this.playbackPos + 1 >= this.playbackBuffer1.length){
+                this.playbackPos = 0
+                this.cycles++;
+            }else{
+                this.playbackPos++;
+            }
           }else{
             this.playbackPos++;
           }

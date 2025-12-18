@@ -14,7 +14,34 @@ export default class Metronome
         this.intervalID = null;
         this.delayCompensation = null;
         this.gainRef = null;
+        this.clickBuffer = null;
 
+    }
+
+    async setupAudio() {
+
+        const lengthInSeconds = 0.015;
+        const sampleRate = this.audioContext.sampleRate;
+        const offlineCtx = new OfflineAudioContext(1, sampleRate * lengthInSeconds, sampleRate);
+
+        // 2. Define the sound (same logic as your scheduleNote)
+        const osc = offlineCtx.createOscillator();
+        const envelope = offlineCtx.createGain();
+
+        osc.frequency.value = 1000;
+        envelope.gain.value = 1;
+        envelope.gain.setValueAtTime(1, 0.001);
+        envelope.gain.exponentialRampToValueAtTime(0.001, 0.0021);
+
+        osc.connect(envelope);
+        envelope.connect(offlineCtx.destination);
+
+        osc.start(0);
+        osc.stop(lengthInSeconds);
+
+        // 3. Render it to a buffer
+        const buffer = await offlineCtx.startRendering();
+        this.clickBuffer = buffer.getChannelData(0);
     }
 
     nextNote()

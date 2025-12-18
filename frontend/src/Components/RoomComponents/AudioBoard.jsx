@@ -111,6 +111,7 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
     const {startRecording,
             stopRecording,
             startDelayCompensationRecording,
+            startStreamOnPlay,
             isRecorderReady} = useAudioRecorder({AudioCtxRef,metronomeRef,socket,roomID,
                                             setAudio,setAudioURL,audioChunksRef,
                                             setMouseDragStart,BPMRef,
@@ -127,6 +128,7 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
         AudioCtxRef.current = new AudioContext({latencyHint:'interactive'});
         metronomeRef.current = new Metronome;
         metronomeRef.current.audioContext = AudioCtxRef.current;
+        metronomeRef.current.setupAudio();
         const analyser = AudioCtxRef.current.createAnalyser();
         analyser.minDecibels = -90;
         analyser.maxDecibels = -10;
@@ -624,7 +626,7 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
         source.buffer = getBuffer(audio,startTime+secondsToDelay,endTime+secondsToDelay);
         source2.buffer = getBuffer(audio2,startTime+secondsToDelay2,endTime+secondsToDelay2);
         if(otherPersonMonitoringOn){
-            recorderRef.current.startStreamOnPlay(source.buffer,source2.buffer,delayCompensation,looping)
+            startStreamOnPlay(source.buffer,source2.buffer,delayCompensation,looping)
         }else if(!monitoringOn){
             source.loop = mouseDragEnd ? looping : false;
             source2.loop = mouseDragEnd ? looping : false;
@@ -965,16 +967,15 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
                     </div>
                     <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
                         <PopoverTrigger className={"col-start-4 hover:underline text-blue-200 "+(compactMode!=1?"-translate-y-2":"")}>Latency</PopoverTrigger>
-                        <PopoverContent className="w-132">
+                        <PopoverContent className="w-122">
                             <div>
                                 <div className="flex flex-col items-center justify-center">
-                                    <div className="text-xl font-bold">{firstEnteredRoom && "Quick Setup: " } Latency Calibration</div>
+                                    <div className="text-xl font-bold">{firstEnteredRoom && "Required For Sync: " } Latency Calibration</div>
                                 </div>
                                 {/*<div className="text-sm">For synchronized web audio, it is essential to do a latency test. Three steps:</div>*/}
-                                <div className="text-xs">1. If you are using a non-computer mic, place your mic near your speakers.</div>
-                                <div className="text-xs">2. Unplug your headphones.</div>
-                                <div className="text-xs">3. Turn your volume up. The louder the better.</div>
-                                <div className="text-xs">4. Press the button below. It will emit a test click.</div>
+                                <div className="text-xs">1. Unplug your headphones. Your mic needs to hear your own speakers.</div>
+                                <div className="text-xs">2. Turn your volume up. The louder the better.</div>
+                                <div className="text-xs">3. Press the button below. It will emit a test click.</div>
                                 </div>
                             
                             

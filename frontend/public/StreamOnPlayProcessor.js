@@ -70,6 +70,7 @@ class StreamOnPlayProcessor extends AudioWorkletProcessor {
       const existingBuffer = this.recordingBuffer;
       const newInput = new Float32Array(input[0]);
       //bounce the playback buffers to the audio
+      /*
       for(let i=0;i<128;i++){
         const index = i+this.playbackPos-this.latencyFrames;
         if(this.playbackBuffer1 && 0<=index && index < this.playbackBuffer1.length){
@@ -78,7 +79,7 @@ class StreamOnPlayProcessor extends AudioWorkletProcessor {
         if(this.playbackBuffer2 && 0<=index && index < this.playbackBuffer2.length){
             newInput[i] += this.playbackBuffer2[index] * this.gain2;
         }
-      }
+      }*/
       const newLength = existingBuffer.length + newInput.length;
       const newBuffer = new Float32Array(newLength);
       newBuffer.set(existingBuffer, 0);

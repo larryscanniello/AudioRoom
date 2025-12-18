@@ -469,35 +469,63 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
         stereoBuffer.getChannelData(0).set(packet);
         stereoBuffer.getChannelData(1).set(packet);
         incomingAudioSource.buffer = stereoBuffer;
-        let startTime;
         if(first){
             streamingTimeRef.current = AudioCtxRef.current.currentTime + .05;
-            metrStream.current.currSample = -delayCompensation[0];
+            metrStream.current.currSample = 0;
         }else{
             streamingTimeRef.current += (4096 / AudioCtxRef.current.sampleRate);
         }
-        startTime = streamingTimeRef.current;
+        const startTime = streamingTimeRef.current;
+
+        const rect = waveform1Ref.current.getBoundingClientRect();
+        const pixelsPerSecond = rect.width/((60/BPM)*128)
+        const totalTime = (128*60/BPM) 
+        let playbackAudioStartTime = 0;
+        let playbackAudioEndTime = totalTime;
+        let timeToNextMeasure = 0; //seconds
+        if(mouseDragStart&&(!mouseDragEnd||!snapToGrid)){
+            playbackAudioStartTime = totalTime * mouseDragStart.t*pixelsPerSecond/waveform1Ref.current.width;
+            const nextBeat = 128*mouseDragStart.t*pixelsPerSecond/waveform1Ref.current.width
+            metronomeRef.current.currentBeatInBar = Math.ceil(nextBeat)%4
+            const beatFractionToNextMeasure = Math.ceil(nextBeat)-nextBeat
+            const secondsPerBeat = (60/BPM)
+            timeToNextMeasure = beatFractionToNextMeasure * secondsPerBeat
+        }else if(mouseDragStart&&mouseDragEnd&&snapToGrid){
+            playbackAudioStartTime = totalTime * mouseDragStart.trounded*pixelsPerSecond/ waveform1Ref.current.width;
+            const currBeat = 128*mouseDragStart.trounded*pixelsPerSecond/waveform1Ref.current.width
+            metronomeRef.current.currentBeatInBar = Math.floor(currBeat)%4
+        }
+        if(mouseDragEnd&&!snapToGrid){
+            playbackAudioEndTime = mouseDragEnd.t//totalTime * Math.min(1,mouseDragEnd.t*pixelsPerSecond/ waveform1Ref.current.width);
+        }else if(mouseDragEnd&&snapToGrid){
+            playbackAudioEndTime = mouseDragEnd.trounded//totalTime * Math.min(1,mouseDragEnd.trounded*pixelsPerSecond/ waveform1Ref.current.width);
+        }
+
+        const playbackAudioStartSample = playbackAudioStartTime * AudioCtxRef.current.sampleRate;
+        
         incomingAudioSource.connect(AudioCtxRef.current.destination);
         const playbackAudioSource = AudioCtxRef.current.createBufferSource();
         playbackAudioSource.connect(AudioCtxRef.current.destination);
         const playbackBuffer = AudioCtxRef.current.createBuffer(2,4096,AudioCtxRef.current.sampleRate)
-        const startSample = metrStream.current.currSample + delayCompensation[0];
+        const startSample = metrStream.current.currSample + playbackAudioStartSample;
         const endSample = startSample + 4096;
         const outputL = playbackBuffer.getChannelData(0);
         const outputR = playbackBuffer.getChannelData(1);
         if (audio) {
             const input = audio.getChannelData(0).subarray(startSample, endSample);
             for (let i = 0; i < input.length; i++) {
-                outputL[i] += input[i] * gainRef.current;
-                outputR[i] += input[i] * gainRef.current;
+                outputL[i] += input[i] * gainRef.current.gain.value;
+                outputR[i] += input[i] * gainRef.current.gain.value;
             }
+            console.log("audio outputted");
         }
         if (!currentlyRecording.current && audio2){
             const input2 = audio2.getChannelData(0).subarray(startSample, endSample);
             for (let i = 0; i < input2.length; i++) {
-                outputL[i] += input2[i] * gain2Ref.current;
-                outputR[i] += input2[i] * gain2Ref.current;
+                outputL[i] += input2[i] * gain2Ref.current.gain.value;
+                outputR[i] += input2[i] * gain2Ref.current.gain.value;
             }
+            console.log("audio2 outputted");
         }
 
         const bufferStartSample = metrStream.current.currSample; 
@@ -525,7 +553,12 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
         }
 
         // Update the global counter for the next function call
-        metrStream.current.currSample += 4096;
+        if(looping){
+            metrStream.current.currSample = (metrStream.current.currSample + 4096) % 
+            Math.round((playbackAudioEndTime-playbackAudioStartTime)*AudioCtxRef.current.sampleRate);
+        }else{
+            metrStream.current.currSample += 4096;
+        }
 
         playbackAudioSource.buffer = playbackBuffer;
 

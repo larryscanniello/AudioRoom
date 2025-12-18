@@ -27,7 +27,9 @@ import "./AudioBoard.css";
 const WAVEFORM_WINDOW_LEN = 900;
 const COMM_TIMEOUT_TIME = 5000;
 
-export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnteredRoom}){
+export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnteredRoom,
+    setVideoAudio
+}){
 
     const [width,height] = useWindowSize();
 
@@ -705,7 +707,8 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
         source.buffer = getBuffer(audio,startTime+secondsToDelay,endTime+secondsToDelay);
         source2.buffer = getBuffer(audio2,startTime+secondsToDelay2,endTime+secondsToDelay2);
         if(otherPersonMonitoringOn){
-            startStreamOnPlay(source.buffer,source2.buffer,delayCompensation,looping)
+            startStreamOnPlay(source.buffer,source2.buffer,delayCompensation,looping);
+            setVideoAudio(false);
         }else if(!monitoringOn){
             source.loop = mouseDragEnd ? looping : false;
             source2.loop = mouseDragEnd ? looping : false;
@@ -798,6 +801,7 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
         if(numConnectedUsersRef.current >=2 && sendSocket){
             socket.current.emit("stop_audio_client_to_server",roomID);
         }
+        setVideoAudio(true);
     }
 
     let delayCompensationStep;

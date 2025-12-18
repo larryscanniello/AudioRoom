@@ -73,6 +73,10 @@ export default function Room(){
       };
     }, []);
 
+    const setVideoAudio = (mute) => {
+      callRef.current.setLocalAudio(mute);
+    }
+
     const handleDragOver = (e) => {
         e.preventDefault(); 
     };
@@ -186,6 +190,7 @@ export default function Room(){
           socket={socket}
           firstEnteredRoom={firstEnteredRoom}
           setFirstEnteredRoom={setFirstEnteredRoom}
+          setVideoAudio={setVideoAudio}
         />
       </div>
     ) : (

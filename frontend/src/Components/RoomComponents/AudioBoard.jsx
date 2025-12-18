@@ -92,6 +92,9 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
     const loopingRef = useRef(looping);
     const commsClearTimeoutRef = useRef(null);
     const streamingTimeRef = useRef(null);
+    const streamOnPlayProcessorRef = useRef(null);
+
+    const metrStream = useRef({currSample:0,samplesPerBeat:0,isClicking:false,offset:0,})
 
     const audioChunksRef = useRef([]);
 
@@ -120,7 +123,8 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
                                             currentlyRecording,setPlayheadLocation,numConnectedUsersRef,delayCompensation,
                                             recorderRef,recordAnimationRef,metronomeOnRef,gain2Ref,
                                             metronomeGainRef,WAVEFORM_WINDOW_LEN,autoscrollEnabledRef,
-                                            otherPersonRecordingRef,setLoadingAudio,setAudio2,setLatencyTestRes})
+                                            otherPersonRecordingRef,setLoadingAudio,setAudio2,setLatencyTestRes,
+                                            streamOnPlayProcessorRef})
 
     useEffect(() => {
         //This effect runs only when component first mounts. 
@@ -219,7 +223,7 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
         if(!isDemo){
             socket.current.on("receive_audio_server_to_client", async (data) => {
                 const packet = new Float32Array(data.packet);
-                handleStreamAudioRef.current(new Float32Array(data.packet),data.first,data.playbackSampleIndex);
+                handleStreamAudioRef.current(new Float32Array(data.packet),data.first);
                 if(data.type==="streamOnRecord"){
                     if(data.first){
                         audioChunksRef.current = [packet];
@@ -458,7 +462,7 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
         metronomeRef.current.tempo = BPM;
     }
 
-    const streamAudio = (packet,first,samplePos) => {
+    const streamAudio = (packet,first) => {
         if(!monitoringOn) return;
         const incomingAudioSource = AudioCtxRef.current.createBufferSource();
         const stereoBuffer = AudioCtxRef.current.createBuffer(2,4096,AudioCtxRef.current.sampleRate);
@@ -468,19 +472,61 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
         let startTime;
         if(first){
             streamingTimeRef.current = AudioCtxRef.current.currentTime + .05;
+            metrStream.current.currSample = -delayCompensation[0];
         }else{
             streamingTimeRef.current += (4096 / AudioCtxRef.current.sampleRate);
         }
         startTime = streamingTimeRef.current;
         incomingAudioSource.connect(AudioCtxRef.current.destination);
         const playbackAudioSource = AudioCtxRef.current.createBufferSource();
+        playbackAudioSource.connect(AudioCtxRef.current.destination);
         const playbackBuffer = AudioCtxRef.current.createBuffer(2,4096,AudioCtxRef.current.sampleRate)
-        const startSample = samplePos;
-        const endSample = samplePos + 4096;
-        if(audio && samplePos >= 0){
-            playbackBuffer.getChannelData(0).set(audio.getChannelData(0).subarray(startSample,endSample));
-            playbackBuffer.getChannelData(1).set(audio.getChannelData(0).subarray(startSample,endSample));
+        const startSample = metrStream.current.currSample + delayCompensation[0];
+        const endSample = startSample + 4096;
+        const outputL = playbackBuffer.getChannelData(0);
+        const outputR = playbackBuffer.getChannelData(1);
+        if (audio) {
+            const input = audio.getChannelData(0).subarray(startSample, endSample);
+            for (let i = 0; i < input.length; i++) {
+                outputL[i] += input[i] * gainRef.current;
+                outputR[i] += input[i] * gainRef.current;
+            }
         }
+        if (!currentlyRecording.current && audio2){
+            const input2 = audio2.getChannelData(0).subarray(startSample, endSample);
+            for (let i = 0; i < input2.length; i++) {
+                outputL[i] += input2[i] * gain2Ref.current;
+                outputR[i] += input2[i] * gain2Ref.current;
+            }
+        }
+
+        const bufferStartSample = metrStream.current.currSample; 
+        const bufferEndSample = bufferStartSample + 4096;
+
+        const samplesPerBeat = (AudioCtxRef.current.sampleRate * 60) / BPM;
+
+        let nextBeatNumber = Math.ceil(bufferStartSample / samplesPerBeat);
+        let nextBeatSample = Math.round(nextBeatNumber * samplesPerBeat);
+
+        while (nextBeatSample < bufferEndSample) {
+            const internalOffset = nextBeatSample - bufferStartSample;
+            if (metronomeOn) {
+                const clickData = metronomeRef.current.clickBuffer;
+                for (let i = 0; i < clickData.length; i++) {
+                    const targetIdx = internalOffset + i;
+                    if (targetIdx < 4096) {
+                        outputL[targetIdx] += clickData[i];
+                        outputR[targetIdx] += clickData[i];
+                    }
+                }
+            }
+            nextBeatNumber++;
+            nextBeatSample = Math.round(nextBeatNumber * samplesPerBeat);
+        }
+
+        // Update the global counter for the next function call
+        metrStream.current.currSample += 4096;
+
         playbackAudioSource.buffer = playbackBuffer;
 
         playbackAudioSource.start(startTime);
@@ -783,6 +829,10 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
                                     }else{
                                         gainRef.current.gain.value = track1Vol;
                                     }
+                                    streamOnPlayProcessorRef.current.port.postMessage({
+                                            actiontype:"gain1",
+                                            gain:gainRef.current.gain.value,
+                                    })
                                     setTrack1Muted(prev=>!prev);
                                 }}
                             >
@@ -793,6 +843,10 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
                                 onValueChange={(value)=>{
                                     if(!track1Muted){
                                         gainRef.current.gain.value = value;
+                                        streamOnPlayProcessorRef.current.port.postMessage({
+                                            actiontype:"gain1",
+                                            gain:value,
+                                        })
                                     }
                                     setTrack1Vol(value);
                                 }} 
@@ -820,6 +874,10 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
                                         }else{
                                             gain2Ref.current.gain.value = track2Vol;
                                         }
+                                        streamOnPlayProcessorRef.current.port.postMessage({
+                                            actiontype:"gain2",
+                                            gain:gain2Ref.current.gain.value,
+                                        })
                                         setTrack2Muted(prev=>!prev);
                                     }}
                             >
@@ -830,6 +888,10 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
                             onValueChange={(value)=>{
                                     if(!track2Muted){
                                         gain2Ref.current.gain.value = value;
+                                        streamOnPlayProcessorRef.current.port.postMessage({
+                                            actiontype:"gain2",
+                                            gain:value,
+                                        })
                                     }
                                     setTrack2Vol(value);
                                 }} 

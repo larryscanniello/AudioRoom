@@ -8,7 +8,7 @@ export const useAudioRecorder = (
   playheadRef,metronomeOn,waveform1Ref,BPM,scrollWindowRef,currentlyRecording,
   setPlayheadLocation,numConnectedUsersRef,delayCompensation,BPMRef,recorderRef,recordAnimationRef,
   metronomeOnRef,gain2Ref,metronomeGainRef,WAVEFORM_WINDOW_LEN,autoscrollEnabledRef,
-  setLoadingAudio,otherPersonRecordingRef,setAudio2,setLatencyTestRes
+  setLoadingAudio,otherPersonRecordingRef,setAudio2,setLatencyTestRes,streamOnPlayProcessorRef
 }
 ) => {
   const mediaRecorderRef = useRef(null);
@@ -19,7 +19,6 @@ export const useAudioRecorder = (
   const delayChunksRef = useRef(null);
   const sessionIdRef = useRef(null);
   const streamOnPlayIdRef = useRef(null);
-  const streamOnPlayProcessorRef = useRef(null);
   
   delayCompensationRef.current = delayCompensation;
 

@@ -54,6 +54,12 @@ class StreamOnPlayProcessor extends AudioWorkletProcessor {
         this.metronomeOn = e.data.metronomeOn;
         this.BPM = e.data.BPM;
       }
+      if (e.data.actiontype === 'gain1'){
+        this.gain1 = e.data.gain;
+      }
+      if (e.data.actiontype === 'gain2'){
+        this.gain2 = e.data.gain;
+      }
     };
   }
   process(inputs,outputs) {
@@ -125,6 +131,12 @@ class StreamOnPlayProcessor extends AudioWorkletProcessor {
             }
           }else{
             this.playbackPos++;
+            if(this.playbackPos>=this.playbackBuffer1.length){
+                this.isStreaming = false;
+                this.playbackPos = 0;
+                this.recordingBuffer = new Float32Array(0);
+                this.sessionId = null;
+            }
           }
         }
       }

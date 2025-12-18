@@ -509,12 +509,12 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
         const playbackAudioSource = AudioCtxRef.current.createBufferSource();
         playbackAudioSource.connect(AudioCtxRef.current.destination);
         const playbackBuffer = AudioCtxRef.current.createBuffer(2,4096,AudioCtxRef.current.sampleRate)
-        const startSample = metrStream.current.currSample + playbackAudioStartSample;
-        const endSample = startSample + 4096;
+        const startSampleAudio1 = metrStream.current.currSample + playbackAudioStartSample + delayCompensation[0];
+        const startSampleAudio2 = metrStream.current.currSample + playbackAudioStartSample + delayCompensation2[0];
         const outputL = playbackBuffer.getChannelData(0);
         const outputR = playbackBuffer.getChannelData(1);
         if (audio) {
-            const input = audio.getChannelData(0).subarray(startSample, endSample);
+            const input = audio.getChannelData(0).subarray(startSampleAudio1, startSampleAudio1 + 4096);
             for (let i = 0; i < input.length; i++) {
                 outputL[i] += input[i] * gainRef.current.gain.value;
                 outputR[i] += input[i] * gainRef.current.gain.value;
@@ -522,7 +522,7 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
             console.log("audio outputted");
         }
         if (!currentlyRecording.current && audio2){
-            const input2 = audio2.getChannelData(0).subarray(startSample, endSample);
+            const input2 = audio2.getChannelData(0).subarray(startSampleAudio2, startSampleAudio2 + 4096);
             for (let i = 0; i < input2.length; i++) {
                 outputL[i] += input2[i] * gain2Ref.current.gain.value;
                 outputR[i] += input2[i] * gain2Ref.current.gain.value;

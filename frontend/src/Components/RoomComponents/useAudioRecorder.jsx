@@ -175,9 +175,41 @@ export const useAudioRecorder = (
                 fullBuffer.set(arr,offset)
                 offset += arr.length;
               }
-              let greatestAvg = 0;
-              let greatestIndex = 0;
+
+
+              const barker = metronomeRef.current.barker;
+              const correlations = [];
+              let greatestCorrelation = -Infinity;
+              let greatestIndex = -1;
+              
+
+              for(let i=0;i<fullBuffer.length-barker.length;i++){
+                let correlation = 0;
+                let signalEnergy = 0;
+                let barkerEnergy = 0;
+                for(let j=0;j<barker.length;j++){
+                  correlation += fullBuffer[i+j] * barker[j];
+                  signalEnergy += fullBuffer[i+j] * fullBuffer[i+j];
+                  barkerEnergy += barker[j] * barker[j];
+                }
+                const denominator = Math.sqrt(signalEnergy * barkerEnergy);
+                // Use 1e-10 to prevent "Division by Zero" if the audio is silent
+                const normalizedCorr = Math.abs(correlation) / 1.0;//(denominator + 1e-10);
+                correlations.push(normalizedCorr)
+                if(normalizedCorr > greatestCorrelation){
+                  greatestCorrelation = normalizedCorr;
+                  greatestIndex = i;
+                }
+              }
+
+              console.log('gc',greatestCorrelation);
+              console.log('gi',greatestIndex);
               const dataArray = fullBuffer;
+
+              /*
+              let greatestAvg = 0;
+              let greatestPeakDet = 0;
+              
               for(let i=0;i<dataArray.length-50;i++){
                   let avg = 0
                   for(let j=i;j<i+50;j++){
@@ -185,9 +217,10 @@ export const useAudioRecorder = (
                   }
                   if(avg>greatestAvg){
                       greatestAvg = avg;
-                      greatestIndex = i
+                      greatestPeakDet = i;
                   }
-              }
+              }*/
+
               setDelayCompensation([greatestIndex])
               setLatencyTestRes(greatestIndex);
               if(numConnectedUsersRef.current>=2){
@@ -311,6 +344,33 @@ recordAnimationRef.current = updatePlayhead;
     }
   }
 
+  
+  const startDelayCompensationRecording = (metRef) => {
+    if (delayCompensationRecorderRef.current && metRef.current) {
+      const sessionId = crypto.randomUUID();
+      const now = AudioCtxRef.current.currentTime;
+      metRef.current.startBarker(now);
+      delayCompensationRecorderRef.current.port.postMessage({
+            actiontype:"start",
+            buffer: [],
+            delayCompensation:[0],
+            sessionId,
+          });
+      console.log("Delay compensation recording started");
+      setTimeout(()=>{
+        delayCompensationRecorderRef.current.port.postMessage({
+          actiontype:"stop",
+          keepRecording:true,
+          sessionId
+        });
+      },500);
+    }
+    const barkerDelayComp = () => {
+
+    }
+  }
+
+  /*
   const startDelayCompensationRecording = (metRef) => {
     if (delayCompensationRecorderRef.current && metRef.current) {
       const sessionId = crypto.randomUUID();
@@ -340,7 +400,10 @@ recordAnimationRef.current = updatePlayhead;
         });
       },1000)
     }
-  }
+    const barkerDelayComp = () => {
+
+    }
+  }*/
 
 
   return {

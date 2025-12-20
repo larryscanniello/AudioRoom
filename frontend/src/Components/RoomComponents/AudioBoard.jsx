@@ -1072,9 +1072,9 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
                                     <div className="text-xl font-bold">{firstEnteredRoom && "Required For Sync: " } Latency Calibration</div>
                                 </div>
                                 {/*<div className="text-sm">For synchronized web audio, it is essential to do a latency test. Three steps:</div>*/}
-                                <div className="text-xs">1. Unplug your headphones. Your mic needs to hear your own speakers.</div>
-                                <div className="text-xs">2. Turn your volume up. The louder the better.</div>
-                                <div className="text-xs">3. Press the button below. It will emit a test click.</div>
+                                <div className="text-xs">1. Unplug your headphones. Your mic needs to hear your speakers.</div>
+                                <div className="text-xs">2. Set your volume to a normal listening level.</div>
+                                <div className="text-xs">3. Press the button below. It will emit a test tone.</div>
                                 </div>
                             
                             

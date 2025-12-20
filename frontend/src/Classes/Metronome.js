@@ -15,7 +15,7 @@ export default class Metronome
         this.delayCompensation = null;
         this.gainRef = null;
         this.clickBuffer = null;
-
+        this.barker = new Float32Array([1,1,1,1,1,-1,-1,1,1,-1,1,-1,1].flatMap(x => Array(50).fill(x)));
     }
 
     async setupAudio() {
@@ -91,11 +91,6 @@ export default class Metronome
 
         if (this.isRunning) return;
 
-        if (this.audioContext == null)
-        {
-            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        }
-
         this.isRunning = true;
 
         if(!startTime===null){
@@ -105,6 +100,16 @@ export default class Metronome
         }
         
         this.intervalID = setInterval(() => this.scheduler(), this.lookahead);
+    }
+
+    startBarker(startTime = null)
+    {
+        const source = this.audioContext.createBufferSource();
+        source.buffer = this.audioContext.createBuffer(2,this.barker.length,this.audioContext.sampleRate);
+        source.buffer.getChannelData(0).set(this.barker);
+        source.buffer.getChannelData(1).set(this.barker);
+        source.connect(this.audioContext.destination);
+        source.start(startTime + .05);
     }
 
     stop()

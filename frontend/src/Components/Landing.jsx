@@ -17,7 +17,9 @@ export default function Landing() {
           <h4 className="mt-4 text-2xl">Video chat + shared recorder for music and audio</h4>
         </div>
         <div className="p-4"> 
-          <AudioBoard isDemo={true} firstEnteredRoom={false} setFirstEnteredRoom={()=>{}}/>
+          <AudioBoard isDemo={true} firstEnteredRoom={false} setFirstEnteredRoom={()=>{}}
+            setVideoAudio={()=>{}}
+            />
         </div>
         
         <div className="w-full flex flex-col items-center">

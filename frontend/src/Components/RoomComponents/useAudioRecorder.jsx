@@ -365,9 +365,6 @@ recordAnimationRef.current = updatePlayhead;
         });
       },500);
     }
-    const barkerDelayComp = () => {
-
-    }
   }
 
   /*

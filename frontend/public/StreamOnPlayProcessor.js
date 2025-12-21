@@ -23,6 +23,7 @@ class StreamOnPlayProcessor extends AudioWorkletProcessor {
     this.isClicking = false;
     this.clickOffset = 0;
     this.cycles = 0;
+    this.startTime = 0;
 
     this.port.onmessage = (e) => {
       if (e.data.actiontype === 'start'){ 
@@ -42,6 +43,7 @@ class StreamOnPlayProcessor extends AudioWorkletProcessor {
         this.isClicking = false;
         this.clickOffset = 0;
         this.cycles = 0;
+        this.startTime = e.data.startTime 
       };
       if (e.data.actiontype === 'stop'){ 
         if (e.data.sessionId !== this.sessionId || this.sessionId === null) return;
@@ -63,23 +65,13 @@ class StreamOnPlayProcessor extends AudioWorkletProcessor {
     };
   }
   process(inputs,outputs) {
+
     const input = inputs[0];
     if (!input || !input[0]) return true;
     if(this.isStreaming){
       //do all this nonsense to keep the recordingbuffer a float 32 array
       const existingBuffer = this.recordingBuffer;
-      const newInput = new Float32Array(input[0]);
-      //bounce the playback buffers to the audio
-      /*
-      for(let i=0;i<128;i++){
-        const index = i+this.playbackPos-this.latencyFrames;
-        if(this.playbackBuffer1 && 0<=index && index < this.playbackBuffer1.length){
-            newInput[i] += this.playbackBuffer1[index] * this.gain1;
-        }
-        if(this.playbackBuffer2 && 0<=index && index < this.playbackBuffer2.length){
-            newInput[i] += this.playbackBuffer2[index] * this.gain2;
-        }
-      }*/
+      const newInput = new Float32Array(input[0]);      
       const newLength = existingBuffer.length + newInput.length;
       const newBuffer = new Float32Array(newLength);
       newBuffer.set(existingBuffer, 0);

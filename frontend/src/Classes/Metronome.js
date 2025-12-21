@@ -15,7 +15,8 @@ export default class Metronome
         this.delayCompensation = null;
         this.gainRef = null;
         this.clickBuffer = null;
-        this.barker = new Float32Array([1,1,1,1,1,-1,-1,1,1,-1,1,-1,1].flatMap(x => Array(50).fill(x)));
+        this.barker = null;
+        this.muteNextClick;
     }
 
     async setupAudio() {
@@ -42,6 +43,20 @@ export default class Metronome
         // 3. Render it to a buffer
         const buffer = await offlineCtx.startRendering();
         this.clickBuffer = buffer.getChannelData(0);
+
+
+        const barker = [1, 1, 1, 1, 1, -1, -1, 1, 1, -1, 1, -1, 1];
+        const multiplier = 1 / 3;
+        const samplesPerBit = 50;
+
+        // Create a Float32Array of the correct total length
+        this.barker = new Float32Array(barker.length * samplesPerBit);
+
+        barker.forEach((val, i) => {
+            // Fill each 50-sample block with the scaled value
+            this.barker.fill(val * multiplier, i * samplesPerBit, (i + 1) * samplesPerBit);
+        });
+
     }
 
     nextNote()
@@ -62,6 +77,10 @@ export default class Metronome
         //this.notesInQueue.push({ note: beatNumber, time: time });
     
         // create an oscillator
+        if(this.muteNextClick){
+            this.muteNextClick = false;
+            return;
+        }
         const osc = this.audioContext.createOscillator();
         const envelope = this.audioContext.createGain();
         
@@ -86,8 +105,9 @@ export default class Metronome
         }
     }
 
-    start(startTime = null)
+    start(startTime = null,firstClickMuted = false)
     {
+        this.muteNextClick = firstClickMuted;
 
         if (this.isRunning) return;
 

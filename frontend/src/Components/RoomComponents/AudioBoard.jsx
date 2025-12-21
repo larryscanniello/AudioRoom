@@ -61,6 +61,7 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
     const [latencyTestRes,setLatencyTestRes] = useState(null);
     const [monitoringOn,setMonitoringOn] = useState(false);
     const [otherPersonMonitoringOn,setOtherPersonMonitoringOn] = useState(false);
+    const [autoTestLatency,setAutoTestLatency] = useState(false);
 
     const waveform1Ref = useRef(null);
     const waveform2Ref = useRef(null);
@@ -95,6 +96,9 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
     const commsClearTimeoutRef = useRef(null);
     const streamingTimeRef = useRef(null);
     const streamOnPlayProcessorRef = useRef(null);
+    const autoTestLatencyRef = useRef(null);
+    const audio2Ref = useRef(null);
+    const delayCompensation2Ref = useRef(null);
 
     const metrStream = useRef({currSample:0,samplesPerBeat:0,isClicking:false,offset:0,})
 
@@ -212,11 +216,7 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
                 }
             }
             if(e.key==="r"){
-                if(currentlyRecording.current || currentlyPlayingAudio.current) return;
-                recorderRef.current.startRecording(audio2,delayCompensation2);
-                if(numConnectedUsersRef.current >= 2){
-                    socket.current.emit("start_recording_client_to_server",roomID);
-                }
+                handleRecord();
             }
         }
 
@@ -458,11 +458,26 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
         }
     },[popoverOpen])
 
+    useEffect(()=>{
+        autoTestLatencyRef.current = autoTestLatency;
+        delayCompensation2Ref.current = delayCompensation2;
+        audio2Ref.current = audio2;
+    },[autoTestLatency,delayCompensation2,audio2])
+
     loopingRef.current = looping;
 
     if(metronomeRef.current){
         metronomeRef.current.tempo = BPM;
     }
+
+function handleRecord() {
+    if(currentlyRecording.current || currentlyPlayingAudio.current) return;
+    recorderRef.current.startRecording(audio2Ref.current,delayCompensation2Ref.current,autoTestLatencyRef.current);
+    if(numConnectedUsersRef.current >= 2){
+        socket.current.emit("start_recording_client_to_server",roomID);
+    }
+}
+    
 
     const streamAudio = (packet,first) => {
         if(!monitoringOn) return;
@@ -597,22 +612,6 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
         const source2 = AudioCtxRef.current.createBufferSource();
         source.connect(gainRef.current);
         source2.connect(gain2Ref.current);
-        
-        /*
-        const stereoBuffer = AudioCtxRef.current.createBuffer(2, audio ? audio.length:1, AudioCtxRef.current.sampleRate);
-        if(audio){
-            stereoBuffer.getChannelData(0).set(audio.getChannelData(0));
-            stereoBuffer.getChannelData(1).set(audio.getChannelData(0));
-        }
-        
-        const stereoBuffer2 = AudioCtxRef.current.createBuffer(2, audio2?audio2.length:1, AudioCtxRef.current.sampleRate);
-        if(audio2){
-            stereoBuffer2.getChannelData(0).set(audio2.getChannelData(0));
-            stereoBuffer2.getChannelData(1).set(audio2.getChannelData(0));
-        }
-        source2.buffer = stereoBuffer2
-        */
-        //currentPlayingAudio is set to 2 when audio is playing; when one source ends it -= 1
         source.onended = () => {
             source.disconnect();
         }
@@ -657,10 +656,7 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
         //updatePlayhead uses requestAnimationFrame to animate the playhead
         //note we need the start parameter to keep track of where in the audio we are starting
         //as opposed to now which is the current time absolutely
-
-        
-
-        const updatePlayhead = (start) => {
+            const updatePlayhead = (start) => {
             const elapsed = Math.max(AudioCtxRef.current.currentTime - now,0);
             (looping && mouseDragEnd) ? setPlayheadLocation(start+(elapsed%(endTime-startTime))) : setPlayheadLocation(start+elapsed);
             const x = (looping && mouseDragEnd) ? (start+(elapsed%(endTime-startTime)))*pixelsPerSecond : (start+elapsed) * pixelsPerSecond;
@@ -689,16 +685,6 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
         }
         const secondsToDelay = delayCompensation/AudioCtxRef.current.sampleRate; //convert delayComp in samples to seconds
         const secondsToDelay2 = delayCompensation2/AudioCtxRef.current.sampleRate;
-        /*const audiolength = Math.max(audio ? audio.getChannelData(0) : 0,audio2 ? audio2.getChannelData(0) : 0);
-        if(startTime+secondsToDelay>=audiolength/AudioCtxRef.current.sampleRate){
-            //if someone tries to play audio after the end of the audio, play audio from the beginning
-            startTime = 0;
-            endTime = duration;
-            timeToNextMeasure = 0;
-            setMouseDragStart({trounded:0,t:0})
-            setMouseDragEnd(null)
-            start = 0;
-        }*/
         //add .05 to match the delay of audio/metronome (metronome needs delay for first beat to sound)
         let now = AudioCtxRef.current.currentTime+.05;
         //the .05 added to now previously was for playhead rendering purposes, we need to subtract it here
@@ -707,19 +693,23 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
         source.buffer = getBuffer(audio,startTime+secondsToDelay,endTime+secondsToDelay);
         source2.buffer = getBuffer(audio2,startTime+secondsToDelay2,endTime+secondsToDelay2);
         if(otherPersonMonitoringOn){
-            startStreamOnPlay(source.buffer,source2.buffer,delayCompensation,looping);
-            setVideoAudio(false);
+            startDelayCompensationRecording(metronomeRef);
+            setTimeout(()=>{
+                startStreamOnPlay(source.buffer,source2.buffer,delayCompensation,looping);
+                setVideoAudio(false);
+            },1000);
+            
         }else if(!monitoringOn){
             source.loop = mouseDragEnd ? looping : false;
             source2.loop = mouseDragEnd ? looping : false;
+            metronomeRef.current.start(now-.05+timeToNextMeasure);
             source.start(now);
             source2.start(now);
-            metronomeRef.current.start(now-.05+timeToNextMeasure);
             playingAudioRef.current = source;
             playingAudioRef2.current = source2;
         }
         currentlyPlayingAudio.current = 2;
-        updatePlayhead(startTime)
+        updatePlayhead(startTime);
         if(numConnectedUsersRef.current>=2 && fromOtherPerson){
             socket.current.emit("comm_event",{type:"notify_that_partner_audio_played",roomID});
             clearTimeout(commsClearTimeoutRef.current);
@@ -962,7 +952,7 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
                     </Button>*/}
                 </div>
                 
-                <div className="row-start-3 grid grid-cols-[20px_420px_125px_200px_250px]" 
+                <div className="row-start-3 grid grid-cols-[20px_400px_125px_75px_75px_250px]" 
                     style={{height:Math.floor(32*compactMode),transform:`${compactMode!=1?"translateY(3px)":""}`}}>
                     <ButtonGroup className="rounded border-1 border-gray-300 col-start-2"
                         style={{transform:compactMode!=1?"scale(.7) translate(-55px,-10px)":""}}
@@ -986,7 +976,7 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
                             variant="default" size={compactMode==1?"lg":"sm"} className="hover:bg-gray-800"
                             onClick={()=>{
                                 if(!currentlyPlayingAudio.current&&!currentlyRecording.current){
-                                    recorderRef.current.startRecording(audio2,delayCompensation2);
+                                    recorderRef.current.startRecording(audio2,delayCompensation2,autoTestLatency);
                                     if(numConnectedUsersRef.current >= 2){
                                         socket.current.emit("start_recording_client_to_server",roomID);
                                     }
@@ -1048,7 +1038,7 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
                         </Button>
                     </ButtonGroup>
                     <div className={"flex flex-row items-center col-start-3 " + (compactMode!=1?"-translate-y-2":"")}>
-                        <FaMagnifyingGlass style={{transform:"scale(1.1)",marginRight:3}} className="text-blue-200"/>
+                        <FaMagnifyingGlass style={{transform:"scale(1.1)",marginRight:1}} className="text-blue-200"/>
                         <Slider style={{width:100}}
                         defaultValue={[20000/32]} max={1000} min={0} step={1} 
                             className="pl-2 group" value={[Math.log10(zoomFactor)/Math.log10(10**(Math.log10(16)/1000))]} onValueChange={(value)=>{
@@ -1064,8 +1054,21 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
                             }}>
                         </Slider>
                     </div>
+                    <Popover>
+                        <PopoverTrigger className={"col-start-4 hover:underline text-blue-200 "+(compactMode!=1?"-translate-y-2":"")}>Settings</PopoverTrigger>
+                        <PopoverContent>
+                            <label style={{ display: 'flex', gap: '8px', cursor: 'pointer' }}>
+                                <input 
+                                    type="checkbox" 
+                                    checked={autoTestLatency} 
+                                    onChange={() => setAutoTestLatency(prev => !prev)} 
+                                />
+                                Auto-test recording latency
+                                </label>
+                        </PopoverContent>
+                    </Popover>
                     <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
-                        <PopoverTrigger className={"col-start-4 hover:underline text-blue-200 "+(compactMode!=1?"-translate-y-2":"")}>Latency</PopoverTrigger>
+                        <PopoverTrigger className={"col-start-5 hover:underline text-blue-200 "+(compactMode!=1?"-translate-y-2":"")}>Latency</PopoverTrigger>
                         <PopoverContent className="w-122">
                             <div>
                                 <div className="flex flex-col items-center justify-center">

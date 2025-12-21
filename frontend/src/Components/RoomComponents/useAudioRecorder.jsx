@@ -8,7 +8,8 @@ export const useAudioRecorder = (
   playheadRef,metronomeOn,waveform1Ref,BPM,scrollWindowRef,currentlyRecording,
   setPlayheadLocation,numConnectedUsersRef,delayCompensation,BPMRef,recorderRef,recordAnimationRef,
   metronomeOnRef,gain2Ref,metronomeGainRef,WAVEFORM_WINDOW_LEN,autoscrollEnabledRef,
-  setLoadingAudio,otherPersonRecordingRef,setAudio2,setLatencyTestRes,streamOnPlayProcessorRef
+  setLoadingAudio,otherPersonRecordingRef,setAudio2,setLatencyTestRes,streamOnPlayProcessorRef,
+  autoTestLatency
 }
 ) => {
   const mediaRecorderRef = useRef(null);
@@ -49,7 +50,7 @@ export const useAudioRecorder = (
         processor.connect(gain2Ref.current);
         
 
-        const startRecording = (audio2,delayComp) => {
+        const startRecording = (audio2,delayComp,autoTestLatency) => {
           const sessionId = crypto.randomUUID();
           sessionIdRef.current = sessionId;
 
@@ -59,8 +60,9 @@ export const useAudioRecorder = (
             buffer:audio2 ? audio2.getChannelData(0).slice():[],
             delayCompensation:delayComp,
             sessionId,
+            startTime:AudioCtxRef.current.currentTime + (autoTestLatency ? (4*60/BPMRef.current) : 0),
           });
-          handleRecording(metronomeRef);
+          handleRecording(metronomeRef,autoTestLatency);
           setMouseDragStart({trounded:0,t:0});
           setMouseDragEnd(null);
           if(numConnectedUsersRef.current >=2){
@@ -189,10 +191,10 @@ export const useAudioRecorder = (
                 let barkerEnergy = 0;
                 for(let j=0;j<barker.length;j++){
                   correlation += fullBuffer[i+j] * barker[j];
-                  signalEnergy += fullBuffer[i+j] * fullBuffer[i+j];
-                  barkerEnergy += barker[j] * barker[j];
+                  //signalEnergy += fullBuffer[i+j] * fullBuffer[i+j];
+                  //barkerEnergy += barker[j] * barker[j];
                 }
-                const denominator = Math.sqrt(signalEnergy * barkerEnergy);
+                //const denominator = Math.sqrt(signalEnergy * barkerEnergy);
                 // Use 1e-10 to prevent "Division by Zero" if the audio is silent
                 const normalizedCorr = Math.abs(correlation) / 1.0;//(denominator + 1e-10);
                 correlations.push(normalizedCorr)
@@ -315,7 +317,7 @@ const updatePlayhead = (waveformRef,now) => {
 
 recordAnimationRef.current = updatePlayhead;
 
-  const handleRecording = async (metRef) => {
+  const handleRecording = async (metRef,autoTestLatency) => {
     if (recorderRef.current && metRef.current) {
         autoscrollEnabledRef.current = true;
 
@@ -329,9 +331,13 @@ recordAnimationRef.current = updatePlayhead;
         const now = AudioCtxRef.current.currentTime;
 
         metRef.current.currentBeatInBar = 0;
-        metRef.current.start(now);
+        metRef.current.start(now,true);
+        if(autoTestLatency){
+          startDelayCompensationRecording(metRef);
+        } 
         
-        recordAnimationRef.current(waveform1Ref,now);
+        
+        recordAnimationRef.current(waveform1Ref,now + (autoTestLatency?(4*60/BPM):0));
         console.log("Recording started");
     }
   }
@@ -364,9 +370,6 @@ recordAnimationRef.current = updatePlayhead;
           sessionId
         });
       },500);
-    }
-    const barkerDelayComp = () => {
-
     }
   }
 

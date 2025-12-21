@@ -12,6 +12,7 @@ class RecorderProcessor extends AudioWorkletProcessor {
     this.emptyPacket = false;
     this.sessionId = null;
     this.latencyFrames = 0;
+    this.startTime = 0;
 
     this.port.onmessage = (e) => {
       if (e.data.actiontype === 'start'){ 
@@ -22,6 +23,7 @@ class RecorderProcessor extends AudioWorkletProcessor {
         this.latencyFrames = e.data.delayCompensation[0]
         this.playbackPos = this.latencyFrames-(Math.floor(.05*sampleRate)); //compensate for metronome delay
         this.firstPacket = true;
+        this.startTime = e.data.startTime ?? 0;
       };
       if (e.data.actiontype === 'stop'){ 
         if (e.data.sessionId !== this.sessionId || this.sessionId === null) return;
@@ -42,7 +44,7 @@ class RecorderProcessor extends AudioWorkletProcessor {
   process(inputs,outputs) {
     const input = inputs[0];
     if (!input || !input[0]) return true;
-    if(this.isRecording){
+    if(this.isRecording && currentTime >= this.startTime){
       //do all this nonsense to keep the recordingbuffer a float 32 array
       const existingBuffer = this.recordingBuffer;
       const newInput = new Float32Array(input[0]);

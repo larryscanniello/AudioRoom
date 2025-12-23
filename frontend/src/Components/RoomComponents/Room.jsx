@@ -2,8 +2,8 @@ import AudioBoard from "./AudioBoard"
 import { useEffect,useContext,useState, useRef,useCallback } from "react";
 import { useParams } from "react-router-dom";
 import io from "socket.io-client"
-import DailyIframe from '@daily-co/daily-js';
 import { useWindowSize } from "../useWindowSize";
+import Peer from "peerjs";
 
 export default function Room(){
     const [roomResponse,setRoomResponse] = useState(false);
@@ -15,52 +15,101 @@ export default function Room(){
     const [firstEnteredRoom,setFirstEnteredRoom] = useState(true);
     const [isDragging, setIsDragging] = useState(false);
     const [PDF,setPDF] = useState(null);
-
-    useEffect(()=>{
-        async function verifyRoom(){
-            const response = await fetch(import.meta.env.VITE_BACKEND_URL+"/getroom/" + roomID, {
-                credentials: "include",
-                method: "GET",
-            });
-            if (response.ok) {
-                setRoomResponse(true);
-                console.log(`Attempting to join socket room: ${roomID}`);
-            } else {
-                setRoomResponse(false);
-                setErrorMessage("Error");
-            }
-        }
-        verifyRoom()
-        const newSocket = io(import.meta.env.VITE_BACKEND_URL, { withCredentials: true });
-        socket.current = newSocket;
-        newSocket.on("PDF_transfer_server_to_client",data=>{
-          console.log('msg',data)
-          setPDF(data);
-        })
-
-    },[])
-
-    const videoRef = useRef(null);
+    const localStreamRef = useRef(null);
+    const peerRef = useRef(null);
     const callRef = useRef(null);
-    const hasInitialized = useRef(false);
+    const setVideoRef = useRef(null);
+    const [initializeAudioRecorder,setInitializeAudioRecorder] = useState(false); //piece of state so that children (useAudioRecorder) useeffect are triggered later
+    const localVideoRef = useRef(null);
+    const [remoteStream, setRemoteStream] = useState(null);
+    const remoteVideoRef = useRef(null);
+    const [showJoinRoom,setShowJoinRoom] = useState(true);
 
-     const setVideoRef = (element) => {
-      videoRef.current = element;
-      
-      // Initialize Daily when the element becomes available
-      if (element && !hasInitialized.current) {
-        hasInitialized.current = true;
-        
-        const roomUrl = 'https://audio-board.daily.co/demo-room';
-        
-        const callFrame = DailyIframe.createFrame(element, {
-          showLeaveButton: true,
-        });
-        
-        callFrame.join({ url: roomUrl });
-        callRef.current = callFrame;
+useEffect(() => {
+  let mounted = true;
+
+  async function init() {
+    /* ------------------ 1. Verify room ------------------ */
+    const response = await fetch(
+      import.meta.env.VITE_BACKEND_URL + "/getroom/" + roomID,
+      {
+        credentials: "include",
+        method: "GET",
       }
-    };
+    );
+
+    if (!response.ok) {
+      if (!mounted) return;
+      setRoomResponse(false);
+      setErrorMessage("Error");
+      return;
+    }
+
+    if (!mounted) return;
+    setRoomResponse(true);
+    console.log(`Joining room ${roomID}`);
+
+    /* ------------------ 2. Socket connection ------------------ */
+    const newSocket = io(import.meta.env.VITE_BACKEND_URL, {
+      withCredentials: true,
+    });
+    socket.current = newSocket;
+
+    newSocket.on("PDF_transfer_server_to_client", data => {
+      setPDF(data);
+    });
+
+
+    /* ------------------ 3. Get local media ------------------ */
+    const localStream = await navigator.mediaDevices.getUserMedia({
+      video: true,
+      audio: {
+            echoCancellation: false,
+            noiseSuppression: false,
+            autoGainControl: false
+      }
+    });
+    localStreamRef.current = localStream;
+
+    if (localVideoRef.current) {
+      localVideoRef.current.srcObject = localStream;
+    }
+
+    /* ------------------ 4. Create PeerJS ------------------ */
+    
+    setInitializeAudioRecorder(true);
+  }
+
+  init();
+  
+
+  /* ------------------ Cleanup ------------------ */
+  return () => {
+    mounted = false;
+
+    if (socket.current) {
+      socket.current.disconnect();
+      socket.current = null;
+    }
+
+    if (peerRef.current) {
+      peerRef.current.destroy();
+      peerRef.current = null;
+    }
+
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach(t => t.stop());
+      localStreamRef.current = null;
+    }
+  };
+}, [roomID]);
+
+  useEffect(() => {
+    if (remoteVideoRef.current && remoteStream) {
+      remoteVideoRef.current.srcObject = remoteStream;
+    }
+  }, [remoteStream]);
+
 
     useEffect(() => {
       return () => {
@@ -110,7 +159,6 @@ export default function Room(){
             setPDF(base64Data);
             if (socket.current) {
               socket.current.emit("PDF_transfer_client_to_server",{message:base64Data,roomID})
-              console.log('check41');
             } else {
                 console.error("Socket not connected!");
             }
@@ -127,6 +175,55 @@ export default function Room(){
     const handleBackdropClick = ()=>{}
     const onClose = () => {}
 
+    const initializePeer = () => {
+      const peer = new Peer();
+      peerRef.current = peer;
+
+      peer.on("open", peerId => {
+        console.log("PeerJS open:", peerId);
+
+        socket.current.emit("peer-id", {
+          roomID: roomID,
+          peerId,
+        });
+      });
+
+      /* ------------------ 5. Incoming calls ------------------ */
+      peer.on("call", call => {
+        console.log("Incoming call");
+        call.answer(localStreamRef.current);
+        attachCallHandlers(call);
+      });
+
+      /* ------------------ 6. Server tells us to call someone ------------------ */
+      socket.current.on("call-peer", (peerId) => {
+        console.log("Calling peer:", peerId);
+        const call = peer.call(peerId, localStreamRef.current);
+        attachCallHandlers(call);
+      });
+
+      /* ------------------ helpers ------------------ */
+      function attachCallHandlers(call) {
+        call.on("stream", (incomingStream) => {
+          console.log("Received remote stream");
+          setRemoteStream(incomingStream); // Store the stream in state
+        });
+
+        call.on("close", () => {
+          setRemoteStream(null);
+        });
+
+        socket.current.on("user_disconnected_server_to_client",()=>{
+          setRemoteStream(null);
+        })
+
+        call.on("error", err => {
+          console.error("Call error:", err);
+        });
+      
+    }
+    }
+
     return <div>
     {roomResponse ? (
       <div className="flex flex-col h-screen"
@@ -134,7 +231,55 @@ export default function Room(){
       >
           <div className="flex w-full justify-center">
           <div className="flex-grow"></div> 
-          <div
+          <div className="relative flex justify-center">
+            {/* Remote video */}
+            {remoteStream && (
+              <video
+                ref={remoteVideoRef}
+                autoPlay
+                playsInline
+                className="bg-black"
+                style={{
+                  width: 1050,
+                  height: height - (height < 700 ? 235 * (4 / 7) : 235),
+                  objectFit: "cover",
+                }}
+              />
+            )}
+            {(!remoteStream && !showJoinRoom) && <div className="bg-white border-1 border-gray-700 text-black absolute px-4 py-1 rounded-2xl">Waiting for partner to join room</div>}
+            {/* Local video (single instance, always mounted) */}
+            <video
+              ref={localVideoRef}
+              autoPlay
+              playsInline
+              muted
+              className={
+                !remoteStream
+                  ? "bg-black"
+                  : "absolute top-4 right-4 w-48 h-32 object-cover border border-white/30 shadow-lg bg-black"
+              }
+              style={{
+                width: !remoteStream ? 1050 : undefined,
+                height: !remoteStream
+                  ? height - (height < 700 ? 235 * (4 / 7) : 235)
+                  : undefined,
+                objectFit: "cover",
+              }}
+            />
+
+            {showJoinRoom && (
+              <button
+                className="absolute bottom-6 left-1/2 -translate-x-1/2 text-white bg-blue-700 rounded-xl px-6 py-2 hover:bg-blue-800"
+                onClick={() => {
+                  initializePeer();
+                  setShowJoinRoom(false);
+                }}
+              >
+                Join Room
+              </button>
+            )}
+          </div>
+          {/*<div
             ref={setVideoRef}
             style={{
               width: 1050,
@@ -143,7 +288,7 @@ export default function Room(){
             }}
             className="shrink-0"
           >
-          </div>
+          </div>*/}
           <div 
             style={{
               width: PDF?Math.floor(width/2):Math.floor((width - 1050)/2),
@@ -191,6 +336,8 @@ export default function Room(){
           firstEnteredRoom={firstEnteredRoom}
           setFirstEnteredRoom={setFirstEnteredRoom}
           setVideoAudio={setVideoAudio}
+          localStreamRef={localStreamRef}
+          initializeAudioRecorder={initializeAudioRecorder}
         />
       </div>
     ) : (

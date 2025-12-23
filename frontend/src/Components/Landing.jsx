@@ -18,7 +18,7 @@ export default function Landing() {
         </div>
         <div className="p-4"> 
           <AudioBoard isDemo={true} firstEnteredRoom={false} setFirstEnteredRoom={()=>{}}
-            setVideoAudio={()=>{}}
+            setVideoAudio={()=>{}} initializeAudioRecorder={true}
             />
         </div>
         

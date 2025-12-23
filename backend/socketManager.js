@@ -103,6 +103,10 @@ const socketManager = async (server,sessionMiddleware) => {
       socket.to(data.roomID).emit("PDF_transfer_server_to_client",data.message);
     })
 
+    socket.on("peer-id",data=>{
+      socket.to(data.roomID).emit("call-peer",data.peerId);      
+    })
+
     socket.on("disconnect", () => {
       if (!roomIDglobal) return;
 

@@ -28,7 +28,7 @@ const WAVEFORM_WINDOW_LEN = 900;
 const COMM_TIMEOUT_TIME = 5000;
 
 export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnteredRoom,
-    setVideoAudio
+    setVideoAudio,localStreamRef,initializeAudioRecorder
 }){
 
     const [width,height] = useWindowSize();
@@ -130,7 +130,7 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
                                             recorderRef,recordAnimationRef,metronomeOnRef,gain2Ref,
                                             metronomeGainRef,WAVEFORM_WINDOW_LEN,autoscrollEnabledRef,
                                             otherPersonRecordingRef,setLoadingAudio,setAudio2,setLatencyTestRes,
-                                            streamOnPlayProcessorRef})
+                                            streamOnPlayProcessorRef,localStreamRef,initializeAudioRecorder})
 
     useEffect(() => {
         //This effect runs only when component first mounts. 

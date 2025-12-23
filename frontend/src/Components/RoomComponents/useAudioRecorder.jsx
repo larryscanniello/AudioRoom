@@ -9,22 +9,23 @@ export const useAudioRecorder = (
   setPlayheadLocation,numConnectedUsersRef,delayCompensation,BPMRef,recorderRef,recordAnimationRef,
   metronomeOnRef,gain2Ref,metronomeGainRef,WAVEFORM_WINDOW_LEN,autoscrollEnabledRef,
   setLoadingAudio,otherPersonRecordingRef,setAudio2,setLatencyTestRes,streamOnPlayProcessorRef,
-  autoTestLatency
+  autoTestLatency,localStreamRef,initializeAudioRecorder
 }
 ) => {
   const mediaRecorderRef = useRef(null);
   const delayCompensationRecorderRef = useRef(null);
-  const streamRef = useRef(null);
   const recordedBuffersRef = useRef(null);
   const delayCompensationRef = useRef(null);
   const delayChunksRef = useRef(null);
   const sessionIdRef = useRef(null);
   const streamOnPlayIdRef = useRef(null);
+  const streamRef = useRef(null);
   
   delayCompensationRef.current = delayCompensation;
 
   // Initialize media stream and recorders
   useEffect(() => {
+    if(!initializeAudioRecorder) return;
     if (!navigator.mediaDevices?.getUserMedia) {
       console.error("getUserMedia not supported on your browser!");
       return;
@@ -32,7 +33,7 @@ export const useAudioRecorder = (
 
     const initializeMedia = async () => {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
+        const stream = localStreamRef ? localStreamRef.current : await navigator.mediaDevices.getUserMedia({
           audio: {
             echoCancellation: false,
             noiseSuppression: false,
@@ -204,8 +205,6 @@ export const useAudioRecorder = (
                 }
               }
 
-              console.log('gc',greatestCorrelation);
-              console.log('gi',greatestIndex);
               const dataArray = fullBuffer;
 
               /*
@@ -246,7 +245,7 @@ export const useAudioRecorder = (
         streamRef.current.getTracks().forEach(track => track.stop());
       }
     };
-  },[]);
+  },[initializeAudioRecorder]);
   
   //[AudioCtxRef.current, roomID, socket, delayCompensation,recorderRef.current]);
 

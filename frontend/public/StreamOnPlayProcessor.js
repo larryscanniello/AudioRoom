@@ -11,7 +11,7 @@ class StreamOnPlayProcessor extends AudioWorkletProcessor {
     this.gain1 = 1.0;
     this.gain2 = 1.0;
     this.playbackPos = 0;
-    this.packetSize = 4096;
+    this.packetSize = 256;
     this.firstPacket = true;
     this.emptyPacket = false;
     this.sessionId = null;

@@ -9,7 +9,7 @@ export const useAudioRecorder = (
   setPlayheadLocation,numConnectedUsersRef,delayCompensation,BPMRef,recorderRef,recordAnimationRef,
   metronomeOnRef,gain2Ref,metronomeGainRef,WAVEFORM_WINDOW_LEN,autoscrollEnabledRef,
   setLoadingAudio,otherPersonRecordingRef,setAudio2,setLatencyTestRes,streamOnPlayProcessorRef,
-  autoTestLatency,localStreamRef,initializeAudioRecorder
+  autoTestLatency,localStreamRef,initializeAudioRecorder,dataConnRef
 }
 ) => {
   const mediaRecorderRef = useRef(null);
@@ -96,17 +96,26 @@ export const useAudioRecorder = (
         }
 
         streamOnPlayProcessor.port.onmessage = event => {
-          let packet = event.data.packet;
           if(numConnectedUsersRef.current >= 2){
-            socket.current.emit("send_audio_client_to_server",{
-              packet,
-              roomID,
-              first:event.data.first,
-              last:event.data.last,
-              type:"streamOnPlay",
-            })
-          }
+              if(dataConnRef && dataConnRef.current && dataConnRef.current.open){
+              // 2. Create a buffer: 1 byte for flags + the packet size
+              if (numConnectedUsersRef.current >= 2 && dataConnRef.current?.readyState === "open") {
+    
+              const buffer = new ArrayBuffer(1 + packet.byteLength);
+              const uint8View = new Uint8Array(buffer);
 
+              let flags = 0;
+              if (first)         flags |= 0x01; // Bit 0
+              if (last)          flags |= 0x02; // Bit 1
+              flags |= 0x04; //this flag indicates audio is playback mode, not recording
+
+              uint8View[0] = flags;
+              uint8View.set(new Uint8Array(packet), 1);
+
+              dataConnRef.current.send(buffer);
+            }
+            }
+          }
         }
         
         processor.port.onmessage = (event) => {

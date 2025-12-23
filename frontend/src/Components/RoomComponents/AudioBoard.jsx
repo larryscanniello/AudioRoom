@@ -28,7 +28,7 @@ const WAVEFORM_WINDOW_LEN = 900;
 const COMM_TIMEOUT_TIME = 5000;
 
 export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnteredRoom,
-    setVideoAudio,localStreamRef,initializeAudioRecorder
+    setVideoAudio,localStreamRef,initializeAudioRecorder,dataConnRef
 }){
 
     const [width,height] = useWindowSize();
@@ -41,8 +41,8 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
     const [mouseDragEnd,setMouseDragEnd] = useState(isDemo ? {trounded:10.714285714285714,t:10.714285714285714}: null); //time in seconds
     const [roomResponse,setRoomResponse] = useState(null);
     const [zoomFactor,setZoomFactor] = useState(2);
-    const [delayCompensation,setDelayCompensation] = useState([0]); //delayCompensation is in samples
-    const [delayCompensation2,setDelayCompensation2] = useState([0]);
+    const [delayCompensation,setDelayCompensation] = useState(isDemo?[576]:[0]); //delayCompensation is in samples
+    const [delayCompensation2,setDelayCompensation2] = useState(isDemo?[576]:[0]);
     const [currentlyAdjustingLatency,setCurrentlyAdjustingLatency] = useState(null);
     const [displayDelayCompensationMessage,setDisplayDelayCompensationMessage] = useState(false);
     const [metronomeOn,setMetronomeOn] = useState(true);
@@ -130,7 +130,7 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
                                             recorderRef,recordAnimationRef,metronomeOnRef,gain2Ref,
                                             metronomeGainRef,WAVEFORM_WINDOW_LEN,autoscrollEnabledRef,
                                             otherPersonRecordingRef,setLoadingAudio,setAudio2,setLatencyTestRes,
-                                            streamOnPlayProcessorRef,localStreamRef,initializeAudioRecorder})
+                                            streamOnPlayProcessorRef,localStreamRef,initializeAudioRecorder,dataConnRef})
 
     useEffect(() => {
         //This effect runs only when component first mounts. 
@@ -162,31 +162,8 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
         if(isDemo){
             getDemo()
         }
+
         
-        
-
-        const processAudio = async (newchunks) => {
-            const recordedBuffers = newchunks;
-            const length = recordedBuffers.reduce((sum,arr) => sum+arr.length,0)
-            const fullBuffer = new Float32Array(length);
-            let offset = 0;
-            for(const arr of recordedBuffers){
-                fullBuffer.set(arr,offset)
-                offset += arr.length;
-            }
-            
-
-            const audioBuffer = AudioCtxRef.current.createBuffer(1,fullBuffer.length,AudioCtxRef.current.sampleRate);
-            audioBuffer.copyToChannel(fullBuffer,0);
-
-            audioChunksRef.current = recordedBuffers;
-            setMouseDragStart({trounded:0,t:0});
-            setMouseDragEnd(null);
-            setPlayheadLocation(0);
-            setAudio2(audioBuffer);
-            //setLoadingAudio(null);
-            socket.current.emit("client_to_server_incoming_audio_done_processing",roomID);
-        }
 
         
 
@@ -223,34 +200,8 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
         window.addEventListener("keydown",handleKeyDown)
         
         if(!isDemo){
-            socket.current.on("receive_audio_server_to_client", async (data) => {
-                const packet = new Float32Array(data.packet);
-                handleStreamAudioRef.current(new Float32Array(data.packet),data.first);
-                if(data.type==="streamOnRecord"){
-                    if(data.first){
-                        audioChunksRef.current = [packet];
-                        if(data.last){
-                            currentlyRecording.current = false;
-                            processAudio([data.packet]);
-                            setMouseDragStart({trounded:0,t:0});
-                            setMouseDragEnd(null);
-                            setPlayheadLocation(0);
-                        }
-                    }else {
-                        const newchunks = [...audioChunksRef.current,packet];
-                        audioChunksRef.current = newchunks;
-                        if(data.last){
-                            currentlyRecording.current = false;
-                            processAudio(newchunks);
-                            setMouseDragStart({trounded:0,t:0});
-                            setMouseDragEnd(null);
-                            setPlayheadLocation(0);
-                            setDelayCompensation2(data.delayCompensation)
-                        }
-                    }
-                }
-                
-            });
+
+            
             
             socket.current.on("send_play_window_to_clients", (data)=>{
                 setMouseDragStart(data.mouseDragStart);
@@ -469,6 +420,74 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
     if(metronomeRef.current){
         metronomeRef.current.tempo = BPM;
     }
+
+    const processAudio = async (newchunks) => {
+            const recordedBuffers = newchunks;
+            const length = recordedBuffers.reduce((sum,arr) => sum+arr.length,0)
+            const fullBuffer = new Float32Array(length);
+            let offset = 0;
+            for(const arr of recordedBuffers){
+                fullBuffer.set(arr,offset)
+                offset += arr.length;
+            }
+            
+
+            const audioBuffer = AudioCtxRef.current.createBuffer(1,fullBuffer.length,AudioCtxRef.current.sampleRate);
+            audioBuffer.copyToChannel(fullBuffer,0);
+
+            audioChunksRef.current = recordedBuffers;
+            setMouseDragStart({trounded:0,t:0});
+            setMouseDragEnd(null);
+            setPlayheadLocation(0);
+            setAudio2(audioBuffer);
+            //setLoadingAudio(null);
+            socket.current.emit("client_to_server_incoming_audio_done_processing",roomID);
+        }
+
+    if(dataConnRef && dataConnRef.current){
+        dataConnRef.current.binaryType = "arraybuffer";
+
+        dataConnRef.current.onmessage = event => {
+            const data = event.data;
+            if (data instanceof ArrayBuffer) {
+                const view = new Uint8Array(data);
+                
+                // Extract flags from the first byte
+                const flags = view[0];
+                const first = (flags & 0x01) !== 0;
+                const last = (flags & 0x02) !== 0;
+                const isPlayback = (flags & 0x04) !== 0;
+
+                // The actual packet is everything from index 1 onwards
+                const packet = data.slice(1);
+                handleStreamAudioRef.current(new Float32Array(packet),first);
+                if(!isPlayback){
+                    if(first){
+                        audioChunksRef.current = [packet];
+                        if(data.last){
+                            currentlyRecording.current = false;
+                            processAudio([data.packet]);
+                            setMouseDragStart({trounded:0,t:0});
+                            setMouseDragEnd(null);
+                            setPlayheadLocation(0);
+                        }
+                    }else{
+                        const newchunks = [...audioChunksRef.current,packet];
+                        audioChunksRef.current = newchunks;
+                        if(data.last){
+                            currentlyRecording.current = false;
+                            processAudio(newchunks);
+                            setMouseDragStart({trounded:0,t:0});
+                            setMouseDragEnd(null);
+                            setPlayheadLocation(0);
+                            setDelayCompensation2(data.delayCompensation)
+                        }
+                    }
+                }
+            }
+        };
+    }
+    
 
 function handleRecord() {
     if(currentlyRecording.current || currentlyPlayingAudio.current) return;

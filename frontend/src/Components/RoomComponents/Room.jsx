@@ -24,6 +24,7 @@ export default function Room(){
     const [remoteStream, setRemoteStream] = useState(null);
     const remoteVideoRef = useRef(null);
     const [showJoinRoom,setShowJoinRoom] = useState(true);
+    const dataConnRef = useRef(null);
 
 useEffect(() => {
   let mounted = true;
@@ -200,6 +201,10 @@ useEffect(() => {
         console.log("Calling peer:", peerId);
         const call = peer.call(peerId, localStreamRef.current);
         attachCallHandlers(call);
+        const conn = peer.connect(peerId, {
+          reliable: false,
+        });
+        dataConnRef.current = conn;
       });
 
       /* ------------------ helpers ------------------ */
@@ -220,8 +225,24 @@ useEffect(() => {
         call.on("error", err => {
           console.error("Call error:", err);
         });
-      
-    }
+      }
+
+      peer.on("connection", conn => {
+        console.log("Incoming data channel");
+
+        conn.on("open", () => {
+          console.log("Data channel open (callee)");
+          dataConnRef.current = conn;
+        });
+
+        conn.on("data", data => {
+          console.log("Received data:", data);
+        });
+
+        conn.on("close", () => {
+          dataConnRef.current = null;
+        });
+      });
     }
 
     return <div>
@@ -338,6 +359,7 @@ useEffect(() => {
           setVideoAudio={setVideoAudio}
           localStreamRef={localStreamRef}
           initializeAudioRecorder={initializeAudioRecorder}
+          dataConnRef={dataConnRef}
         />
       </div>
     ) : (

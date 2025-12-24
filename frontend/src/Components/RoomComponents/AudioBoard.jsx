@@ -29,7 +29,7 @@ const COMM_TIMEOUT_TIME = 5000;
 const PACKET_SIZE = 256;
 
 export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnteredRoom,
-    localStreamRef,initializeAudioRecorder,dataConnRef,audioCtxRef,audioSourceRef,dataConnAttached
+    localStreamRef,initializeAudioBoard,dataConnRef,audioCtxRef,audioSourceRef,dataConnAttached
 }){
 
     const [width,height] = useWindowSize();
@@ -63,6 +63,7 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
     const [monitoringOn,setMonitoringOn] = useState(false);
     const [otherPersonMonitoringOn,setOtherPersonMonitoringOn] = useState(false);
     const [autoTestLatency,setAutoTestLatency] = useState(false);
+    const [initializeRecorder,setInitializeRecorder] = useState(false);
 
     const waveform1Ref = useRef(null);
     const waveform2Ref = useRef(null);
@@ -131,18 +132,20 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
                                             recorderRef,recordAnimationRef,metronomeOnRef,gain2Ref,
                                             metronomeGainRef,WAVEFORM_WINDOW_LEN,autoscrollEnabledRef,
                                             otherPersonRecordingRef,setLoadingAudio,setAudio2,setLatencyTestRes,
-                                            streamOnPlayProcessorRef,localStreamRef,initializeAudioRecorder,dataConnRef,
-                                            audioSourceRef,audioCtxRef});
+                                            streamOnPlayProcessorRef,localStreamRef,initializeRecorder,dataConnRef,
+                                            audioSourceRef,AudioCtxRef,isDemo});
 
     useEffect(() => {
         //This effect runs only when component first mounts. 
         //Inititializes audio context, metronome, demo stuff, sockets
-        if(!initializeAudioRecorder) return;
+        if(!initializeAudioBoard) return;
+        
         if(!audioCtxRef){
             AudioCtxRef.current = new AudioContext({latencyHint:'interactive'});
         }else{
             AudioCtxRef.current = audioCtxRef.current;
         }
+        console.log('acr ab',AudioCtxRef);
         metronomeRef.current = new Metronome;
         metronomeRef.current.audioContext = AudioCtxRef.current;
         metronomeRef.current.setupAudio();
@@ -207,9 +210,6 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
         window.addEventListener("keydown",handleKeyDown)
         
         if(!isDemo){
-
-            
-            
             socket.current.on("send_play_window_to_clients", (data)=>{
                 setMouseDragStart(data.mouseDragStart);
                 setMouseDragEnd(data.mouseDragEnd);
@@ -392,7 +392,7 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
             socket.current.emit("join_room", roomID);
         }
 
-        
+        setInitializeRecorder(true);
 
 
         return ()=>{
@@ -404,7 +404,7 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
         }
 
         
-    }, [initializeAudioRecorder]);
+    },[initializeAudioBoard]);
 
     useEffect(()=>{
         if(!popoverOpen){
@@ -424,7 +424,7 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
 
     useEffect(() => {
         if(!dataConnAttached) return;
-        
+
         dataConnRef.current.binaryType = "arraybuffer";
 
         dataConnRef.current.on("data", data => {
@@ -720,11 +720,13 @@ function handleRecord() {
         //the .05 added to now previously was for playhead rendering purposes, we need to subtract it here
         
         //source.start arguments are (time to wait to play audio,location in audio to start,duration to play)
+        
         source.buffer = getBuffer(audio,startTime+secondsToDelay,endTime+secondsToDelay);
         source2.buffer = getBuffer(audio2,startTime+secondsToDelay2,endTime+secondsToDelay2);
         if(otherPersonMonitoringOn){
             startDelayCompensationRecording(metronomeRef);
             setTimeout(()=>{
+                currentlyPlayingAudio.current = 2;
                 startStreamOnPlay(source.buffer,source2.buffer,delayCompensation,looping);
                 updatePlayhead(startTime)
             },1000);
@@ -737,9 +739,10 @@ function handleRecord() {
             source2.start(now);
             playingAudioRef.current = source;
             playingAudioRef2.current = source2;
+            currentlyPlayingAudio.current = 2;
             updatePlayhead(startTime);
         }
-        currentlyPlayingAudio.current = 2;
+        
         
         if(numConnectedUsersRef.current>=2 && fromOtherPerson){
             socket.current.emit("comm_event",{type:"notify_that_partner_audio_played",roomID});

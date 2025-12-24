@@ -9,7 +9,8 @@ export const useAudioRecorder = (
   setPlayheadLocation,numConnectedUsersRef,delayCompensation,BPMRef,recorderRef,recordAnimationRef,
   metronomeOnRef,gain2Ref,metronomeGainRef,WAVEFORM_WINDOW_LEN,autoscrollEnabledRef,
   setLoadingAudio,otherPersonRecordingRef,setAudio2,setLatencyTestRes,streamOnPlayProcessorRef,
-  autoTestLatency,localStreamRef,initializeAudioRecorder,dataConnRef,audioSourceRef,audioCtxRef,
+  autoTestLatency,localStreamRef,initializeRecorder,dataConnRef,audioSourceRef,audioCtxRef,
+  isDemo,AudioCtxRef
 }
 ) => {
   const mediaRecorderRef = useRef(null);
@@ -20,13 +21,12 @@ export const useAudioRecorder = (
   const sessionIdRef = useRef(null);
   const streamOnPlayIdRef = useRef(null);
   const streamRef = useRef(null);
-  const AudioCtxRef = audioCtxRef;
 
   delayCompensationRef.current = delayCompensation;
 
   // Initialize media stream and recorders
   useEffect(() => {
-    if(!initializeAudioRecorder) return;
+    if(!initializeRecorder) return;
     if (!navigator.mediaDevices?.getUserMedia) {
       console.error("getUserMedia not supported on your browser!");
       return;
@@ -45,6 +45,7 @@ export const useAudioRecorder = (
               }
             });
           streamRef.current = stream;
+          
           source = AudioCtxRef.current.createMediaStreamSource(stream);
         }else{
           source = audioSourceRef.current;
@@ -271,7 +272,7 @@ export const useAudioRecorder = (
         streamRef.current.getTracks().forEach(track => track.stop());
       }
     };
-  },[initializeAudioRecorder]);
+  },[initializeRecorder]);
   
   //[AudioCtxRef.current, roomID, socket, delayCompensation,recorderRef.current]);
 

@@ -50,8 +50,6 @@ export const useAudioRecorder = (
         }else{
           source = audioSourceRef.current;
         }
-
-        console.log('source',source);
         
         await AudioCtxRef.current.audioWorklet.addModule("/RecorderProcessor.js");
         const processor = new AudioWorkletNode(AudioCtxRef.current,'RecorderProcessor');

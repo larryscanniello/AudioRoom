@@ -145,7 +145,6 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
         }else{
             AudioCtxRef.current = audioCtxRef.current;
         }
-        console.log('acr ab',AudioCtxRef);
         metronomeRef.current = new Metronome;
         metronomeRef.current.audioContext = AudioCtxRef.current;
         metronomeRef.current.setupAudio();
@@ -389,6 +388,7 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
                 setOtherPersonMonitoringOn(status);
             })
 
+            console.log('room join hit?');
             socket.current.emit("join_room", roomID);
         }
 
@@ -726,6 +726,7 @@ function handleRecord() {
         if(otherPersonMonitoringOn){
             startDelayCompensationRecording(metronomeRef);
             setTimeout(()=>{
+                now += 1;
                 currentlyPlayingAudio.current = 2;
                 startStreamOnPlay(source.buffer,source2.buffer,delayCompensation,looping);
                 updatePlayhead(startTime)

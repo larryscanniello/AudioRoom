@@ -16,7 +16,7 @@ export default function Room(){
     const [firstEnteredRoom,setFirstEnteredRoom] = useState(true);
     const [isDragging, setIsDragging] = useState(false);
     const [PDF,setPDF] = useState(null);
-    const [initializeAudioRecorder,setInitializeAudioRecorder] = useState(false); //piece of state so that children (useAudioRecorder) useeffect are triggered later
+    const [initializeAudioBoard,setInitializeAudioBoard] = useState(false); //piece of state so that children (useAudioRecorder) useeffect are triggered later
     const [remoteStream, setRemoteStream] = useState(null);
     const [showJoinRoom,setShowJoinRoom] = useState(true);
     const [isMicMuted,setIsMicMuted] = useState(false);
@@ -106,7 +106,7 @@ useEffect(() => {
       // We mute the local video element so you don't hear yourself
       localVideoRef.current.srcObject = localStream;
     }
-    setInitializeAudioRecorder(true);
+    setInitializeAudioBoard(true);
   }
 
   init();
@@ -458,7 +458,7 @@ useEffect(() => {
           firstEnteredRoom={firstEnteredRoom}
           setFirstEnteredRoom={setFirstEnteredRoom}
           localStreamRef={localStreamRef}
-          initializeAudioRecorder={initializeAudioRecorder}
+          initializeAudioBoard={initializeAudioBoard}
           dataConnRef={dataConnRef}
           audioCtxRef={AudioCtxRef}
           audioSourceRef={audioSourceRef}

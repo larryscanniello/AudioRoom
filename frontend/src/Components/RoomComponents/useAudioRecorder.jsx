@@ -2,14 +2,14 @@
 import { useRef, useEffect, useState } from 'react';
 
 export const useAudioRecorder = (
-  {AudioCtxRef, metronomeRef,socket, roomID, setAudio,
+  {metronomeRef,socket, roomID, setAudio,
   audioChunksRef,setAudioURL,setDelayCompensation, setDelayCompensationAudio, 
   onDelayCompensationComplete, setMouseDragStart, setMouseDragEnd,    
   playheadRef,metronomeOn,waveform1Ref,BPM,scrollWindowRef,currentlyRecording,
   setPlayheadLocation,numConnectedUsersRef,delayCompensation,BPMRef,recorderRef,recordAnimationRef,
   metronomeOnRef,gain2Ref,metronomeGainRef,WAVEFORM_WINDOW_LEN,autoscrollEnabledRef,
   setLoadingAudio,otherPersonRecordingRef,setAudio2,setLatencyTestRes,streamOnPlayProcessorRef,
-  autoTestLatency,localStreamRef,initializeAudioRecorder,dataConnRef
+  autoTestLatency,localStreamRef,initializeAudioRecorder,dataConnRef,audioSourceRef,audioCtxRef,
 }
 ) => {
   const mediaRecorderRef = useRef(null);
@@ -20,7 +20,8 @@ export const useAudioRecorder = (
   const sessionIdRef = useRef(null);
   const streamOnPlayIdRef = useRef(null);
   const streamRef = useRef(null);
-  
+  const AudioCtxRef = audioCtxRef;
+
   delayCompensationRef.current = delayCompensation;
 
   // Initialize media stream and recorders
@@ -33,18 +34,24 @@ export const useAudioRecorder = (
 
     const initializeMedia = async () => {
       try {
-        const stream = localStreamRef ? localStreamRef.current : await navigator.mediaDevices.getUserMedia({
-          audio: {
-            echoCancellation: false,
-            noiseSuppression: false,
-            autoGainControl: false
-          }
-        });
-
-        streamRef.current = stream;
-
         await AudioCtxRef.current.resume();
-        const source = AudioCtxRef.current.createMediaStreamSource(stream);
+        let source;
+        if(!audioSourceRef){
+           const stream = await navigator.mediaDevices.getUserMedia({
+            audio: {
+                echoCancellation: false,
+                noiseSuppression: false,
+                autoGainControl: false
+              }
+            });
+          streamRef.current = stream;
+          source = AudioCtxRef.current.createMediaStreamSource(stream);
+        }else{
+          source = audioSourceRef.current;
+        }
+
+        console.log('source',source);
+        
         await AudioCtxRef.current.audioWorklet.addModule("/RecorderProcessor.js");
         const processor = new AudioWorkletNode(AudioCtxRef.current,'RecorderProcessor');
         source.connect(processor);
@@ -97,23 +104,33 @@ export const useAudioRecorder = (
 
         streamOnPlayProcessor.port.onmessage = event => {
           if(numConnectedUsersRef.current >= 2){
-              if(dataConnRef && dataConnRef.current && dataConnRef.current.open){
-              // 2. Create a buffer: 1 byte for flags + the packet size
-              if (numConnectedUsersRef.current >= 2 && dataConnRef.current?.readyState === "open") {
-    
-              const buffer = new ArrayBuffer(1 + packet.byteLength);
-              const uint8View = new Uint8Array(buffer);
+              if(dataConnRef.current && dataConnRef.current.open){
+                const packet = event.data.packet;
+                const rawAudioBytes = new Uint8Array(
+                    packet.buffer, 
+                    packet.byteOffset, 
+                    packet.byteLength
+                );
 
-              let flags = 0;
-              if (first)         flags |= 0x01; // Bit 0
-              if (last)          flags |= 0x02; // Bit 1
-              flags |= 0x04; //this flag indicates audio is playback mode, not recording
+                // 2. Create your destination buffer
+                const buffer = new ArrayBuffer(1 + rawAudioBytes.byteLength);
+                const uint8View = new Uint8Array(buffer);
 
-              uint8View[0] = flags;
-              uint8View.set(new Uint8Array(packet), 1);
+                // 3. Set flags
+                let flags = 0;
+                if (event.data.first)         flags |= 0x01; // Bit 0
+                if (event.data.last)          flags |= 0x02; // Bit 1
+                flags |= 0x04; //this flag indicates audio is playback mode, not recording
 
-              dataConnRef.current.send(buffer);
-            }
+                uint8View[0] = flags;
+
+                // 4. Copy the raw bytes starting at index 1
+                uint8View.set(rawAudioBytes, 1);
+
+                const avg = packet.reduce((accumulator, currentValue) => accumulator + currentValue, 0)/256;
+
+                dataConnRef.current.send(buffer);
+
             }
           }
         }

@@ -26,9 +26,10 @@ import "./AudioBoard.css";
 
 const WAVEFORM_WINDOW_LEN = 900;
 const COMM_TIMEOUT_TIME = 5000;
+const PACKET_SIZE = 256;
 
 export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnteredRoom,
-    setVideoAudio,localStreamRef,initializeAudioRecorder,dataConnRef
+    localStreamRef,initializeAudioRecorder,dataConnRef,audioCtxRef,audioSourceRef,dataConnAttached
 }){
 
     const [width,height] = useWindowSize();
@@ -130,12 +131,18 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
                                             recorderRef,recordAnimationRef,metronomeOnRef,gain2Ref,
                                             metronomeGainRef,WAVEFORM_WINDOW_LEN,autoscrollEnabledRef,
                                             otherPersonRecordingRef,setLoadingAudio,setAudio2,setLatencyTestRes,
-                                            streamOnPlayProcessorRef,localStreamRef,initializeAudioRecorder,dataConnRef})
+                                            streamOnPlayProcessorRef,localStreamRef,initializeAudioRecorder,dataConnRef,
+                                            audioSourceRef,audioCtxRef});
 
     useEffect(() => {
         //This effect runs only when component first mounts. 
         //Inititializes audio context, metronome, demo stuff, sockets
-        AudioCtxRef.current = new AudioContext({latencyHint:'interactive'});
+        if(!initializeAudioRecorder) return;
+        if(!audioCtxRef){
+            AudioCtxRef.current = new AudioContext({latencyHint:'interactive'});
+        }else{
+            AudioCtxRef.current = audioCtxRef.current;
+        }
         metronomeRef.current = new Metronome;
         metronomeRef.current.audioContext = AudioCtxRef.current;
         metronomeRef.current.setupAudio();
@@ -397,7 +404,7 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
         }
 
         
-    }, []);
+    }, [initializeAudioRecorder]);
 
     useEffect(()=>{
         if(!popoverOpen){
@@ -414,6 +421,52 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
         delayCompensation2Ref.current = delayCompensation2;
         audio2Ref.current = audio2;
     },[autoTestLatency,delayCompensation2,audio2])
+
+    useEffect(() => {
+        if(!dataConnAttached) return;
+        
+        dataConnRef.current.binaryType = "arraybuffer";
+
+        dataConnRef.current.on("data", data => {
+            if (data instanceof ArrayBuffer) {
+                const view = new Uint8Array(data);
+                
+                // Extract flags from the first byte
+                const flags = view[0];
+                const first = (flags & 0x01) !== 0;
+                const last = (flags & 0x02) !== 0;
+                const isPlayback = (flags & 0x04) !== 0;
+
+                // The actual packet is everything from index 1 onwards
+                const packet = data.slice(1);
+                const audioData = new Float32Array(packet)
+                handleStreamAudioRef.current(audioData,first);
+                if(!isPlayback){
+                    if(first){
+                        audioChunksRef.current = [audioData];
+                        if(last){
+                            currentlyRecording.current = false;
+                            processAudio([audioData]);
+                            setMouseDragStart({trounded:0,t:0});
+                            setMouseDragEnd(null);
+                            setPlayheadLocation(0);
+                        }
+                    }else{
+                        const newchunks = [...audioChunksRef.current,audioData];
+                        audioChunksRef.current = newchunks;
+                        if(last){
+                            currentlyRecording.current = false;
+                            processAudio(newchunks);
+                            setMouseDragStart({trounded:0,t:0});
+                            setMouseDragEnd(null);
+                            setPlayheadLocation(0);
+                        }
+                    }
+                }
+            }
+        });
+       
+    }, [dataConnAttached]);
 
     loopingRef.current = looping;
 
@@ -444,49 +497,7 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
             socket.current.emit("client_to_server_incoming_audio_done_processing",roomID);
         }
 
-    if(dataConnRef && dataConnRef.current){
-        dataConnRef.current.binaryType = "arraybuffer";
-
-        dataConnRef.current.onmessage = event => {
-            const data = event.data;
-            if (data instanceof ArrayBuffer) {
-                const view = new Uint8Array(data);
-                
-                // Extract flags from the first byte
-                const flags = view[0];
-                const first = (flags & 0x01) !== 0;
-                const last = (flags & 0x02) !== 0;
-                const isPlayback = (flags & 0x04) !== 0;
-
-                // The actual packet is everything from index 1 onwards
-                const packet = data.slice(1);
-                handleStreamAudioRef.current(new Float32Array(packet),first);
-                if(!isPlayback){
-                    if(first){
-                        audioChunksRef.current = [packet];
-                        if(data.last){
-                            currentlyRecording.current = false;
-                            processAudio([data.packet]);
-                            setMouseDragStart({trounded:0,t:0});
-                            setMouseDragEnd(null);
-                            setPlayheadLocation(0);
-                        }
-                    }else{
-                        const newchunks = [...audioChunksRef.current,packet];
-                        audioChunksRef.current = newchunks;
-                        if(data.last){
-                            currentlyRecording.current = false;
-                            processAudio(newchunks);
-                            setMouseDragStart({trounded:0,t:0});
-                            setMouseDragEnd(null);
-                            setPlayheadLocation(0);
-                            setDelayCompensation2(data.delayCompensation)
-                        }
-                    }
-                }
-            }
-        };
-    }
+    
     
 
 function handleRecord() {
@@ -501,7 +512,7 @@ function handleRecord() {
     const streamAudio = (packet,first) => {
         if(!monitoringOn) return;
         const incomingAudioSource = AudioCtxRef.current.createBufferSource();
-        const stereoBuffer = AudioCtxRef.current.createBuffer(2,4096,AudioCtxRef.current.sampleRate);
+        const stereoBuffer = AudioCtxRef.current.createBuffer(2,PACKET_SIZE,AudioCtxRef.current.sampleRate);
         stereoBuffer.getChannelData(0).set(packet);
         stereoBuffer.getChannelData(1).set(packet);
         incomingAudioSource.buffer = stereoBuffer;
@@ -509,7 +520,7 @@ function handleRecord() {
             streamingTimeRef.current = AudioCtxRef.current.currentTime + .05;
             metrStream.current.currSample = 0;
         }else{
-            streamingTimeRef.current += (4096 / AudioCtxRef.current.sampleRate);
+            streamingTimeRef.current += (PACKET_SIZE / AudioCtxRef.current.sampleRate);
         }
         const startTime = streamingTimeRef.current;
 
@@ -542,13 +553,13 @@ function handleRecord() {
         incomingAudioSource.connect(AudioCtxRef.current.destination);
         const playbackAudioSource = AudioCtxRef.current.createBufferSource();
         playbackAudioSource.connect(AudioCtxRef.current.destination);
-        const playbackBuffer = AudioCtxRef.current.createBuffer(2,4096,AudioCtxRef.current.sampleRate)
+        const playbackBuffer = AudioCtxRef.current.createBuffer(2,PACKET_SIZE,AudioCtxRef.current.sampleRate)
         const startSampleAudio1 = metrStream.current.currSample + playbackAudioStartSample + delayCompensation[0];
         const startSampleAudio2 = metrStream.current.currSample + playbackAudioStartSample + delayCompensation2[0];
         const outputL = playbackBuffer.getChannelData(0);
         const outputR = playbackBuffer.getChannelData(1);
         if (audio) {
-            const input = audio.getChannelData(0).subarray(startSampleAudio1, startSampleAudio1 + 4096);
+            const input = audio.getChannelData(0).subarray(startSampleAudio1, startSampleAudio1 + PACKET_SIZE);
             for (let i = 0; i < input.length; i++) {
                 outputL[i] += input[i] * gainRef.current.gain.value;
                 outputR[i] += input[i] * gainRef.current.gain.value;
@@ -556,7 +567,7 @@ function handleRecord() {
             console.log("audio outputted");
         }
         if (!currentlyRecording.current && audio2){
-            const input2 = audio2.getChannelData(0).subarray(startSampleAudio2, startSampleAudio2 + 4096);
+            const input2 = audio2.getChannelData(0).subarray(startSampleAudio2, startSampleAudio2 + PACKET_SIZE);
             for (let i = 0; i < input2.length; i++) {
                 outputL[i] += input2[i] * gain2Ref.current.gain.value;
                 outputR[i] += input2[i] * gain2Ref.current.gain.value;
@@ -565,7 +576,7 @@ function handleRecord() {
         }
 
         const bufferStartSample = metrStream.current.currSample; 
-        const bufferEndSample = bufferStartSample + 4096;
+        const bufferEndSample = bufferStartSample + PACKET_SIZE;
 
         const samplesPerBeat = (AudioCtxRef.current.sampleRate * 60) / BPM;
 
@@ -578,7 +589,7 @@ function handleRecord() {
                 const clickData = metronomeRef.current.clickBuffer;
                 for (let i = 0; i < clickData.length; i++) {
                     const targetIdx = internalOffset + i;
-                    if (targetIdx < 4096) {
+                    if (targetIdx < PACKET_SIZE) {
                         outputL[targetIdx] += clickData[i];
                         outputR[targetIdx] += clickData[i];
                     }
@@ -590,10 +601,10 @@ function handleRecord() {
 
         // Update the global counter for the next function call
         if(looping){
-            metrStream.current.currSample = (metrStream.current.currSample + 4096) % 
+            metrStream.current.currSample = (metrStream.current.currSample + PACKET_SIZE) % 
             Math.round((playbackAudioEndTime-playbackAudioStartTime)*AudioCtxRef.current.sampleRate);
         }else{
-            metrStream.current.currSample += 4096;
+            metrStream.current.currSample += PACKET_SIZE;
         }
 
         playbackAudioSource.buffer = playbackBuffer;
@@ -715,7 +726,7 @@ function handleRecord() {
             startDelayCompensationRecording(metronomeRef);
             setTimeout(()=>{
                 startStreamOnPlay(source.buffer,source2.buffer,delayCompensation,looping);
-                setVideoAudio(false);
+                updatePlayhead(startTime)
             },1000);
             
         }else if(!monitoringOn){
@@ -726,9 +737,10 @@ function handleRecord() {
             source2.start(now);
             playingAudioRef.current = source;
             playingAudioRef2.current = source2;
+            updatePlayhead(startTime);
         }
         currentlyPlayingAudio.current = 2;
-        updatePlayhead(startTime);
+        
         if(numConnectedUsersRef.current>=2 && fromOtherPerson){
             socket.current.emit("comm_event",{type:"notify_that_partner_audio_played",roomID});
             clearTimeout(commsClearTimeoutRef.current);
@@ -810,7 +822,6 @@ function handleRecord() {
         if(numConnectedUsersRef.current >=2 && sendSocket){
             socket.current.emit("stop_audio_client_to_server",roomID);
         }
-        setVideoAudio(true);
     }
 
     let delayCompensationStep;
@@ -849,7 +860,7 @@ function handleRecord() {
                                 return !prev;
                             }
                             return prev;})}
-                        >Monitoring</button>
+                        >Prtnr Monitor</button>
                     </div>
                     <div className="bg-[rgb(114,120,155)]"
                         style={{width:100,height:Math.floor(115*compactMode)}}

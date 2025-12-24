@@ -78,7 +78,7 @@ class StreamOnPlayProcessor extends AudioWorkletProcessor {
       newBuffer.set(newInput, existingBuffer.length);
       this.recordingBuffer = newBuffer;
       this.emptyPacket = false;
-      if(this.recordingBuffer.length==this.packetSize){
+      if(this.recordingBuffer.length>=this.packetSize){
         this.port.postMessage({packet:this.recordingBuffer,
                                 first:this.firstPacket,
                                 last:false,

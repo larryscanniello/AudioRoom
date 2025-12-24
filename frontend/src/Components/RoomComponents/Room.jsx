@@ -4,27 +4,39 @@ import { useParams } from "react-router-dom";
 import io from "socket.io-client"
 import { useWindowSize } from "../useWindowSize";
 import Peer from "peerjs";
+import { Slider } from "@/Components/ui/slider"
 
 export default function Room(){
-    const [roomResponse,setRoomResponse] = useState(false);
+    
     const {roomID} = useParams();
-    const socket = useRef(null);
-    const [userList,setUserList] = useState([])
+
+    const [roomResponse,setRoomResponse] = useState(false);
     const [width,height] = useWindowSize();
     const [errorMessage,setErrorMessage] = useState("Loading...")
     const [firstEnteredRoom,setFirstEnteredRoom] = useState(true);
     const [isDragging, setIsDragging] = useState(false);
     const [PDF,setPDF] = useState(null);
+    const [initializeAudioRecorder,setInitializeAudioRecorder] = useState(false); //piece of state so that children (useAudioRecorder) useeffect are triggered later
+    const [remoteStream, setRemoteStream] = useState(null);
+    const [showJoinRoom,setShowJoinRoom] = useState(true);
+    const [isMicMuted,setIsMicMuted] = useState(false);
+    const [remoteVolume, setRemoteVolume] = useState(100);
+    const [isPartnerMuted, setIsPartnerMuted] = useState(false);
+    const [dataConnAttached,setDataConnAttached] = useState(false);
+
+    const socket = useRef(null);
     const localStreamRef = useRef(null);
     const peerRef = useRef(null);
     const callRef = useRef(null);
     const setVideoRef = useRef(null);
-    const [initializeAudioRecorder,setInitializeAudioRecorder] = useState(false); //piece of state so that children (useAudioRecorder) useeffect are triggered later
     const localVideoRef = useRef(null);
-    const [remoteStream, setRemoteStream] = useState(null);
     const remoteVideoRef = useRef(null);
-    const [showJoinRoom,setShowJoinRoom] = useState(true);
     const dataConnRef = useRef(null);
+    const AudioCtxRef = useRef(null);
+    const audioSourceRef = useRef(null);
+    const chatGainRef = useRef(null);
+    const processedStreamRef = useRef(null);
+    const remoteGainRef = useRef(null);
 
 useEffect(() => {
   let mounted = true;
@@ -72,12 +84,28 @@ useEffect(() => {
     });
     localStreamRef.current = localStream;
 
+    AudioCtxRef.current = new AudioContext({latencyHint:"interactive"});
+    if (AudioCtxRef.current.state === 'suspended') {
+      await AudioCtxRef.current.resume();
+    }
+    audioSourceRef.current = AudioCtxRef.current.createMediaStreamSource(localStream);
+    const chatGain = AudioCtxRef.current.createGain();
+    chatGainRef.current = chatGain;
+    audioSourceRef.current.connect(chatGain);
+    const destination = AudioCtxRef.current.createMediaStreamDestination();
+    chatGain.connect(destination);
+    const combinedStream = new MediaStream([
+      localStream.getVideoTracks()[0],
+      destination.stream.getAudioTracks()[0]
+    ]);
+
+    processedStreamRef.current = combinedStream;
+    // -----------------------
+
     if (localVideoRef.current) {
+      // We mute the local video element so you don't hear yourself
       localVideoRef.current.srcObject = localStream;
     }
-
-    /* ------------------ 4. Create PeerJS ------------------ */
-    
     setInitializeAudioRecorder(true);
   }
 
@@ -192,19 +220,20 @@ useEffect(() => {
       /* ------------------ 5. Incoming calls ------------------ */
       peer.on("call", call => {
         console.log("Incoming call");
-        call.answer(localStreamRef.current);
+        call.answer(processedStreamRef.current);
         attachCallHandlers(call);
       });
 
       /* ------------------ 6. Server tells us to call someone ------------------ */
       socket.current.on("call-peer", (peerId) => {
         console.log("Calling peer:", peerId);
-        const call = peer.call(peerId, localStreamRef.current);
+        const call = peer.call(peerId, processedStreamRef.current);
         attachCallHandlers(call);
         const conn = peer.connect(peerId, {
           reliable: false,
         });
         dataConnRef.current = conn;
+        setDataConnAttached(true);
       });
 
       /* ------------------ helpers ------------------ */
@@ -212,6 +241,19 @@ useEffect(() => {
         call.on("stream", (incomingStream) => {
           console.log("Received remote stream");
           setRemoteStream(incomingStream); // Store the stream in state
+
+          // Setup Web Audio for Remote Stream Volume Control
+          if (AudioCtxRef.current) {
+            const ctx = AudioCtxRef.current;
+            const remoteSource = ctx.createMediaStreamSource(incomingStream);
+            const remoteGain = ctx.createGain();
+            
+            remoteGainRef.current = remoteGain;
+            
+            // Connect: Remote Stream -> Gain -> Speakers
+            remoteSource.connect(remoteGain);
+            remoteGain.connect(ctx.destination);
+          }
         });
 
         call.on("close", () => {
@@ -233,17 +275,24 @@ useEffect(() => {
         conn.on("open", () => {
           console.log("Data channel open (callee)");
           dataConnRef.current = conn;
-        });
-
-        conn.on("data", data => {
-          console.log("Received data:", data);
+          setDataConnAttached(true);
         });
 
         conn.on("close", () => {
           dataConnRef.current = null;
+          setDataConnAttached(false);
         });
       });
     }
+
+    const toggleMic = () => {
+      setIsMicMuted(prev=>{
+        chatGainRef.current.gain.value = !prev ? 0.0 : 1.0;
+        return !prev;
+      }
+      )
+      
+    };
 
     return <div>
     {roomResponse ? (
@@ -299,6 +348,58 @@ useEffect(() => {
                 Join Room
               </button>
             )}
+            
+            {!showJoinRoom && (
+            <div className="absolute bottom-2 left-2 flex items-center gap-4 bg-black/40 p-4 rounded-2xl border border-white/10 backdrop-blur-md">
+              {!showJoinRoom && (
+              <button
+                onClick={toggleMic}
+                className={`p-2 rounded-full shadow-md transition-colors hover:border-1 border-red-400 ${
+                  false ? "bg-red-400 hover:bg-red-500" : "bg-gray-700 hover:bg-gray-600"
+                } text-white`}
+              >
+                {isMicMuted ? "Unmute Mic" : "Mute Mic"}
+              </button>
+            )}
+              {/* Partner Mute Toggle */}
+              <button
+                onClick={() => {
+                  setIsPartnerMuted(prev=>{
+                    if (remoteGainRef.current) {
+                      remoteGainRef.current.gain.value = !prev ? 1.0 : 0.0;
+                    } 
+                    return !prev;
+                  })
+                  
+                  
+                }}
+                className={`p-2 rounded-full transition-colors text-white hover:border-1 border-red-400 ${
+                  false ? "bg-red-400 hover:bg-red-500" : "bg-gray-700 hover:bg-gray-600"
+                }`}
+              >
+                {isPartnerMuted ? "Unmute Partner" : "Mute Partner"}
+              </button>
+
+              {/* Shadcn Slider for Volume */}
+              <div className="flex flex-col gap-1 w-32">
+                  <span className="text-[10px] text-gray-400 uppercase font-bold px-1">Partner Vol</span>
+                  <Slider
+                    defaultValue={[100]}
+                    max={100}
+                    step={1}
+                    value={[isPartnerMuted ? 0 : remoteVolume]}
+                    onValueChange={(vals) => {
+                      const vol = vals[0];
+                      setRemoteVolume(vol);
+                      if (remoteGainRef.current && !isPartnerMuted) {
+                        remoteGainRef.current.gain.value = vol / 100;
+                      }
+                    }}
+                    disabled={isPartnerMuted}
+                  />
+              </div>
+            </div>
+          )}
           </div>
           {/*<div
             ref={setVideoRef}
@@ -356,10 +457,12 @@ useEffect(() => {
           socket={socket}
           firstEnteredRoom={firstEnteredRoom}
           setFirstEnteredRoom={setFirstEnteredRoom}
-          setVideoAudio={setVideoAudio}
           localStreamRef={localStreamRef}
           initializeAudioRecorder={initializeAudioRecorder}
           dataConnRef={dataConnRef}
+          audioCtxRef={AudioCtxRef}
+          audioSourceRef={audioSourceRef}
+          dataConnAttached={dataConnAttached}
         />
       </div>
     ) : (

@@ -7,7 +7,7 @@ class RecorderProcessor extends AudioWorkletProcessor {
     this.recordingBuffer = new Float32Array(0);
     this.playbackBuffer = null;
     this.playbackPos = 0;
-    this.packetSize = 4096;
+    this.packetSize = 256;
     this.firstPacket = true;
     this.emptyPacket = false;
     this.sessionId = null;
@@ -54,7 +54,7 @@ class RecorderProcessor extends AudioWorkletProcessor {
       newBuffer.set(newInput, existingBuffer.length);
       this.recordingBuffer = newBuffer;
       this.emptyPacket = false;
-      if(this.recordingBuffer.length==this.packetSize){
+      if(this.recordingBuffer.length>=this.packetSize){
         this.port.postMessage({packet:this.recordingBuffer,
                                 first:this.firstPacket,
                                 last:false,

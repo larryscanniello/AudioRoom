@@ -388,7 +388,6 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
                 setOtherPersonMonitoringOn(status);
             })
 
-            console.log('room join hit?');
             socket.current.emit("join_room", roomID);
         }
 
@@ -423,50 +422,58 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
     },[autoTestLatency,delayCompensation2,audio2])
 
     useEffect(() => {
+        console.log('check1')
         if(!dataConnAttached) return;
-
+        console.log('check2')
         dataConnRef.current.binaryType = "arraybuffer";
 
         dataConnRef.current.on("data", data => {
-            if (data instanceof ArrayBuffer) {
-                const view = new Uint8Array(data);
-                
-                // Extract flags from the first byte
-                const flags = view[0];
-                const first = (flags & 0x01) !== 0;
-                const last = (flags & 0x02) !== 0;
-                const isPlayback = (flags & 0x04) !== 0;
-
-                // The actual packet is everything from index 1 onwards
-                const packet = data.slice(1);
-                const audioData = new Float32Array(packet)
+            const view = new Uint8Array(data);
+            // Extract flags from the first byte
+            const flags = view[0];
+            const first = (flags & 0x01) !== 0;
+            const last = (flags & 0x02) !== 0;
+            const isPlayback = (flags & 0x04) !== 0;
+            // The actual packet is everything from index 1 onwards
+            console.log('data',data)
+            const numArr = data.slice(1,5);
+            const numarr = new Float32Array(numArr);
+            console.log('num',numArr[0]);
+            const packet = data.slice(5);
+            
+            const audioData = new Float32Array(packet)
+            console.log('packet',audioData);
+            if(monitoringOn){
                 handleStreamAudioRef.current(audioData,first);
-                if(!isPlayback){
-                    if(first){
-                        audioChunksRef.current = [audioData];
-                        if(last){
-                            currentlyRecording.current = false;
-                            processAudio([audioData]);
-                            setMouseDragStart({trounded:0,t:0});
-                            setMouseDragEnd(null);
-                            setPlayheadLocation(0);
-                        }
-                    }else{
-                        const newchunks = [...audioChunksRef.current,audioData];
-                        audioChunksRef.current = newchunks;
-                        if(last){
-                            currentlyRecording.current = false;
-                            processAudio(newchunks);
-                            setMouseDragStart({trounded:0,t:0});
-                            setMouseDragEnd(null);
-                            setPlayheadLocation(0);
-                        }
+            }
+            if(!isPlayback){
+                if(first){
+                    audioChunksRef.current = [audioData];
+                    if(last){
+                        currentlyRecording.current = false;
+                        processAudio([audioData]);
+                        setMouseDragStart({trounded:0,t:0});
+                        setMouseDragEnd(null);
+                        setPlayheadLocation(0);
+                    }
+                }else{
+                    console.log('chunked',last);
+                    const newchunks = [...audioChunksRef.current,audioData];
+                    audioChunksRef.current = newchunks;
+                    if(last){
+                        currentlyRecording.current = false;
+                        processAudio(newchunks);
+                        setMouseDragStart({trounded:0,t:0});
+                        setMouseDragEnd(null);
+                        setPlayheadLocation(0);
                     }
                 }
             }
         });
+
+
        
-    }, [dataConnAttached]);
+    }, [dataConnAttached,monitoringOn]);
 
     loopingRef.current = looping;
 
@@ -475,6 +482,7 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
     }
 
     const processAudio = async (newchunks) => {
+            console.log('processed',newchunks);
             const recordedBuffers = newchunks;
             const length = recordedBuffers.reduce((sum,arr) => sum+arr.length,0)
             const fullBuffer = new Float32Array(length);
@@ -492,6 +500,7 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
             setMouseDragStart({trounded:0,t:0});
             setMouseDragEnd(null);
             setPlayheadLocation(0);
+            console.log('audbuf',audioBuffer);
             setAudio2(audioBuffer);
             //setLoadingAudio(null);
             socket.current.emit("client_to_server_incoming_audio_done_processing",roomID);

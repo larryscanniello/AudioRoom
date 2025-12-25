@@ -21,6 +21,15 @@ export const useAudioRecorder = (
   const sessionIdRef = useRef(null);
   const streamOnPlayIdRef = useRef(null);
   const streamRef = useRef(null);
+  const streamOnPlayPacketCountRef = useRef(0);
+  const recordPacketCountRef = useRef(0);
+  const recordBufferToSendRef = useRef(null);
+  const uint8ViewRef = useRef(null);
+  const dataViewRef = useRef(null);
+  const incomingUint8WrapperRef = useRef(null);
+
+  
+
 
   delayCompensationRef.current = delayCompensation;
 
@@ -50,6 +59,11 @@ export const useAudioRecorder = (
         }else{
           source = audioSourceRef.current;
         }
+
+        recordBufferToSendRef.current = new ArrayBuffer(1029);
+        uint8ViewRef.current = new Uint8Array(recordBufferToSendRef.current)
+        dataViewRef.current = new DataView(recordBufferToSendRef.current);
+        incomingUint8WrapperRef.current = new Uint8Array();
         
         await AudioCtxRef.current.audioWorklet.addModule("/RecorderProcessor.js");
         const processor = new AudioWorkletNode(AudioCtxRef.current,'RecorderProcessor');
@@ -72,6 +86,7 @@ export const useAudioRecorder = (
           handleRecording(metronomeRef,autoTestLatency);
           setMouseDragStart({trounded:0,t:0});
           setMouseDragEnd(null);
+          recordPacketCountRef.current = 0;
           if(numConnectedUsersRef.current >=2){
             socket.current.emit("comm_event",
               {roomID,
@@ -104,31 +119,34 @@ export const useAudioRecorder = (
         streamOnPlayProcessor.port.onmessage = event => {
           if(numConnectedUsersRef.current >= 2){
               if(dataConnRef.current && dataConnRef.current.open){
-                const packet = event.data.packet;
-                const rawAudioBytes = new Uint8Array(
-                    packet.buffer, 
-                    packet.byteOffset, 
-                    packet.byteLength
-                );
+              const floatArray = event.data.packet; // The incoming Float32Array
+    
+              // 1. Grab our pre-allocated refs
+              const uint8View = uint8ViewRef.current;
+              const dataView = dataViewRef.current;
 
-                // 2. Create your destination buffer
-                const buffer = new ArrayBuffer(1 + rawAudioBytes.byteLength);
-                const uint8View = new Uint8Array(buffer);
+              // 2. Set Flags (1 byte)
+              let flags = 0;
+              if (event.data.first) flags |= 0x01;
+              if (event.data.last) flags |= 0x02;
+              flags |= 0x04; //this flag indicates audio is playback mode, not recording
 
-                // 3. Set flags
-                let flags = 0;
-                if (event.data.first)         flags |= 0x01; // Bit 0
-                if (event.data.last)          flags |= 0x02; // Bit 1
-                flags |= 0x04; //this flag indicates audio is playback mode, not recording
+              uint8View[0] = flags;
 
-                uint8View[0] = flags;
+              // 3. Set 32-bit Packet Count (4 bytes) - No 'new' needed
+              // This writes to indices 1, 2, 3, and 4
+              dataView.setUint32(1, streamOnPlayPacketCountRef.current, false); 
+              streamOnPlayPacketCountRef.current++;
 
-                // 4. Copy the raw bytes starting at index 1
-                uint8View.set(rawAudioBytes, 1);
+              let byteOffset = 5;
+              for (let i = 0; i < floatArray.length; i++) {
+                dataView.setFloat32(byteOffset, floatArray[i], true); // little-endian
+                byteOffset += 4;
+              }
 
-                const avg = packet.reduce((accumulator, currentValue) => accumulator + currentValue, 0)/256;
+              console.log(recordBufferToSendRef.current);
 
-                dataConnRef.current.send(buffer);
+              dataConnRef.current.send(recordBufferToSendRef.current);
 
             }
           }
@@ -145,17 +163,34 @@ export const useAudioRecorder = (
           }
 
           if(numConnectedUsersRef.current >= 2){
-            socket.current.emit("send_audio_client_to_server",{
-              packet,
-              roomID,
-              first:event.data.first,
-              last:event.data.last,
-              delayCompensation:delayCompensationRef.current,
-              playbackSampleIndex:event.data.playbackPos,
-              type:"streamOnRecord",
-            })
-          }
+            if(dataConnRef.current && dataConnRef.current.open){
+              const floatArray = event.data.packet; // The incoming Float32Array
+    
+              // 1. Grab our pre-allocated refs
+              const uint8View = uint8ViewRef.current;
+              const dataView = dataViewRef.current;
 
+              // 2. Set Flags (1 byte)
+              let flags = 0;
+              if (event.data.first) flags |= 0x01;
+              if (event.data.last) flags |= 0x02;
+              uint8View[0] = flags;
+
+              // 3. Set 32-bit Packet Count (4 bytes) - No 'new' needed
+              // This writes to indices 1, 2, 3, and 4
+              dataView.setUint32(1, recordPacketCountRef.current, false); 
+              recordPacketCountRef.current++;
+
+              let byteOffset = 5;
+              for (let i = 0; i < floatArray.length; i++) {
+                dataView.setFloat32(byteOffset, floatArray[i], true); // little-endian
+                byteOffset += 4;
+              }
+
+              dataConnRef.current.send(recordBufferToSendRef.current);
+
+          }
+        }
           if(event.data.last){
             const length = audioChunksRef.current.reduce((sum,arr) => sum+arr.length,0)
             const fullBuffer = new Float32Array(length);
@@ -286,6 +321,7 @@ export const useAudioRecorder = (
   const startStreamOnPlay = (audio,audio2,delayComp,looping) => {
     const sessionId = crypto.randomUUID();
     streamOnPlayIdRef.current = sessionId;
+    streamOnPlayPacketCountRef.current = 0;
     streamOnPlayProcessorRef.current?.port.postMessage({
       actiontype:"start",
       buffer1:audio?audio.getChannelData(0).slice():null,
@@ -296,6 +332,7 @@ export const useAudioRecorder = (
       clickBuffer:metronomeRef.current.clickBuffer,
       BPM,metronomeOn
     })
+    
   }
 
   const startRecording = () => {

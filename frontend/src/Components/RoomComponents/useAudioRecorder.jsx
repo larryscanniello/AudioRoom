@@ -10,7 +10,7 @@ export const useAudioRecorder = (
   metronomeOnRef,gain2Ref,metronomeGainRef,WAVEFORM_WINDOW_LEN,autoscrollEnabledRef,
   setLoadingAudio,otherPersonRecordingRef,setAudio2,setLatencyTestRes,streamOnPlayProcessorRef,
   autoTestLatency,localStreamRef,initializeRecorder,dataConnRef,audioSourceRef,audioCtxRef,
-  isDemo,AudioCtxRef
+  isDemo,AudioCtxRef,opusRef
 }
 ) => {
   const mediaRecorderRef = useRef(null);
@@ -24,12 +24,7 @@ export const useAudioRecorder = (
   const streamOnPlayPacketCountRef = useRef(0);
   const recordPacketCountRef = useRef(0);
   const recordBufferToSendRef = useRef(null);
-  const uint8ViewRef = useRef(null);
-  const dataViewRef = useRef(null);
-  const incomingUint8WrapperRef = useRef(null);
-
-  
-
+  const recordingCountRef = useRef(0);
 
   delayCompensationRef.current = delayCompensation;
 
@@ -59,11 +54,6 @@ export const useAudioRecorder = (
         }else{
           source = audioSourceRef.current;
         }
-
-        recordBufferToSendRef.current = new ArrayBuffer(1029);
-        uint8ViewRef.current = new Uint8Array(recordBufferToSendRef.current)
-        dataViewRef.current = new DataView(recordBufferToSendRef.current);
-        incomingUint8WrapperRef.current = new Uint8Array();
         
         await AudioCtxRef.current.audioWorklet.addModule("/RecorderProcessor.js");
         const processor = new AudioWorkletNode(AudioCtxRef.current,'RecorderProcessor');
@@ -82,6 +72,7 @@ export const useAudioRecorder = (
             delayCompensation:delayComp,
             sessionId,
             startTime:AudioCtxRef.current.currentTime + (autoTestLatency ? (4*60/BPMRef.current) : 0),
+            recordingCount:recordingCountRef.current++,
           });
           handleRecording(metronomeRef,autoTestLatency);
           setMouseDragStart({trounded:0,t:0});
@@ -100,6 +91,8 @@ export const useAudioRecorder = (
         source.connect(streamOnPlayProcessor);
         streamOnPlayProcessor.connect(AudioCtxRef.current.destination);
         streamOnPlayProcessorRef.current = streamOnPlayProcessor;
+
+
 
         
 
@@ -153,62 +146,46 @@ export const useAudioRecorder = (
         }
         
         processor.port.onmessage = (event) => {
-          //handles main recording being stopped
-          let packet = event.data.packet;
-
-          if(event.data.first){
-            audioChunksRef.current = [packet];
-          }else{
-            audioChunksRef.current.push(packet);
-          }
 
           if(numConnectedUsersRef.current >= 2){
             if(dataConnRef.current && dataConnRef.current.open){
-              const floatArray = event.data.packet; // The incoming Float32Array
-    
-              // 1. Grab our pre-allocated refs
-              const uint8View = uint8ViewRef.current;
-              const dataView = dataViewRef.current;
-
-              // 2. Set Flags (1 byte)
-              let flags = 0;
-              if (event.data.first) flags |= 0x01;
-              if (event.data.last) flags |= 0x02;
-              uint8View[0] = flags;
-
-              // 3. Set 32-bit Packet Count (4 bytes) - No 'new' needed
-              // This writes to indices 1, 2, 3, and 4
-              dataView.setUint32(1, recordPacketCountRef.current, false); 
-              recordPacketCountRef.current++;
-
-              let byteOffset = 5;
-              for (let i = 0; i < floatArray.length; i++) {
-                dataView.setFloat32(byteOffset, floatArray[i], true); // little-endian
-                byteOffset += 4;
-              }
-
-              dataConnRef.current.send(recordBufferToSendRef.current);
-
+              //send packet to worker to encode
+              opusRef.current.postMessage({
+                type:"encode",
+                packet:event.data.packet,
+                isRecording:true,
+                packetCount: recordPacketCountRef.current++,
+                recordingCount: event.data.recordingCount,
+                last: event.data.last,
+              })
+            }
           }
-        }
+
+          if(event.data.first){
+            audioChunksRef.current.getChannelData(0).fill(0);
+          }
+
+          const index = event.data.packetCount * 960;
+          audioChunksRef.current.copyToChannel(event.data.packet,0,index);
+
           if(event.data.last){
-            const length = audioChunksRef.current.reduce((sum,arr) => sum+arr.length,0)
-            const fullBuffer = new Float32Array(length);
-            let offset = 0;
-            for(const arr of audioChunksRef.current){
-              fullBuffer.set(arr,offset);
-              offset += arr.length;
-            }
-
-            const audioBuffer = AudioCtxRef.current.createBuffer(1,fullBuffer.length,AudioCtxRef.current.sampleRate);
-            audioBuffer.copyToChannel(fullBuffer,0);
-
-            setAudio(audioBuffer);
-
+            const audbuf = AudioCtxRef.current.createBuffer(
+              1,
+              index,
+              AudioCtxRef.current.sampleRate
+            )
+            audbuf.copyToChannel(audioChunksRef.current.getChannelData(0),0,0);
+            setAudio(audbuf);
             setPlayheadLocation(0);
-            if(numConnectedUsersRef.current>=2){
-              //setLoadingAudio({track:1,time:length/AudioCtxRef.current.sampleRate});
-            }
+
+          }else if(event.data.packetCount % 10 === 9){
+            const audbuf = AudioCtxRef.current.createBuffer(
+              1,
+              index,
+              AudioCtxRef.current.sampleRate
+            )
+            audbuf.copyToChannel(audioChunksRef.current.getChannelData(0),0,0);
+            setAudio(audbuf);
           }
         }
 
@@ -398,7 +375,7 @@ recordAnimationRef.current = updatePlayhead;
         } 
         
         
-        recordAnimationRef.current(waveform1Ref,now + (autoTestLatency?(4*60/BPM):0));
+        //recordAnimationRef.current(waveform1Ref,now + (autoTestLatency?(4*60/BPM):0));
         console.log("Recording started");
     }
   }

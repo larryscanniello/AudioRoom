@@ -4,26 +4,32 @@ class RecorderProcessor extends AudioWorkletProcessor {
 
     this.isRecording = false;
     this.isPlayingBack = true;
-    this.recordingBuffer = new Float32Array(0);
+    this.recordingBuffer = null;
     this.playbackBuffer = null;
     this.playbackPos = 0;
-    this.packetSize = 256;
+    this.packetSize = 960;
     this.firstPacket = true;
     this.emptyPacket = false;
     this.sessionId = null;
     this.latencyFrames = 0;
     this.startTime = 0;
+    this.recordingCount = 0;
+    this.packetPos = 0;
+    this.packetCount = 0;
 
     this.port.onmessage = (e) => {
       if (e.data.actiontype === 'start'){ 
         this.sessionId = e.data.sessionId;
-        this.recordingBuffer = [];
+        this.recordingBuffer = new Float32Array(this.packetSize);
         this.isRecording = true;
         this.playbackBuffer = e.data.buffer
         this.latencyFrames = e.data.delayCompensation[0]
         this.playbackPos = this.latencyFrames-(Math.floor(.05*sampleRate)); //compensate for metronome delay
         this.firstPacket = true;
         this.startTime = e.data.startTime ?? 0;
+        this.recordingNumber = e.data.recordingCount
+        this.packetCount = 0;
+        this.recordingCount = e.data.recordingCount;
       };
       if (e.data.actiontype === 'stop'){ 
         if (e.data.sessionId !== this.sessionId || this.sessionId === null) return;
@@ -34,9 +40,11 @@ class RecorderProcessor extends AudioWorkletProcessor {
             packet:this.recordingBuffer,
             first:this.firstPacket,
             last:true,
-            playbackPos:this.playbackPos-this.latencyFrames});
+            playbackPos:this.playbackPos-this.latencyFrames,
+            recordingCount:this.recordingCount,
+            packetCount:this.packetCount++,
+          });
         }
-        this.recordingBuffer = [];
         this.sessionId = null;
       };
     };
@@ -46,23 +54,23 @@ class RecorderProcessor extends AudioWorkletProcessor {
     if (!input || !input[0]) return true;
     if(this.isRecording && currentTime >= this.startTime){
       //do all this nonsense to keep the recordingbuffer a float 32 array
-      const existingBuffer = this.recordingBuffer;
-      const newInput = new Float32Array(input[0]);
-      const newLength = existingBuffer.length + newInput.length;
-      const newBuffer = new Float32Array(newLength);
-      newBuffer.set(existingBuffer, 0);
-      newBuffer.set(newInput, existingBuffer.length);
-      this.recordingBuffer = newBuffer;
-      this.emptyPacket = false;
-      if(this.recordingBuffer.length>=this.packetSize){
-        this.port.postMessage({packet:this.recordingBuffer,
-                                first:this.firstPacket,
-                                last:false,
-                                playbackPos:this.playbackPos-this.latencyFrames});
-        this.recordingBuffer = new Float32Array(0);
-        this.firstPacket = false;
-        this.emptyPacket = true;
+      for(let j=0;j<128;j++){
+        if(this.packetPos>=this.packetSize && this.isRecording){
+          this.port.postMessage({packet:this.recordingBuffer,
+                                  first:this.firstPacket,
+                                  last:false,
+                                  playbackPos:this.playbackPos-this.latencyFrames,
+                                  recordingCount:this.recordingCount,
+                                  packetCount:this.packetCount++,
+                                });
+          this.firstPacket = false;
+          this.emptyPacket = true;
+          this.packetPos = 0;
+        }
+        this.recordingBuffer[this.packetPos] = input[0][j];
+        this.packetPos++;
       }
+      
       if(this.playbackPos<this.playbackBuffer.length){
         const output = outputs[0];
         const outL = output[0];
@@ -72,7 +80,9 @@ class RecorderProcessor extends AudioWorkletProcessor {
             outL[i] = this.playbackBuffer[this.playbackPos] ?? 0;
             outR[i] = this.playbackBuffer[this.playbackPos] ?? 0;
           }
+          this.recordingBuffer[this.packetPos]
           this.playbackPos++;
+          this.packetPos++;
         }
       }
     }
@@ -80,5 +90,11 @@ class RecorderProcessor extends AudioWorkletProcessor {
     return true;
   }
 }
+
+
+
+
+
+
 
 registerProcessor("RecorderProcessor", RecorderProcessor);

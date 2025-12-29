@@ -614,14 +614,14 @@ function handleRecord() {
         const startSampleAudio2 = metrStream.current.currSample + playbackAudioStartSample + delayCompensation2[0];
         const outputL = playbackBuffer.getChannelData(0);
         const outputR = playbackBuffer.getChannelData(1);
-        if (!currentlyRecording.current && audio) {
+        if (audio) {
             const input = audio.getChannelData(0).subarray(startSampleAudio1, startSampleAudio1 + PACKET_SIZE);
             for (let i = 0; i < input.length; i++) {
                 outputL[i] += input[i] * gainRef.current.gain.value;
                 outputR[i] += input[i] * gainRef.current.gain.value;
             }
         }
-        if (audio2){
+        if (!currentlyRecording.current && audio2){
             const input2 = audio2.getChannelData(0).subarray(startSampleAudio2, startSampleAudio2 + PACKET_SIZE);
             for (let i = 0; i < input2.length; i++) {
                 outputL[i] += input2[i] * gain2Ref.current.gain.value;

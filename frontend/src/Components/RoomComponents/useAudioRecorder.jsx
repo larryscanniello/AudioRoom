@@ -150,6 +150,7 @@ export const useAudioRecorder = (
           if(numConnectedUsersRef.current >= 2){
             if(dataConnRef.current && dataConnRef.current.open){
               //send packet to worker to encode
+              console.log("we sendin");
               opusRef.current.postMessage({
                 type:"encode",
                 packet:event.data.packet,

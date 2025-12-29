@@ -22,9 +22,6 @@ self.onmessage = async (e) => {
     if (type === 'init') {
         wasmInstance = await initOpusWasm(); // Assuming this returns the Emscripten/WASM object
 
-        console.log("wasm_instance",wasmInstance)
-
-
         wasmInstance._wasm_opus_init_encoder(48000,128000);
         wasmInstance._wasm_opus_init_decoder(48000);
         
@@ -48,8 +45,6 @@ self.onmessage = async (e) => {
         
         // 1. Copy the data into the PRE-ALLOCATED WASM heap
         // This is a memory copy, but it's much faster than an allocation
-
-        console.log('packetinworker',packet);
         
         wasmInstance.HEAPF32.set(packet, encodePCMPtr >> 2);
 
@@ -81,17 +76,13 @@ self.onmessage = async (e) => {
             uint8View.set(encodedData, 11);
 
             const finalBuffer = recordBufferToSend.slice(0, 11 + encodedByteCount);
-
-            console.log('encoder to main thread?',finalBuffer);
             
             self.postMessage({ type: 'encode', payload: finalBuffer}, [finalBuffer]);
         }
     }
 
     if (type === 'decode') {
-        // payload is the compressed Uint8Array (the packet)
-        console.log('hit decoder');
-        
+        // payload is the compressed Uint8Array (the packet)        
         // 1. Copy compressed bytes into the outPtr loading dock
         wasmInstance.HEAPU8.set(packet, decodeInPtr);
 
@@ -102,6 +93,7 @@ self.onmessage = async (e) => {
             decodePCMPtr, 
             FRAME_SIZE,
         );
+        
 
         if (samplesDecoded > 0) {
             // 3. Extract the raw PCM floats
@@ -110,7 +102,6 @@ self.onmessage = async (e) => {
             if(packetCount===0){
                 pcm = pcm.slice(lookahead);
             }
-            console.log('pcm',pcm);
             self.postMessage({ type: 'decode', packet: pcm, packetCount, isRecording, recordingCount, lookahead:OPlookahead,last }, [pcm.buffer]);
         }
     }

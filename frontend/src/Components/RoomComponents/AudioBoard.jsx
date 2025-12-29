@@ -26,7 +26,7 @@ import "./AudioBoard.css";
 
 const WAVEFORM_WINDOW_LEN = 900;
 const COMM_TIMEOUT_TIME = 5000;
-const PACKET_SIZE = 256;
+const PACKET_SIZE = 960;
 
 export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnteredRoom,
     localStreamRef,initializeAudioBoard,dataConnRef,audioCtxRef,audioSourceRef,dataConnAttached
@@ -443,14 +443,12 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
         opusRef.current.onmessage = message => {
             const data = message.data;
             if(data.type==="encode"){
-                console.log('sent');
                 dataConnRef.current.send(data.payload);
             }
             if(data.type==="decode"){
-                console.log('decoded',data);
                 const audioData = new Float32Array(data.packet)
                 if(monitoringOn){
-                    handleStreamAudioRef.current(audioData,data.count === 0);
+                    handleStreamAudioRef.current(audioData,data.packetCount === 0);
                 }
                 if(data.isRecording){
                     if(data.recordingCount>currRecordingCountRef.current){
@@ -465,7 +463,6 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
                         audio2ChunksRef.current.copyToChannel(data.packet,0,index);
                     }
                     
-                    console.log('last',data.last,'packetCount',data.packetCount);
                     if(data.last){
                         const finalLength = (data.packetCount * 960) - data.lookahead;
                         if (finalLength > 0) {
@@ -476,7 +473,6 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
                             
                             buffer.copyToChannel(actualData, 0, 0);
                             setAudio2(buffer);
-                            console.log('chandata',buffer.getChannelData(0));
                         }
                         /*
                         const buffer = AudioCtxRef.current.createBuffer(1,(data.packetCount*960)-data.lookahead,AudioCtxRef.current.sampleRate);
@@ -500,7 +496,6 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
         }
         dataConnRef.current.on("data", data => {
             const buffer = data; // confirmed ArrayBuffer
-            console.log('arrbufflen',buffer.byteLength);
             const view = new DataView(buffer);
 
             // Byte 0: Flags (Uint8)
@@ -642,7 +637,7 @@ function handleRecord() {
         const startSampleAudio2 = metrStream.current.currSample + playbackAudioStartSample + delayCompensation2[0];
         const outputL = playbackBuffer.getChannelData(0);
         const outputR = playbackBuffer.getChannelData(1);
-        if (audio) {
+        if (false && audio) {
             const input = audio.getChannelData(0).subarray(startSampleAudio1, startSampleAudio1 + PACKET_SIZE);
             for (let i = 0; i < input.length; i++) {
                 outputL[i] += input[i] * gainRef.current.gain.value;
@@ -650,7 +645,7 @@ function handleRecord() {
             }
             console.log("audio outputted");
         }
-        if (!currentlyRecording.current && audio2){
+        if (false && !currentlyRecording.current && audio2){
             const input2 = audio2.getChannelData(0).subarray(startSampleAudio2, startSampleAudio2 + PACKET_SIZE);
             for (let i = 0; i < input2.length; i++) {
                 outputL[i] += input2[i] * gain2Ref.current.gain.value;
@@ -694,7 +689,7 @@ function handleRecord() {
         playbackAudioSource.buffer = playbackBuffer;
 
         playbackAudioSource.start(startTime);
-        incomingAudioSource.start(startTime);
+        //incomingAudioSource.start(startTime);
     }
 
     const handlePlayAudio = (fromOtherPerson) => {

@@ -689,7 +689,7 @@ function handleRecord() {
         playbackAudioSource.buffer = playbackBuffer;
 
         playbackAudioSource.start(startTime);
-        //incomingAudioSource.start(startTime);
+        incomingAudioSource.start(startTime);
     }
 
     const handlePlayAudio = (fromOtherPerson) => {

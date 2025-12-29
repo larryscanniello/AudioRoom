@@ -476,34 +476,6 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
                 last
             }, [packet]); 
         });
-        /*
-        dataConnRef.current.on("data", data => {
-            console.log('data received',data);
-            const view = new Uint8Array(data.packet);
-            // Extract flags from the first byte
-            const isRecording = (view[0] & 0x01) !== 0;
-            const last = (view[0] & 0x02) !== 0;
-            // The actual packet is everything from index 1 onwards
-            const recordingCountArr = new Uint32Array(data.packet.slice(1,5));
-            const packetCountArr = new Uint32Array(data.packet.slice(5,9));
-            const lookaheadArr = new Uint16Array(data.packet.slice(9,11))
-            const packetCount = packetCountArr[0];
-            const recordingCount = recordingCountArr[0];
-            const lookahead = lookaheadArr[0];
-            const packet = data.packet.slice(11);
-
-            opusRef.current.postMessage({
-                type:"decode",
-                packetCount,
-                recordingCount,
-                packet,
-                isRecording,
-                OPlookahead:lookahead,
-                last
-            },[packet]);
-            
-        });
-        */
 
        
     }, [dataConnAttached]);
@@ -642,21 +614,19 @@ function handleRecord() {
         const startSampleAudio2 = metrStream.current.currSample + playbackAudioStartSample + delayCompensation2[0];
         const outputL = playbackBuffer.getChannelData(0);
         const outputR = playbackBuffer.getChannelData(1);
-        if (false && audio) {
+        if (!currentlyRecording.current && audio) {
             const input = audio.getChannelData(0).subarray(startSampleAudio1, startSampleAudio1 + PACKET_SIZE);
             for (let i = 0; i < input.length; i++) {
                 outputL[i] += input[i] * gainRef.current.gain.value;
                 outputR[i] += input[i] * gainRef.current.gain.value;
             }
-            console.log("audio outputted");
         }
-        if (false && !currentlyRecording.current && audio2){
+        if (audio2){
             const input2 = audio2.getChannelData(0).subarray(startSampleAudio2, startSampleAudio2 + PACKET_SIZE);
             for (let i = 0; i < input2.length; i++) {
                 outputL[i] += input2[i] * gain2Ref.current.gain.value;
                 outputR[i] += input2[i] * gain2Ref.current.gain.value;
             }
-            console.log("audio2 outputted");
         }
 
         const bufferStartSample = metrStream.current.currSample; 

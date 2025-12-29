@@ -17,8 +17,6 @@ let recordBufferToSend;
 self.onmessage = async (e) => {
     const { type, packet, packetCount, isRecording, recordingCount, OPlookahead, last } = e.data;
 
-    console.log("check!!!!")
-
     if (type === 'init') {
         wasmInstance = await initOpusWasm(); // Assuming this returns the Emscripten/WASM object
 
@@ -93,7 +91,7 @@ self.onmessage = async (e) => {
             decodePCMPtr, 
             FRAME_SIZE,
         );
-        
+
 
         if (samplesDecoded > 0) {
             // 3. Extract the raw PCM floats

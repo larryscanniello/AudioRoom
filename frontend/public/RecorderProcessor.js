@@ -30,6 +30,7 @@ class RecorderProcessor extends AudioWorkletProcessor {
         this.recordingNumber = e.data.recordingCount
         this.packetCount = 0;
         this.recordingCount = e.data.recordingCount;
+        this.packetPos = 0;
       };
       if (e.data.actiontype === 'stop'){ 
         if (e.data.sessionId !== this.sessionId || this.sessionId === null) return;
@@ -53,7 +54,6 @@ class RecorderProcessor extends AudioWorkletProcessor {
     const input = inputs[0];
     if (!input || !input[0]) return true;
     if(this.isRecording && currentTime >= this.startTime){
-      //do all this nonsense to keep the recordingbuffer a float 32 array
       for(let j=0;j<128;j++){
         if(this.packetPos>=this.packetSize && this.isRecording){
           this.port.postMessage({packet:this.recordingBuffer,
@@ -80,9 +80,7 @@ class RecorderProcessor extends AudioWorkletProcessor {
             outL[i] = this.playbackBuffer[this.playbackPos] ?? 0;
             outR[i] = this.playbackBuffer[this.playbackPos] ?? 0;
           }
-          this.recordingBuffer[this.packetPos]
           this.playbackPos++;
-          this.packetPos++;
         }
       }
     }

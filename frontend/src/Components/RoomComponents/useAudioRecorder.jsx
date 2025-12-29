@@ -13,9 +13,7 @@ export const useAudioRecorder = (
   isDemo,AudioCtxRef,opusRef
 }
 ) => {
-  const mediaRecorderRef = useRef(null);
   const delayCompensationRecorderRef = useRef(null);
-  const recordedBuffersRef = useRef(null);
   const delayCompensationRef = useRef(null);
   const delayChunksRef = useRef(null);
   const sessionIdRef = useRef(null);
@@ -65,7 +63,6 @@ export const useAudioRecorder = (
           const sessionId = crypto.randomUUID();
           sessionIdRef.current = sessionId;
 
-          recordedBuffersRef.current = [];
           processor.port.postMessage({
             actiontype:"start",
             buffer:audio2 ? audio2.getChannelData(0).slice():[],
@@ -390,41 +387,6 @@ recordAnimationRef.current = updatePlayhead;
       },500);
     }
   }
-
-  /*
-  const startDelayCompensationRecording = (metRef) => {
-    if (delayCompensationRecorderRef.current && metRef.current) {
-      const sessionId = crypto.randomUUID();
-      const prevtempo = metRef.current.tempo;
-      const prevMetronomeGain = metronomeGainRef.current.gain.value;
-      const now = AudioCtxRef.current.currentTime;
-      metRef.current.tempo = 120;
-      metronomeGainRef.current.gain.value = 1.0;
-      metRef.current.start(now);
-      delayCompensationRecorderRef.current.port.postMessage({
-            actiontype:"start",
-            buffer: [],
-            delayCompensation:[0],
-            sessionId,
-          });
-      console.log("Delay compensation recording started");
-      setTimeout(() => {
-        metronomeRef.current.stop();
-        metRef.current.tempo = prevtempo
-        metronomeGainRef.current.gain.value = prevMetronomeGain;
-      }, 400);
-      setTimeout(()=>{
-        delayCompensationRecorderRef.current.port.postMessage({
-          actiontype:"stop",
-          keepRecording:true,
-          sessionId
-        });
-      },1000)
-    }
-    const barkerDelayComp = () => {
-
-    }
-  }*/
 
 
   return {

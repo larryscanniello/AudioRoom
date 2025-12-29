@@ -440,60 +440,7 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
 
         opusRef.current.postMessage({type:"init"});
 
-        opusRef.current.onmessage = message => {
-            const data = message.data;
-            if(data.type==="encode"){
-                dataConnRef.current.send(data.payload);
-            }
-            if(data.type==="decode"){
-                const audioData = new Float32Array(data.packet)
-                if(monitoringOn){
-                    handleStreamAudioRef.current(audioData,data.packetCount === 0);
-                }
-                if(data.isRecording){
-                    if(data.recordingCount>currRecordingCountRef.current){
-                        currRecordingCountRef.current = data.recordingCount;
-                        streamPacketTracker.current.fill(0);
-                    }
-                    streamPacketTracker.current[data.packetCount] = 1;
-                    const index = Math.max(0,(data.packetCount * 960) - data.lookahead);
-                    if(data.packetCount===0){
-                        audio2ChunksRef.current.copyToChannel(data.packet.slice(data.lookahead),0,0);
-                    }else{
-                        audio2ChunksRef.current.copyToChannel(data.packet,0,index);
-                    }
-                    
-                    if(data.last){
-                        const finalLength = (data.packetCount * 960) - data.lookahead;
-                        if (finalLength > 0) {
-                            const buffer = AudioCtxRef.current.createBuffer(1, finalLength, AudioCtxRef.current.sampleRate);
-                            
-                            // Get the specific slice of data that was actually written
-                            const actualData = audio2ChunksRef.current.getChannelData(0).subarray(0, finalLength);
-                            
-                            buffer.copyToChannel(actualData, 0, 0);
-                            setAudio2(buffer);
-                        }
-                        /*
-                        const buffer = AudioCtxRef.current.createBuffer(1,(data.packetCount*960)-data.lookahead,AudioCtxRef.current.sampleRate);
-                        buffer.copyToChannel(audio2ChunksRef.current.getChannelData(0),0,0)
-                        currentlyRecording.current = false;*/
-                        setMouseDragStart({trounded:0,t:0});
-                        setMouseDragEnd(null);
-                        setPlayheadLocation(0);
-                        //setAudio2(buffer);
-                        //setLoadingAudio(null);
-                        socket.current.emit("client_to_server_incoming_audio_done_processing",roomID);
-                    }
-                    else if(data.packetCount % 10 === 9){
-                        const buffer = AudioCtxRef.current.createBuffer(1,(data.packetCount*960)-data.lookahead,AudioCtxRef.current.sampleRate);
-                        buffer.copyToChannel(audio2ChunksRef.current.getChannelData(0),0,0)
-                        setAudio2(buffer);
-                    }
-                
-                }   
-            }
-        }
+        
         dataConnRef.current.on("data", data => {
             const buffer = data; // confirmed ArrayBuffer
             const view = new DataView(buffer);
@@ -559,7 +506,64 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
         */
 
        
-    }, [dataConnAttached,monitoringOn]);
+    }, [dataConnAttached]);
+
+    if(dataConnRef && dataConnRef.current && opusRef && opusRef.current){
+    opusRef.current.onmessage = message => {
+            const data = message.data;
+            if(data.type==="encode"){
+                dataConnRef.current.send(data.payload);
+            }
+            if(data.type==="decode"){
+                const audioData = new Float32Array(data.packet)
+                if(monitoringOn){
+                    handleStreamAudioRef.current(audioData,data.packetCount === 0);
+                }
+                if(data.isRecording){
+                    if(data.recordingCount>currRecordingCountRef.current){
+                        currRecordingCountRef.current = data.recordingCount;
+                        streamPacketTracker.current.fill(0);
+                    }
+                    streamPacketTracker.current[data.packetCount] = 1;
+                    const index = Math.max(0,(data.packetCount * 960) - data.lookahead);
+                    if(data.packetCount===0){
+                        audio2ChunksRef.current.copyToChannel(data.packet.slice(data.lookahead),0,0);
+                    }else{
+                        audio2ChunksRef.current.copyToChannel(data.packet,0,index);
+                    }
+                    
+                    if(data.last){
+                        const finalLength = (data.packetCount * 960) - data.lookahead;
+                        if (finalLength > 0) {
+                            const buffer = AudioCtxRef.current.createBuffer(1, finalLength, AudioCtxRef.current.sampleRate);
+                            
+                            // Get the specific slice of data that was actually written
+                            const actualData = audio2ChunksRef.current.getChannelData(0).subarray(0, finalLength);
+                            
+                            buffer.copyToChannel(actualData, 0, 0);
+                            setAudio2(buffer);
+                        }
+                        /*
+                        const buffer = AudioCtxRef.current.createBuffer(1,(data.packetCount*960)-data.lookahead,AudioCtxRef.current.sampleRate);
+                        buffer.copyToChannel(audio2ChunksRef.current.getChannelData(0),0,0)
+                        currentlyRecording.current = false;*/
+                        setMouseDragStart({trounded:0,t:0});
+                        setMouseDragEnd(null);
+                        setPlayheadLocation(0);
+                        //setAudio2(buffer);
+                        //setLoadingAudio(null);
+                        socket.current.emit("client_to_server_incoming_audio_done_processing",roomID);
+                    }
+                    else if(data.packetCount % 10 === 9){
+                        const buffer = AudioCtxRef.current.createBuffer(1,(data.packetCount*960)-data.lookahead,AudioCtxRef.current.sampleRate);
+                        buffer.copyToChannel(audio2ChunksRef.current.getChannelData(0),0,0)
+                        setAudio2(buffer);
+                    }
+                
+                }   
+            }
+        }
+    }
 
     loopingRef.current = looping;
 
@@ -590,6 +594,8 @@ function handleRecord() {
 
     const streamAudio = (packet,first) => {
         if(!monitoringOn) return;
+        const PACKET_SIZE = packet.length;
+        console.log(PACKET_SIZE);
         const incomingAudioSource = AudioCtxRef.current.createBufferSource();
         const stereoBuffer = AudioCtxRef.current.createBuffer(2,PACKET_SIZE,AudioCtxRef.current.sampleRate);
         stereoBuffer.getChannelData(0).set(packet);

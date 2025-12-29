@@ -111,36 +111,16 @@ export const useAudioRecorder = (
 
         streamOnPlayProcessor.port.onmessage = event => {
           if(numConnectedUsersRef.current >= 2){
-              if(dataConnRef.current && dataConnRef.current.open){
-              const floatArray = event.data.packet; // The incoming Float32Array
-    
-              // 1. Grab our pre-allocated refs
-              const uint8View = uint8ViewRef.current;
-              const dataView = dataViewRef.current;
-
-              // 2. Set Flags (1 byte)
-              let flags = 0;
-              if (event.data.first) flags |= 0x01;
-              if (event.data.last) flags |= 0x02;
-              flags |= 0x04; //this flag indicates audio is playback mode, not recording
-
-              uint8View[0] = flags;
-
-              // 3. Set 32-bit Packet Count (4 bytes) - No 'new' needed
-              // This writes to indices 1, 2, 3, and 4
-              dataView.setUint32(1, streamOnPlayPacketCountRef.current, false); 
-              streamOnPlayPacketCountRef.current++;
-
-              let byteOffset = 5;
-              for (let i = 0; i < floatArray.length; i++) {
-                dataView.setFloat32(byteOffset, floatArray[i], true); // little-endian
-                byteOffset += 4;
-              }
-
-              console.log(recordBufferToSendRef.current);
-
-              dataConnRef.current.send(recordBufferToSendRef.current);
-
+            if(dataConnRef.current && dataConnRef.current.open){
+              //send packet to worker to encode
+              opusRef.current.postMessage({
+                type:"encode",
+                packet:event.data.packet,
+                isRecording:false,
+                packetCount: streamOnPlayPacketCountRef.current++,
+                recordingCount: 0,
+                last: event.data.last,
+              })
             }
           }
         }
@@ -150,7 +130,6 @@ export const useAudioRecorder = (
           if(numConnectedUsersRef.current >= 2){
             if(dataConnRef.current && dataConnRef.current.open){
               //send packet to worker to encode
-              console.log("we sendin");
               opusRef.current.postMessage({
                 type:"encode",
                 packet:event.data.packet,

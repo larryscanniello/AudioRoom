@@ -595,7 +595,6 @@ function handleRecord() {
     const streamAudio = (packet,first) => {
         if(!monitoringOn) return;
         const PACKET_SIZE = packet.length;
-        console.log(PACKET_SIZE);
         const incomingAudioSource = AudioCtxRef.current.createBufferSource();
         const stereoBuffer = AudioCtxRef.current.createBuffer(2,PACKET_SIZE,AudioCtxRef.current.sampleRate);
         stereoBuffer.getChannelData(0).set(packet);

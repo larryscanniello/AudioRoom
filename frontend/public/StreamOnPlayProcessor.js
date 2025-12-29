@@ -2,18 +2,18 @@ class StreamOnPlayProcessor extends AudioWorkletProcessor {
   constructor() {
     super();
 
+    this.packetSize = 960;
     this.isStreaming = false;
     this.isPlayingBack = true;
-    this.recordingBuffer = new Float32Array(0);
+    this.recordingBuffer = new Float32Array(this.packetSize);
     this.playbackBuffer1 = new Float32Array(0);
     this.playbackBuffer2 = new Float32Array(0);
     this.clickBuffer = null;
     this.gain1 = 1.0;
     this.gain2 = 1.0;
     this.playbackPos = 0;
-    this.packetSize = 256;
+    this.packetPos = 0;
     this.firstPacket = true;
-    this.emptyPacket = false;
     this.sessionId = null;
     this.latencyFrames = 0;
     this.looping = false;
@@ -29,12 +29,13 @@ class StreamOnPlayProcessor extends AudioWorkletProcessor {
       if (e.data.actiontype === 'start'){ 
         this.sessionId = e.data.sessionId;
         this.looping = e.data.looping;
-        this.recordingBuffer = new Float32Array(0);
+        this.recordingBuffer.fill(0);
         this.isStreaming = true;
         this.playbackBuffer1 = e.data.buffer1 ?? new Float32Array(0);
         this.playbackBuffer2 = e.data.buffer2 ?? new Float32Array(0);
         this.latencyFrames = e.data.delayCompensation[0]
         this.playbackPos = this.latencyFrames-(Math.floor(.05*sampleRate)); //compensate for metronome delay
+        this.packetPos = 0;
         this.firstPacket = true;
         this.clickBuffer = e.data.clickBuffer;
         this.samplesPerBeat = sampleRate * 60 / e.data.BPM;
@@ -48,8 +49,6 @@ class StreamOnPlayProcessor extends AudioWorkletProcessor {
       if (e.data.actiontype === 'stop'){ 
         if (e.data.sessionId !== this.sessionId || this.sessionId === null) return;
         this.isStreaming = false;
-        this.playbackPos = 0;
-        this.recordingBuffer = new Float32Array(0);
         this.sessionId = null;
       };
       if (e.data.actiontype === 'metronome'){
@@ -69,23 +68,17 @@ class StreamOnPlayProcessor extends AudioWorkletProcessor {
     const input = inputs[0];
     if (!input || !input[0]) return true;
     if(this.isStreaming){
-      //do all this nonsense to keep the recordingbuffer a float 32 array
-      const existingBuffer = this.recordingBuffer;
-      const newInput = new Float32Array(input[0]);      
-      const newLength = existingBuffer.length + newInput.length;
-      const newBuffer = new Float32Array(newLength);
-      newBuffer.set(existingBuffer, 0);
-      newBuffer.set(newInput, existingBuffer.length);
-      this.recordingBuffer = newBuffer;
-      this.emptyPacket = false;
-      if(this.recordingBuffer.length>=this.packetSize){
-        this.port.postMessage({packet:this.recordingBuffer,
+      for(let j=0;j<128;j++){
+        this.recordingBuffer[this.packetPos] = input[0][j]
+        this.packetPos++;
+        if(this.packetPos >= this.packetSize){
+          this.port.postMessage({packet:this.recordingBuffer,
                                 first:this.firstPacket,
                                 last:false,
                                 playbackPos:this.playbackPos-this.latencyFrames});
-        this.recordingBuffer = new Float32Array(0);
-        this.firstPacket = false;
-        this.emptyPacket = true;
+          this.packetPos = 0;
+          this.recordingBuffer.fill(0);
+        }
       }
       //handle output for the person who's being listened to
       if(this.playbackBuffer1 && this.playbackPos<this.playbackBuffer1.length || this.playbackBuffer2 && this.playbackPos < this.playbackBuffer2.length){

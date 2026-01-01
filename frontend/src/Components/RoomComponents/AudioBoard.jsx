@@ -37,13 +37,13 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
     const [audioURL,setAudioURL] = useState(null);
     const [audio,setAudio] = useState(null);
     const [audio2,setAudio2] = useState(null);
-    const [BPM,setBPM] = useState(isDemo ? 112 : 120);
+    const [BPM,setBPM] = useState(isDemo ? 112 : 80);
     const [mouseDragStart,setMouseDragStart] = useState(isDemo ? {trounded:2.142857142857143,t:2.142857142857143} : {trounded:0,t:0}); //time in seconds
     const [mouseDragEnd,setMouseDragEnd] = useState(isDemo ? {trounded:10.714285714285714,t:10.714285714285714}: null); //time in seconds
     const [roomResponse,setRoomResponse] = useState(null);
     const [zoomFactor,setZoomFactor] = useState(2);
-    const [delayCompensation,setDelayCompensation] = useState(isDemo?[576]:[0]); //delayCompensation is in samples
-    const [delayCompensation2,setDelayCompensation2] = useState(isDemo?[576]:[0]);
+    const [delayCompensation,setDelayCompensation] = useState(isDemo?[900]:[0]); //delayCompensation is in samples
+    const [delayCompensation2,setDelayCompensation2] = useState(isDemo?[900]:[0]);
     const [currentlyAdjustingLatency,setCurrentlyAdjustingLatency] = useState(null);
     const [displayDelayCompensationMessage,setDisplayDelayCompensationMessage] = useState(false);
     const [metronomeOn,setMetronomeOn] = useState(true);
@@ -141,13 +141,20 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
     useEffect(() => {
         //This effect runs only when component first mounts. 
         //Inititializes audio context, metronome, demo stuff, sockets
-        if(!initializeAudioBoard) return;
+        if(!initializeAudioBoard && !isDemo) return;
         
         if(!audioCtxRef){
             AudioCtxRef.current = new AudioContext({latencyHint:'interactive'});
         }else{
             AudioCtxRef.current = audioCtxRef.current;
         }
+
+        const DBOpenRequest = window.indexedDB.open("toDoList");
+        DBOpenRequest.onsuccess = (event) => {
+            console.log("success",event);
+            console.log("estimate",navigator.storage.estimate());
+        };
+
         metronomeRef.current = new Metronome;
         metronomeRef.current.audioContext = AudioCtxRef.current;
         metronomeRef.current.setupAudio();
@@ -161,6 +168,7 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
         gain2Ref.current.connect(AudioCtxRef.current.destination);
         metronomeGainRef.current.connect(AudioCtxRef.current.destination);
         metronomeRef.current.gainRef = metronomeGainRef;
+        
         const getDemo = async ()=>{
             const acousticresponse = await fetch(demoacoustic)
             const electricresponse = await fetch(demoelectric)
@@ -557,6 +565,7 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
 
 function handleRecord() {
     if(currentlyRecording.current || currentlyPlayingAudio.current) return;
+    console.log('handleRecord',AudioCtxRef.current.currentTime)
     recorderRef.current.startRecording(audio2Ref.current,delayCompensation2Ref.current,autoTestLatencyRef.current);
     if(numConnectedUsersRef.current >= 2){
         socket.current.emit("start_recording_client_to_server",roomID);
@@ -1182,7 +1191,7 @@ function handleRecord() {
                                 </Button>
                             </div>
                             {!!latencyTestRes && <div className="text-green-600">
-                                Latency compensation applied.</div>}
+                                Latency compensation applied. {AudioCtxRef.current && Math.round(1000 * latencyTestRes/AudioCtxRef.current.sampleRate)} ms</div>}
                             
                             {!firstEnteredRoom && <div className="flex flex-col items-center justify-center"><div className="font-bold">Adjust latency compensation manually:
                                 </div>
@@ -1201,7 +1210,7 @@ function handleRecord() {
                                     className="pt-2 pb-2"
                                     value={delayCompensation}
                                     > 
-                                </Slider>
+                                </Slider><div className="pl-2">{AudioCtxRef.current && Math.round(1000 * delayCompensation[0]/AudioCtxRef.current.sampleRate)} ms</div>
                                 </div>}
 
                             

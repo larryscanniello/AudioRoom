@@ -62,7 +62,7 @@ export const useAudioRecorder = (
         const startRecording = (audio2,delayComp,autoTestLatency) => {
           const sessionId = crypto.randomUUID();
           sessionIdRef.current = sessionId;
-
+          
           processor.port.postMessage({
             actiontype:"start",
             buffer:audio2 ? audio2.getChannelData(0).slice():[],
@@ -154,8 +154,7 @@ export const useAudioRecorder = (
             audbuf.copyToChannel(audioChunksRef.current.getChannelData(0),0,0);
             setAudio(audbuf);
             setPlayheadLocation(0);
-
-          }else if(event.data.packetCount % 10 === 9){
+          }else if(false && event.data.packetCount % 10 === 9){
             const audbuf = AudioCtxRef.current.createBuffer(
               1,
               index,
@@ -202,19 +201,12 @@ export const useAudioRecorder = (
 
               for(let i=0;i<fullBuffer.length-barker.length;i++){
                 let correlation = 0;
-                let signalEnergy = 0;
-                let barkerEnergy = 0;
                 for(let j=0;j<barker.length;j++){
                   correlation += fullBuffer[i+j] * barker[j];
-                  //signalEnergy += fullBuffer[i+j] * fullBuffer[i+j];
-                  //barkerEnergy += barker[j] * barker[j];
                 }
-                //const denominator = Math.sqrt(signalEnergy * barkerEnergy);
-                // Use 1e-10 to prevent "Division by Zero" if the audio is silent
-                const normalizedCorr = Math.abs(correlation) / 1.0;//(denominator + 1e-10);
-                correlations.push(normalizedCorr)
-                if(normalizedCorr > greatestCorrelation){
-                  greatestCorrelation = normalizedCorr;
+                correlations.push(correlation)
+                if(correlation > greatestCorrelation){
+                  greatestCorrelation = correlation;
                   greatestIndex = i;
                 }
               }

@@ -16,6 +16,8 @@ class RecorderProcessor extends AudioWorkletProcessor {
     this.recordingCount = 0;
     this.packetPos = 0;
     this.packetCount = 0;
+    this.lookaheadSamples = Math.round(.05*sampleRate);
+    this.samplesSinceRecordButtonPressed = 0;
 
     this.port.onmessage = (e) => {
       if (e.data.actiontype === 'start'){ 
@@ -24,13 +26,15 @@ class RecorderProcessor extends AudioWorkletProcessor {
         this.isRecording = true;
         this.playbackBuffer = e.data.buffer
         this.latencyFrames = e.data.delayCompensation[0]
-        this.playbackPos = this.latencyFrames-(Math.floor(.05*sampleRate)); //compensate for metronome delay
+        this.playbackPos = this.latencyFrames-this.lookaheadSamples; //compensate for metronome delay
         this.firstPacket = true;
         this.startTime = e.data.startTime ?? 0;
         this.recordingNumber = e.data.recordingCount
         this.packetCount = 0;
         this.recordingCount = e.data.recordingCount;
         this.packetPos = 0;
+        this.samplesSinceRecordButtonPressed = 0;
+        console.log(currentTime);
       };
       if (e.data.actiontype === 'stop'){ 
         if (e.data.sessionId !== this.sessionId || this.sessionId === null) return;
@@ -53,23 +57,34 @@ class RecorderProcessor extends AudioWorkletProcessor {
   process(inputs,outputs) {
     const input = inputs[0];
     if (!input || !input[0]) return true;
-    if(this.isRecording && currentTime >= this.startTime){
-      for(let j=0;j<128;j++){
-        if(this.packetPos>=this.packetSize && this.isRecording){
-          this.port.postMessage({packet:this.recordingBuffer,
-                                  first:this.firstPacket,
-                                  last:false,
-                                  playbackPos:this.playbackPos-this.latencyFrames,
-                                  recordingCount:this.recordingCount,
-                                  packetCount:this.packetCount++,
-                                });
-          this.firstPacket = false;
-          this.emptyPacket = true;
-          this.packetPos = 0;
+    if(this.isRecording){
+      if(this.samplesSinceRecordButtonPressed < this.lookaheadSamples - 128){
+        this.samplesSinceRecordButtonPressed += 128;
+      }else{
+        let k = 0;
+        if(this.samplesSinceRecordButtonPressed < this.lookaheadSamples){
+          k = this.lookaheadSamples - this.samplesSinceRecordButtonPressed;
+          this.samplesSinceRecordButtonPressed = this.lookaheadSamples;
+          console.log(currentTime,k);
         }
-        this.recordingBuffer[this.packetPos] = input[0][j];
-        this.packetPos++;
+        for(let j=k;j<128;j++){
+          if(this.packetPos>=this.packetSize && this.isRecording){
+            this.port.postMessage({packet:this.recordingBuffer,
+                                    first:this.firstPacket,
+                                    last:false,
+                                    playbackPos:this.playbackPos-this.latencyFrames,
+                                    recordingCount:this.recordingCount,
+                                    packetCount:this.packetCount++,
+                                  });
+            this.firstPacket = false;
+            this.emptyPacket = true;
+            this.packetPos = 0;
+          }
+          this.recordingBuffer[this.packetPos] = input[0][j];
+          this.packetPos++;
+        }
       }
+      
       
       if(this.playbackPos<this.playbackBuffer.length){
         const output = outputs[0];

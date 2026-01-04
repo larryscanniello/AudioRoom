@@ -34,6 +34,7 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
 
     const [width,height] = useWindowSize();
 
+    const [timeline,setTimeline] = useState([]);
     const [audioURL,setAudioURL] = useState(null);
     const [audio,setAudio] = useState(null);
     const [audio2,setAudio2] = useState(null);
@@ -105,6 +106,11 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
     const metrStream = useRef({currSample:0,samplesPerBeat:0,isClicking:false,offset:0,})
     const streamPacketTracker = useRef(null);
 
+    const fileSystemRef = useRef(null);
+    const stagingPlaybackSABRef = useRef(null);
+    const masterPlaybackSABRef = useRef(null);
+    const recordSABRef = useRef(null);
+
     const audioChunksRef = useRef([]);
     const audio2ChunksRef = useRef([]);
 
@@ -136,7 +142,8 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
                                             metronomeGainRef,WAVEFORM_WINDOW_LEN,autoscrollEnabledRef,
                                             otherPersonRecordingRef,setLoadingAudio,setAudio2,setLatencyTestRes,
                                             streamOnPlayProcessorRef,localStreamRef,initializeRecorder,dataConnRef,
-                                            audioSourceRef,AudioCtxRef,isDemo,opusRef});
+                                            audioSourceRef,AudioCtxRef,isDemo,opusRef,fileSystemRef,
+                                            timeline,setTimeline});
 
     useEffect(() => {
         //This effect runs only when component first mounts. 
@@ -148,13 +155,6 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
         }else{
             AudioCtxRef.current = audioCtxRef.current;
         }
-
-        const DBOpenRequest = window.indexedDB.open("toDoList");
-        DBOpenRequest.onsuccess = (event) => {
-            console.log("success",event);
-            console.log("estimate",navigator.storage.estimate());
-        };
-
         metronomeRef.current = new Metronome;
         metronomeRef.current.audioContext = AudioCtxRef.current;
         metronomeRef.current.setupAudio();
@@ -168,7 +168,19 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
         gain2Ref.current.connect(AudioCtxRef.current.destination);
         metronomeGainRef.current.connect(AudioCtxRef.current.destination);
         metronomeRef.current.gainRef = metronomeGainRef;
-        
+
+        stagingPlaybackSABRef.current = new SharedArrayBuffer(48000 * 4 * 10 + 9);
+        masterPlaybackSABRef.current = new SharedArrayBuffer(48000 * 4 * 10 + 9);
+        recordSABRef.current = new SharedArrayBuffer(48000 * 4 * 10 + 9);
+
+
+        fileSystemRef.current = new Worker("/opfs_worker.js",{type:'module'});
+        fileSystemRef.current.postMessage({
+            type:"init",
+            playbackSAB:playbackSABRef.current,
+            recordSAB:recordSABRef.current,
+        });
+
         const getDemo = async ()=>{
             const acousticresponse = await fetch(demoacoustic)
             const electricresponse = await fetch(demoelectric)
@@ -565,8 +577,14 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
 
 function handleRecord() {
     if(currentlyRecording.current || currentlyPlayingAudio.current) return;
-    console.log('handleRecord',AudioCtxRef.current.currentTime)
-    recorderRef.current.startRecording(audio2Ref.current,delayCompensation2Ref.current,autoTestLatencyRef.current);
+    recorderRef.current.startRecording(
+        audio2Ref.current,delayCompensation2Ref.current,
+        autoTestLatencyRef.current,
+        playheadLocation,
+        mouseDragEnd,
+        timeline,
+        looping
+    );
     if(numConnectedUsersRef.current >= 2){
         socket.current.emit("start_recording_client_to_server",roomID);
     }
@@ -1070,14 +1088,7 @@ function handleRecord() {
                         <ButtonGroupSeparator/>
                         <Button 
                             variant="default" size={compactMode==1?"lg":"sm"} className="hover:bg-gray-800"
-                            onClick={()=>{
-                                if(!currentlyPlayingAudio.current&&!currentlyRecording.current){
-                                    recorderRef.current.startRecording(audio2,delayCompensation2,autoTestLatency);
-                                    if(numConnectedUsersRef.current >= 2){
-                                        socket.current.emit("start_recording_client_to_server",roomID);
-                                    }
-                                }
-                            }}
+                            onClick={handleRecord}
                         >
                             <Circle color={"red"}className="" style={{width:20,height:20}}/>
                         </Button>

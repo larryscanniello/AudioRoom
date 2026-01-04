@@ -10,7 +10,7 @@ export const useAudioRecorder = (
   metronomeOnRef,gain2Ref,metronomeGainRef,WAVEFORM_WINDOW_LEN,autoscrollEnabledRef,
   setLoadingAudio,otherPersonRecordingRef,setAudio2,setLatencyTestRes,streamOnPlayProcessorRef,
   autoTestLatency,localStreamRef,initializeRecorder,dataConnRef,audioSourceRef,audioCtxRef,
-  isDemo,AudioCtxRef,opusRef
+  isDemo,AudioCtxRef,opusRef,fileSystemRef,timeline,setTimeline,
 }
 ) => {
   const delayCompensationRecorderRef = useRef(null);
@@ -59,18 +59,28 @@ export const useAudioRecorder = (
         processor.connect(gain2Ref.current);
         
 
-        const startRecording = (audio2,delayComp,autoTestLatency) => {
+        const startRecording = (audio2,delayComp,autoTestLatency,timelineStart,timelineEnd,timeline,looping) => {
           const sessionId = crypto.randomUUID();
           sessionIdRef.current = sessionId;
-          
           processor.port.postMessage({
             actiontype:"start",
             buffer:audio2 ? audio2.getChannelData(0).slice():[],
             delayCompensation:delayComp,
             sessionId,
+            loop,
             startTime:AudioCtxRef.current.currentTime + (autoTestLatency ? (4*60/BPMRef.current) : 0),
             recordingCount:recordingCountRef.current++,
           });
+
+          fileSystemRef.current.postMessage({
+            type:'init_recording',
+            recordingCount:recordingCountRef.current,
+            timelineStart,
+            timelineEnd,
+            timeline,
+            looping
+          })
+          
           handleRecording(metronomeRef,autoTestLatency);
           setMouseDragStart({trounded:0,t:0});
           setMouseDragEnd(null);
@@ -124,6 +134,11 @@ export const useAudioRecorder = (
         
         processor.port.onmessage = (event) => {
 
+          if(event.data.type === "fill_playback_buffer"){
+            fileSystemRef.current.postMessage({type:"fill_playback_buffer"});
+            return;
+          }
+
           if(numConnectedUsersRef.current >= 2){
             if(dataConnRef.current && dataConnRef.current.open){
               //send packet to worker to encode
@@ -138,30 +153,59 @@ export const useAudioRecorder = (
             }
           }
 
+
           if(event.data.first){
             audioChunksRef.current.getChannelData(0).fill(0);
           }
 
-          const index = event.data.packetCount * 960;
+          
           audioChunksRef.current.copyToChannel(event.data.packet,0,index);
 
           if(event.data.last){
-            const audbuf = AudioCtxRef.current.createBuffer(
-              1,
-              index,
-              AudioCtxRef.current.sampleRate
-            )
-            audbuf.copyToChannel(audioChunksRef.current.getChannelData(0),0,0);
-            setAudio(audbuf);
-            setPlayheadLocation(0);
-          }else if(false && event.data.packetCount % 10 === 9){
-            const audbuf = AudioCtxRef.current.createBuffer(
-              1,
-              index,
-              AudioCtxRef.current.sampleRate
-            )
-            audbuf.copyToChannel(audioChunksRef.current.getChannelData(0),0,0);
-            setAudio(audbuf);
+            const index = event.data.packetCount * 960;
+            setTimeline(prev=>{
+              const start = event.data.timelineStart;
+              const end = event.data.timelineEnd;
+              const newTake = {
+                timelineStart:start,
+                timelineEnd:end,
+                takeNumber: event.data.recordingCount,
+                fileName: `take_${event.data.recordingCount}`,
+                offset: delayCompensation[0],
+                fileLength:index + event.data.packet.length,
+              }
+              if(!prev) return [newTake];
+              const updated = [];
+              let newTakePushed = false;
+              for(const t of prev){
+                if(t.start >= start && !newTakePushed){
+                  updated.push(newTake);
+                  newTakePushed = true;
+                }
+                const doesStartOverlap = t.start <= start && start < t.end;
+                const doesEndOverlap = t.start < end && end <= t.end
+                if(!doesStartOverlap && !doesEndOverlap){
+                  updated.push(t);
+                }else if(!(doesStartOverlap&&doesEndOverlap)){
+                  let newEnd = t.end; let newStart = t.start;
+                  if(doesStartOverlap){
+                    newEnd = start;
+                  }
+                  if(doesEndOverlap){
+                    newStart = end;
+                  }
+                  updated.push({
+                    timelineStart:newStart,
+                    timelineEnd:newEnd,
+                    takeNumber:t.takeNumber,
+                    fileName: t.fileName,
+                    offset: t.offset,
+                    fileLength: t.fileLength
+                  })
+                }
+              }
+            })
+
           }
         }
 

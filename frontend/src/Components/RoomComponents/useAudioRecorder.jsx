@@ -354,7 +354,7 @@ recordAnimationRef.current = updatePlayhead;
         } 
         
         
-        //recordAnimationRef.current(waveform1Ref,now + (autoTestLatency?(4*60/BPM):0));
+        recordAnimationRef.current(waveform1Ref,now + (autoTestLatency?(4*60/BPM):0));
         console.log("Recording started");
     }
   }

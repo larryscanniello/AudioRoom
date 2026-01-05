@@ -136,7 +136,7 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
                                             metronomeGainRef,WAVEFORM_WINDOW_LEN,autoscrollEnabledRef,
                                             otherPersonRecordingRef,setLoadingAudio,setAudio2,setLatencyTestRes,
                                             streamOnPlayProcessorRef,localStreamRef,initializeRecorder,dataConnRef,
-                                            audioSourceRef,AudioCtxRef,isDemo,opusRef});
+                                            audioSourceRef,AudioCtxRef,isDemo,opusRef,setCommMessage});
 
     useEffect(() => {
         //This effect runs only when component first mounts. 
@@ -149,11 +149,6 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
             AudioCtxRef.current = audioCtxRef.current;
         }
 
-        const DBOpenRequest = window.indexedDB.open("toDoList");
-        DBOpenRequest.onsuccess = (event) => {
-            console.log("success",event);
-            console.log("estimate",navigator.storage.estimate());
-        };
 
         metronomeRef.current = new Metronome;
         metronomeRef.current.audioContext = AudioCtxRef.current;

@@ -10,7 +10,7 @@ export const useAudioRecorder = (
   metronomeOnRef,gain2Ref,metronomeGainRef,WAVEFORM_WINDOW_LEN,autoscrollEnabledRef,
   setLoadingAudio,otherPersonRecordingRef,setAudio2,setLatencyTestRes,streamOnPlayProcessorRef,
   autoTestLatency,localStreamRef,initializeRecorder,dataConnRef,audioSourceRef,audioCtxRef,
-  isDemo,AudioCtxRef,opusRef
+  isDemo,AudioCtxRef,opusRef,setCommMessage
 }
 ) => {
   const delayCompensationRecorderRef = useRef(null);
@@ -35,9 +35,9 @@ export const useAudioRecorder = (
     }
 
     const initializeMedia = async () => {
+      let source;
       try {
         await AudioCtxRef.current.resume();
-        let source;
         if(!audioSourceRef){
            const stream = await navigator.mediaDevices.getUserMedia({
             audio: {
@@ -52,7 +52,9 @@ export const useAudioRecorder = (
         }else{
           source = audioSourceRef.current;
         }
-        
+
+      
+    
         await AudioCtxRef.current.audioWorklet.addModule("/RecorderProcessor.js");
         const processor = new AudioWorkletNode(AudioCtxRef.current,'RecorderProcessor');
         source.connect(processor);
@@ -237,10 +239,18 @@ export const useAudioRecorder = (
               }
             }
         };
-
-      } catch (err) {
-        console.error(`The following getUserMedia error occurred: ${err}`);
+        } catch (err) {
+        console.error(`The following getUserMedia error occurred: ${err}`)
+        setCommMessage({text:`Error: Not able to initialize mic`,time:performance.now()});
+        recorderRef.current = {
+          processor:null,
+          startRecording:()=>{},
+          stopRecording:()=>{},
+          startStreamOnPlay:()=>{},
+          stopStreamOnPlay:()=>{},
+        }
       }
+      
     };
 
     initializeMedia();

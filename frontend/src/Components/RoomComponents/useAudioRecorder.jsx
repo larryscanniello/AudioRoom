@@ -1,4 +1,3 @@
-// useAudioRecorder.js
 import { useRef, useEffect, useState } from 'react';
 
 export const useAudioRecorder = (
@@ -10,7 +9,8 @@ export const useAudioRecorder = (
   metronomeOnRef,gain2Ref,metronomeGainRef,WAVEFORM_WINDOW_LEN,autoscrollEnabledRef,
   setLoadingAudio,otherPersonRecordingRef,setAudio2,setLatencyTestRes,streamOnPlayProcessorRef,
   autoTestLatency,localStreamRef,initializeRecorder,dataConnRef,audioSourceRef,audioCtxRef,
-  isDemo,AudioCtxRef,opusRef,fileSystemRef,timeline,setTimeline,
+  isDemo,AudioCtxRef,opusRef,fileSystemRef,stagingTimeline,setStagingTimeline,
+  recordSABRef,stagingSABRef,mixSABRef,
 }
 ) => {
   const delayCompensationRecorderRef = useRef(null);
@@ -53,13 +53,29 @@ export const useAudioRecorder = (
           source = audioSourceRef.current;
         }
         
-        await AudioCtxRef.current.audioWorklet.addModule("/RecorderProcessor.js");
-        const processor = new AudioWorkletNode(AudioCtxRef.current,'RecorderProcessor');
+        await AudioCtxRef.current.audioWorklet.addModule("/AudioProcessor.js");
+        const processor = new AudioWorkletNode(AudioCtxRef.current,'AudioProcessor',{
+          processorOptions:{
+            recordSAB:recordSABRef.current,
+            stagingSAB:stagingSABRef.current,
+            mixSAB:mixSABRef.current,
+          }
+        });
         source.connect(processor);
         processor.connect(gain2Ref.current);
-        
 
-        const startRecording = (audio2,delayComp,autoTestLatency,timelineStart,timelineEnd,timeline,looping) => {
+        const startPlayback = (isStreaming,timelineStart,playbackStartTime) => {
+          processor.port.postMessage({
+            actiontype:"start",
+            isRecording:false,
+            isStreaming,
+            timelineStart,
+            timelineEnd,
+            playbackStartTime,
+          })
+        }
+
+        const startRecording = (audio2,delayComp,autoTestLatency,timelineStart,timelineEnd,timeline,looping,mixEnd) => {
           const sessionId = crypto.randomUUID();
           sessionIdRef.current = sessionId;
           processor.port.postMessage({
@@ -78,7 +94,8 @@ export const useAudioRecorder = (
             timelineStart,
             timelineEnd,
             timeline,
-            looping
+            looping,
+            mixEnd,
           })
           
           handleRecording(metronomeRef,autoTestLatency);
@@ -134,11 +151,6 @@ export const useAudioRecorder = (
         
         processor.port.onmessage = (event) => {
 
-          if(event.data.type === "fill_playback_buffer"){
-            fileSystemRef.current.postMessage({type:"fill_playback_buffer"});
-            return;
-          }
-
           if(numConnectedUsersRef.current >= 2){
             if(dataConnRef.current && dataConnRef.current.open){
               //send packet to worker to encode
@@ -163,7 +175,7 @@ export const useAudioRecorder = (
 
           if(event.data.last){
             const index = event.data.packetCount * 960;
-            setTimeline(prev=>{
+            setStagingTimeline(prev=>{
               const start = event.data.timelineStart;
               const end = event.data.timelineEnd;
               const newTake = {
@@ -209,9 +221,9 @@ export const useAudioRecorder = (
           }
         }
 
-        recorderRef.current = {processor,startRecording,stopRecording,startStreamOnPlay,stopStreamOnPlay};
+        recorderRef.current = {processor,startPlayback,startRecording,stopRecording,startStreamOnPlay,stopStreamOnPlay};
         // Setup delay compensation recorder
-        const delayCompRecorder = new AudioWorkletNode(AudioCtxRef.current,'RecorderProcessor');
+        const delayCompRecorder = new AudioWorkletNode(AudioCtxRef.current,'AudioProcessor');
         delayCompensationRecorderRef.current = delayCompRecorder;
         source.connect(delayCompRecorder);
         delayCompRecorder.connect(AudioCtxRef.current.destination);

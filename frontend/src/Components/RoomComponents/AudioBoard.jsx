@@ -34,7 +34,8 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
 
     const [width,height] = useWindowSize();
 
-    const [timeline,setTimeline] = useState([]);
+    const [stagingTimeline,setStagingTimeline] = useState([]);
+    const [mixTimeline,setMixTimeline] = useState([]);
     const [audioURL,setAudioURL] = useState(null);
     const [audio,setAudio] = useState(null);
     const [audio2,setAudio2] = useState(null);
@@ -107,8 +108,8 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
     const streamPacketTracker = useRef(null);
 
     const fileSystemRef = useRef(null);
-    const stagingPlaybackSABRef = useRef(null);
-    const masterPlaybackSABRef = useRef(null);
+    const stagingSABRef = useRef(null);
+    const mixSABRef = useRef(null);
     const recordSABRef = useRef(null);
 
     const audioChunksRef = useRef([]);
@@ -143,7 +144,7 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
                                             otherPersonRecordingRef,setLoadingAudio,setAudio2,setLatencyTestRes,
                                             streamOnPlayProcessorRef,localStreamRef,initializeRecorder,dataConnRef,
                                             audioSourceRef,AudioCtxRef,isDemo,opusRef,fileSystemRef,
-                                            timeline,setTimeline});
+                                            stagingTimeline,setStagingTimeline,recordSABRef,mixSABRef,stagingSABRef});
 
     useEffect(() => {
         //This effect runs only when component first mounts. 
@@ -169,15 +170,16 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
         metronomeGainRef.current.connect(AudioCtxRef.current.destination);
         metronomeRef.current.gainRef = metronomeGainRef;
 
-        stagingPlaybackSABRef.current = new SharedArrayBuffer(48000 * 4 * 10 + 9);
-        masterPlaybackSABRef.current = new SharedArrayBuffer(48000 * 4 * 10 + 9);
+        stagingSABRef.current = new SharedArrayBuffer(48000 * 4 * 10 + 9);
+        mixSABRef.current = new SharedArrayBuffer(48000 * 4 * 10 + 9);
         recordSABRef.current = new SharedArrayBuffer(48000 * 4 * 10 + 9);
 
 
         fileSystemRef.current = new Worker("/opfs_worker.js",{type:'module'});
         fileSystemRef.current.postMessage({
             type:"init",
-            playbackSAB:playbackSABRef.current,
+            stagingPlaybackSAB:stagingPlaybackSABRef.current,
+            mixPlaybackSAB:mixPlaybackSABRef.current,
             recordSAB:recordSABRef.current,
         });
 
@@ -583,7 +585,8 @@ function handleRecord() {
         playheadLocation,
         mouseDragEnd,
         timeline,
-        looping
+        looping,
+        mixTimeline ? mixTimeline[-1].end : mouseDragEnd,
     );
     if(numConnectedUsersRef.current >= 2){
         socket.current.emit("start_recording_client_to_server",roomID);
@@ -694,7 +697,22 @@ function handleRecord() {
         incomingAudioSource.start(startTime);
     }
 
+
     const handlePlayAudio = (fromOtherPerson) => {
+        recorderRef.current.startPlayback(
+            otherPersonMonitoringOn,looping,playheadLocation,mouseDragEnd,
+            AudioCtxRef.current.currentTime+.05,mouseDragEnd
+        )
+        if(numConnectedUsersRef.current>=2 && fromOtherPerson){
+            socket.current.emit("comm_event",{type:"notify_that_partner_audio_played",roomID});
+            clearTimeout(commsClearTimeoutRef.current);
+            setCommMessage({text:"Partner played audio",time:performance.now()});
+            setTimeout(()=>setCommMessage(""),COMM_TIMEOUT_TIME);
+        }
+    }
+
+
+    const oldhandlePlayAudio = (fromOtherPerson) => {
         //This function handles the dirty work of playing audio correctly no matter where the playhead is
         if(currentlyPlayingAudio.current || currentlyRecording.current) return;
         autoscrollEnabledRef.current = true;
@@ -891,10 +909,15 @@ function handleRecord() {
             playingAudioRef2.current.stop();
         }
         keepRecordingRef.current = keepRecording;
+        if(currentlyPlayingAudio.current){
+            fileSystemRef.current.postMessage({type:"stop_playback"})
+        }
         if(currentlyRecording.current){
             recorderRef.current.stopRecording(keepRecording);
+            fileSystemRef.current.postMessage({type:"stop_recording"})
         }
         currentlyRecording.current = false;
+        currentlyPlayingAudio.current = false;
         recorderRef.current.stopStreamOnPlay();
         if(numConnectedUsersRef.current >= 2 && fromOtherPerson && currentlyPlayingAudio.current){
             socket.current.emit("comm_event",{roomID,type:"notify_that_partner_audio_stopped"});
@@ -902,7 +925,6 @@ function handleRecord() {
             setCommMessage({text:"Partner stopped audio",time:performance.now()});
             setTimeout(()=>setCommMessage(""),COMM_TIMEOUT_TIME);
         }
-        currentlyPlayingAudio.current = false;
         metronomeRef.current.stop();
         if(numConnectedUsersRef.current >=2 && sendSocket){
             socket.current.emit("stop_audio_client_to_server",roomID);

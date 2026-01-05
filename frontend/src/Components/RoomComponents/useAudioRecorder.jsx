@@ -64,39 +64,36 @@ export const useAudioRecorder = (
         source.connect(processor);
         processor.connect(gain2Ref.current);
 
-        const startPlayback = (isStreaming,timelineStart,playbackStartTime) => {
-          processor.port.postMessage({
-            actiontype:"start",
-            isRecording:false,
-            isStreaming,
-            timelineStart,
-            timelineEnd,
-            playbackStartTime,
-          })
-        }
-
-        const startRecording = (audio2,delayComp,autoTestLatency,timelineStart,timelineEnd,timeline,looping,mixEnd) => {
-          const sessionId = crypto.randomUUID();
+        const startPlayback = (isStreaming,looping,timelineStart,timelineEnd,startTime,endTime) => {
+          const sessionId = crypto.randomUUID()
           sessionIdRef.current = sessionId;
           processor.port.postMessage({
             actiontype:"start",
-            buffer:audio2 ? audio2.getChannelData(0).slice():[],
-            delayCompensation:delayComp,
-            sessionId,
-            loop,
-            startTime:AudioCtxRef.current.currentTime + (autoTestLatency ? (4*60/BPMRef.current) : 0),
-            recordingCount:recordingCountRef.current++,
-          });
+            sessionId,isRecording:false,isStreaming,
+            looping,recordingCount:0,timelineStart,
+            timelineEnd,startTime,endTime
+          })
+        }
+
+        const startRecording = (isStreaming,autoTestLatency,timelineStart,timelineEnd,timeline,looping) => {
 
           fileSystemRef.current.postMessage({
             type:'init_recording',
             recordingCount:recordingCountRef.current,
-            timelineStart,
-            timelineEnd,
-            timeline,
-            looping,
-            mixEnd,
+            timelineStart,timelineEnd,timeline,
+            looping,mixEnd,
           })
+
+          const sessionId = crypto.randomUUID();
+          sessionIdRef.current = sessionId;
+          processor.port.postMessage({
+            actiontype:"start",
+            sessionId,isRecording:true,isStreaming,
+            looping,recordingCount:0,timelineStart,
+            timelineEnd,startTime,endTime
+          });
+
+          
           
           handleRecording(metronomeRef,autoTestLatency);
           setMouseDragStart({trounded:0,t:0});

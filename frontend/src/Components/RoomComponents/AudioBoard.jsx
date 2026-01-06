@@ -201,9 +201,7 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
                 setPlayheadLocation(0);
                 scrollWindowRef.current.scrollLeft = 0;
                 if(numConnectedUsersRef.current>=2){
-                    socket.current.emit("send_play_window_to_server",{
-                        mouseDragStart:{trounded:0,t:0},mouseDragEnd:null,snapToGrid,roomID
-                    })
+                    socket.current.emit("handle_skipback_client_to_server",roomID);
                 }
             }
             if(e.key===" "){
@@ -260,12 +258,16 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
                 setMouseDragStart({trounded:0,t:0});
                 scrollWindowRef.current.scrollLeft = 0;
                 setPlayheadLocation(0);
+
                 if(numConnectedUsersRef.current >= 2){
                     socket.current.emit("comm_event",
                         {   type: "notify_that_partner_playhead_moved",
                             roomID,
                             locationByMeasure:"1.1"});
                 }
+                clearTimeout(commsClearTimeoutRef.current);
+                setCommMessage({text:`Partner moved playhead to 1.1`,time:performance.now()});
+                commsClearTimeoutRef.current = setTimeout(()=>setCommMessage(""),COMM_TIMEOUT_TIME)
             })
             
             socket.current.on("request_audio_server_to_client", (data) => {
@@ -311,7 +313,7 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
 
             socket.current.on("start_recording_server_to_client",()=>{
                 currentlyRecording.current = true;
-                //recordAnimationRef.current(waveform2Ref,AudioCtxRef.current.currentTime);
+                recordAnimationRef.current(waveform2Ref,AudioCtxRef.current.currentTime);
                 otherPersonRecordingRef.current = true;
             });
 
@@ -525,8 +527,8 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
                         setMouseDragStart({trounded:0,t:0});
                         setMouseDragEnd(null);
                         setPlayheadLocation(0);
-                        //setAudio2(buffer);
-                        //setLoadingAudio(null);
+                        setAudio2(buffer);
+                        setLoadingAudio(null);
                         socket.current.emit("client_to_server_incoming_audio_done_processing",roomID);
                     }
                     else if(data.packetCount % 10 === 9){

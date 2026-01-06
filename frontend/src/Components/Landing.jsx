@@ -16,11 +16,24 @@ export default function Landing() {
           <h6 className="mt-8 text-6xl">audioroom</h6>
           <h4 className="mt-4 text-2xl">Video chat + shared recorder for music and audio</h4>
         </div>
-        <div className="p-4"> 
+        <div className="mt-4 w-full max-w-4xl mx-auto px-4">
+          <div className="video-responsive flex flex-col items-center aspect-video bg-black">
+            <iframe
+              width="900"
+              height="480"
+              src={`https://www.youtube.com/embed/ZnZH4bo4yi4`}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+              title="Embedded youtube"
+              
+            />
+          </div>
+        </div>
+        {/*<div className="p-4"> 
           <AudioBoard isDemo={true} firstEnteredRoom={false} setFirstEnteredRoom={()=>{}}
             setVideoAudio={()=>{}} initializeAudioBoard={true} audioSourceRef={null}
             />
-        </div>
+        </div>*/}
         
         <div className="w-full flex flex-col items-center">
             <ul className="pt-4 text-xl flex flex-col "> 

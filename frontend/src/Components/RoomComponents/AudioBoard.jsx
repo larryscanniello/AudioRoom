@@ -170,16 +170,17 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
         metronomeGainRef.current.connect(AudioCtxRef.current.destination);
         metronomeRef.current.gainRef = metronomeGainRef;
 
-        stagingSABRef.current = new SharedArrayBuffer(48000 * 4 * 10 + 9);
-        mixSABRef.current = new SharedArrayBuffer(48000 * 4 * 10 + 9);
-        recordSABRef.current = new SharedArrayBuffer(48000 * 4 * 10 + 9);
+        stagingSABRef.current = new SharedArrayBuffer(48000 * 4 * 10 + 12);
+        mixSABRef.current = new SharedArrayBuffer(48000 * 4 * 10 + 12);
+        recordSABRef.current = new SharedArrayBuffer(48000 * 4 * 10 + 12);
 
 
         fileSystemRef.current = new Worker("/opfs_worker.js",{type:'module'});
+        console.log('check');
         fileSystemRef.current.postMessage({
             type:"init",
-            stagingPlaybackSAB:stagingPlaybackSABRef.current,
-            mixPlaybackSAB:mixPlaybackSABRef.current,
+            stagingPlaybackSAB:stagingSABRef.current,
+            mixPlaybackSAB:mixSABRef.current,
             recordSAB:recordSABRef.current,
         });
 
@@ -579,14 +580,19 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
 
 function handleRecord() {
     if(currentlyRecording.current || currentlyPlayingAudio.current) return;
+    currentlyRecording.current = true;
+    const startTime = AudioCtxRef.current.currentTime + .05
+    const endTime = looping ? 
+        null : mouseDragEnd ? 
+        (startTime + mouseDragEnd.trounded - playheadLocation) : startTime + 32 * 4 * (60/BPM);
     recorderRef.current.startRecording(
-        audio2Ref.current,delayCompensation2Ref.current,
-        autoTestLatencyRef.current,
+        false,
+        false,
         playheadLocation,
-        mouseDragEnd,
-        timeline,
+        mixTimeline,
         looping,
-        mixTimeline ? mixTimeline[-1].end : mouseDragEnd,
+        startTime,
+        endTime,
     );
     if(numConnectedUsersRef.current >= 2){
         socket.current.emit("start_recording_client_to_server",roomID);
@@ -913,7 +919,7 @@ function handleRecord() {
             fileSystemRef.current.postMessage({type:"stop_playback"})
         }
         if(currentlyRecording.current){
-            recorderRef.current.stopRecording(keepRecording);
+            recorderRef.current.stopRecording(keepRecording,AudioCtxRef.current.currentTime);
             fileSystemRef.current.postMessage({type:"stop_recording"})
         }
         currentlyRecording.current = false;
@@ -1079,6 +1085,7 @@ function handleRecord() {
                                 WAVEFORM_WINDOW_LEN={WAVEFORM_WINDOW_LEN} autoscrollEnabledRef={autoscrollEnabledRef}
                                 setZoomFactor={setZoomFactor} compactMode={compactMode} loadingAudio={loadingAudio}
                                 pxPerSecondRef={pxPerSecondRef} convertTimeToMeasuresRef={convertTimeToMeasuresRef}
+                                fileSystemRef={fileSystemRef} stagingTimeline={stagingTimeline}
                     />
                     {/*<Button variant="default" size={compactMode==1?"lg":"sm"} onClick={()=>setSnapToGrid(prev=>!prev)} 
                         className="border-1 border-gray-300 hover:bg-gray-800"

@@ -33,7 +33,7 @@ export const useAudioRecorder = (
       console.error("getUserMedia not supported on your browser!");
       return;
     }
-
+    
     const initializeMedia = async () => {
       try {
         await AudioCtxRef.current.resume();
@@ -54,13 +54,14 @@ export const useAudioRecorder = (
         }
         
         await AudioCtxRef.current.audioWorklet.addModule("/AudioProcessor.js");
-        const processor = new AudioWorkletNode(AudioCtxRef.current,'AudioProcessor',{
-          processorOptions:{
-            recordSAB:recordSABRef.current,
-            stagingSAB:stagingSABRef.current,
-            mixSAB:mixSABRef.current,
-          }
-        });
+        console.log('test',stagingSABRef.current)
+        const processor = new AudioWorkletNode(AudioCtxRef.current,'AudioProcessor');
+        processor.port.postMessage({
+          actiontype:"init",
+          recordSAB:recordSABRef.current,
+          stagingSAB:stagingSABRef.current,
+          mixSAB:mixSABRef.current,
+        })
         source.connect(processor);
         processor.connect(gain2Ref.current);
 
@@ -75,27 +76,28 @@ export const useAudioRecorder = (
           })
         }
 
-        const startRecording = (isStreaming,autoTestLatency,timelineStart,timelineEnd,timeline,looping) => {
+        const startRecording = (isStreaming,autoTestLatency,timelineStart,timeline,looping,startTime,endTime) => {
+
 
           fileSystemRef.current.postMessage({
             type:'init_recording',
-            recordingCount:recordingCountRef.current,
-            timelineStart,timelineEnd,timeline,
-            looping,mixEnd,
+            timelineStart,timeline,
+            looping,
           })
 
           const sessionId = crypto.randomUUID();
           sessionIdRef.current = sessionId;
+
           processor.port.postMessage({
             actiontype:"start",
             sessionId,isRecording:true,isStreaming,
             looping,recordingCount:0,timelineStart,
-            timelineEnd,startTime,endTime
+            startTime,endTime
           });
 
           
           
-          handleRecording(metronomeRef,autoTestLatency);
+          //handleRecording(metronomeRef,autoTestLatency);
           setMouseDragStart({trounded:0,t:0});
           setMouseDragEnd(null);
           recordPacketCountRef.current = 0;
@@ -113,12 +115,8 @@ export const useAudioRecorder = (
         streamOnPlayProcessor.connect(AudioCtxRef.current.destination);
         streamOnPlayProcessorRef.current = streamOnPlayProcessor;
 
-
-
-        
-
-        const stopRecording = (keepRecording) => {
-          processor.port.postMessage({actiontype:"stop",keepRecording,sessionId:sessionIdRef.current});
+        const stopRecording = (keepRecording,timelineEnd) => {
+          processor.port.postMessage({actiontype:"stop",keepRecording,sessionId:sessionIdRef.current,timelineEnd});
           if(numConnectedUsersRef.current >= 2 && !otherPersonRecordingRef.current){
             socket.current.emit("comm_event",{
               type:"recording_stopped",
@@ -147,43 +145,18 @@ export const useAudioRecorder = (
         }
         
         processor.port.onmessage = (event) => {
-
-          if(numConnectedUsersRef.current >= 2){
-            if(dataConnRef.current && dataConnRef.current.open){
-              //send packet to worker to encode
-              opusRef.current.postMessage({
-                type:"encode",
-                packet:event.data.packet,
-                isRecording:true,
-                packetCount: recordPacketCountRef.current++,
-                recordingCount: event.data.recordingCount,
-                last: event.data.last,
-              })
-            }
-          }
-
-
-          if(event.data.first){
-            audioChunksRef.current.getChannelData(0).fill(0);
-          }
-
-          
-          audioChunksRef.current.copyToChannel(event.data.packet,0,index);
-
-          if(event.data.last){
-            const index = event.data.packetCount * 960;
+          console.log('processor sent mess')
+            const {timelineStart,timelineEnd,takeNumber,fileName,fileLength} = event.data;
             setStagingTimeline(prev=>{
-              const start = event.data.timelineStart;
-              const end = event.data.timelineEnd;
               const newTake = {
-                timelineStart:start,
-                timelineEnd:end,
-                takeNumber: event.data.recordingCount,
-                fileName: `take_${event.data.recordingCount}`,
+                timelineStart,
+                timelineEnd,
+                takeNumber,
+                fileName,
                 offset: delayCompensation[0],
-                fileLength:index + event.data.packet.length,
+                fileLength,
               }
-              if(!prev) return [newTake];
+              if(prev.length === 0){console.log('timeline check'); return [newTake];};
               const updated = [];
               let newTakePushed = false;
               for(const t of prev){
@@ -206,16 +179,17 @@ export const useAudioRecorder = (
                   updated.push({
                     timelineStart:newStart,
                     timelineEnd:newEnd,
-                    takeNumber:t.takeNumber,
+                    takeNumber: t.takeNumber,
                     fileName: t.fileName,
                     offset: t.offset,
                     fileLength: t.fileLength
                   })
                 }
               }
+              return updated;
             })
 
-          }
+          
         }
 
         recorderRef.current = {processor,startPlayback,startRecording,stopRecording,startStreamOnPlay,stopStreamOnPlay};
@@ -390,8 +364,8 @@ recordAnimationRef.current = updatePlayhead;
         
         const now = AudioCtxRef.current.currentTime;
 
-        metRef.current.currentBeatInBar = 0;
-        metRef.current.start(now,true);
+        //metRef.current.currentBeatInBar = 0;
+        //metRef.current.start(now,true);
         if(autoTestLatency){
           startDelayCompensationRecording(metRef);
         } 

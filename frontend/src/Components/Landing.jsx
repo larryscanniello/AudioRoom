@@ -17,11 +17,11 @@ export default function Landing() {
           <h4 className="mt-4 text-2xl">Video chat + shared recorder for music and audio</h4>
         </div>
         <div className="mt-4 w-full max-w-4xl mx-auto px-4">
-          <div className="video-responsive flex flex-col items-center aspect-video bg-black">
+          <div className="video-responsive flex flex-col items-center aspect-video">
             <iframe
               width="900"
               height="480"
-              src={`https://www.youtube.com/embed/ZnZH4bo4yi4`}
+              src={`https://www.youtube.com/embed/oN72QALuHg8`}
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen
               title="Embedded youtube"

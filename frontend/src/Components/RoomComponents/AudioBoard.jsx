@@ -176,7 +176,6 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
 
 
         fileSystemRef.current = new Worker("/opfs_worker.js",{type:'module'});
-        console.log('check');
         fileSystemRef.current.postMessage({
             type:"init",
             stagingPlaybackSAB:stagingSABRef.current,
@@ -435,7 +434,8 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
             }
             AudioCtxRef.current?.close();
             opusRef.current.terminate();
-            window.removeEventListener("keydown",handleKeyDown)
+            window.removeEventListener("keydown",handleKeyDown);
+            fileSystemRef.current.terminate();
         }
 
         
@@ -705,10 +705,15 @@ function handleRecord() {
 
 
     const handlePlayAudio = (fromOtherPerson) => {
+        const startTime = AudioCtxRef.current.currentTime + .05
+        const endTime = looping ? 
+        null : mouseDragEnd ? 
+        (startTime + mouseDragEnd.trounded - playheadLocation) : startTime + 32 * 4 * (60/BPM);
         recorderRef.current.startPlayback(
             otherPersonMonitoringOn,looping,playheadLocation,mouseDragEnd,
-            AudioCtxRef.current.currentTime+.05,mouseDragEnd
+            startTime,endTime,stagingTimeline
         )
+        currentlyPlayingAudio.current = true;
         if(numConnectedUsersRef.current>=2 && fromOtherPerson){
             socket.current.emit("comm_event",{type:"notify_that_partner_audio_played",roomID});
             clearTimeout(commsClearTimeoutRef.current);
@@ -916,6 +921,7 @@ function handleRecord() {
         }
         keepRecordingRef.current = keepRecording;
         if(currentlyPlayingAudio.current){
+            recorderRef.current.stopPlayback(AudioCtxRef.currentTime);
             fileSystemRef.current.postMessage({type:"stop_playback"})
         }
         if(currentlyRecording.current){

@@ -57,7 +57,6 @@ export default function RecorderInterface({
 
     useEffect(()=>{
         fillSelectedRegion(waveform1Ref);
-        console.log('ineffect: ',stagingTimeline);
         if(stagingTimeline && stagingTimeline.length > 0){
             drawWaveform();
         }   
@@ -165,7 +164,6 @@ export default function RecorderInterface({
     }
 
     if(fileSystemRef.current) {fileSystemRef.current.onmessage = ({data}) => {
-        console.log('onmessaged',data.bigArr);
         const canvRef = waveform1Ref;
         const dataArray = new Float32Array(data.bigArr);
         const canvasCtx = canvRef.current.getContext('2d');

@@ -54,7 +54,6 @@ export const useAudioRecorder = (
         }
         
         await AudioCtxRef.current.audioWorklet.addModule("/AudioProcessor.js");
-        console.log('test',stagingSABRef.current)
         const processor = new AudioWorkletNode(AudioCtxRef.current,'AudioProcessor');
         processor.port.postMessage({
           actiontype:"init",
@@ -65,7 +64,7 @@ export const useAudioRecorder = (
         source.connect(processor);
         processor.connect(gain2Ref.current);
 
-        const startPlayback = (isStreaming,looping,timelineStart,timelineEnd,startTime,endTime) => {
+        const startPlayback = (isStreaming,looping,timelineStart,timelineEnd,startTime,endTime,stagingTimeline) => {
           const sessionId = crypto.randomUUID()
           sessionIdRef.current = sessionId;
           processor.port.postMessage({
@@ -74,6 +73,9 @@ export const useAudioRecorder = (
             looping,recordingCount:0,timelineStart,
             timelineEnd,startTime,endTime
           })
+          fileSystemRef.current.postMessage({
+            type:"init_playback",stagingTimeline,timelineStart,timelineEnd
+          });
         }
 
         const startRecording = (isStreaming,autoTestLatency,timelineStart,timeline,looping,startTime,endTime) => {
@@ -145,18 +147,17 @@ export const useAudioRecorder = (
         }
         
         processor.port.onmessage = (event) => {
-          console.log('processor sent mess')
             const {timelineStart,timelineEnd,takeNumber,fileName,fileLength} = event.data;
             setStagingTimeline(prev=>{
               const newTake = {
-                timelineStart,
-                timelineEnd,
-                takeNumber,
-                fileName,
+                start:timelineStart,
+                end:timelineEnd,
+                number:takeNumber,
+                name:fileName,
                 offset: delayCompensation[0],
-                fileLength,
+                length:fileLength,
               }
-              if(prev.length === 0){console.log('timeline check'); return [newTake];};
+              if(prev.length === 0){return [newTake];};
               const updated = [];
               let newTakePushed = false;
               for(const t of prev){
@@ -177,22 +178,25 @@ export const useAudioRecorder = (
                     newStart = end;
                   }
                   updated.push({
-                    timelineStart:newStart,
-                    timelineEnd:newEnd,
-                    takeNumber: t.takeNumber,
-                    fileName: t.fileName,
+                    start:newStart,
+                    end:newEnd,
+                    number: t.number,
+                    name: t.name,
                     offset: t.offset,
-                    fileLength: t.fileLength
+                    length: t.length,
                   })
                 }
               }
               return updated;
             })
-
-          
         }
 
-        recorderRef.current = {processor,startPlayback,startRecording,stopRecording,startStreamOnPlay,stopStreamOnPlay};
+        const stopPlayback = (endTime)=>{
+          processor.port.postMessage({actiontype:"stop",endTime,sessionId:sessionIdRef.current});
+          fileSystemRef.current.postMessage({type:"stop_playback"});
+        }
+
+        recorderRef.current = {processor,startPlayback,stopPlayback,startRecording,stopRecording,startStreamOnPlay,stopStreamOnPlay};
         // Setup delay compensation recorder
         const delayCompRecorder = new AudioWorkletNode(AudioCtxRef.current,'AudioProcessor');
         delayCompensationRecorderRef.current = delayCompRecorder;

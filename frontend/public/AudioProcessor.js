@@ -90,11 +90,10 @@ class AudioProcessor extends AudioWorkletProcessor {
       })
     }
     if (data.actiontype === 'start'){ 
-      console.log('ap started');
       Object.assign(this.state, {
         sessionId: data.sessionId,
-        isRecording: true,//data.isRecording,
-        isPlaying: !data.isRecording,
+        isRecording: data.isRecording,//data.isRecording,
+        isPlayback: !data.isRecording,
         isStreaming: data.isStreaming,
         looping: data.looping,
         packetCount: 0,
@@ -107,20 +106,16 @@ class AudioProcessor extends AudioWorkletProcessor {
       });
       Object.assign(this.absolute,{
         start:Math.round(sampleRate * data.startTime),
-        end: Math.round(sampleRate * data.endTime),
+        end: data.endTime ? Math.round(sampleRate * data.endTime) : null,
         packetPos: 0,
       }
       )
     };
     if (data.actiontype === 'stop'){ 
       if (data.sessionId !== this.state.sessionId || this.state.sessionId === null) return;
-      console.log('ap stopped');
-      this.state.isPlayback = false;
-      this.state.isRecording = false;
       this.absolute.end = Math.round(data.endTime * sampleRate); //record an extra half seconds for crossfades
       this.state.sessionId = null;
-      console.log('tl',this.timeline,'data.timelineEnd',data.timelineEnd,'abs',this.absolute)
-      if(true || this.state.isRecording){
+      if(this.state.isRecording){
         this.port.postMessage({
           timelineStart: this.timeline.start,
           timelineEnd: this.timeline.start + ((data.timelineEnd*sampleRate) - this.absolute.start),
@@ -129,40 +124,37 @@ class AudioProcessor extends AudioWorkletProcessor {
           fileLength: this.absolute.end + this.halfSecondInSamples - this.absolute.start,
         })
       }
+      this.state.isPlayback = false;
+      this.state.isRecording = false;
     };
   }
 
   readTo(reader,type){
-      const readPos = Atomics.load(this.pointers[type].read, 0);
+      let readPos = Atomics.load(this.pointers[type].read, 0);
+     
       const writePos = Atomics.load(this.pointers[type].write, 0);
       const isFull = Atomics.load(this.pointers[type].isFull,0);
-      if (isFull) {
-        return 0
-      }
-      const available = (writePos - readPos + this.buffers[type].length) % this.buffers[type].length;
-      const readLength = Math.min(available, reader.length)
+      if(readPos===writePos && !isFull) return;
+      let available = (writePos - readPos + this.buffers[type].length) % this.buffers[type].length;
+      if(readPos === writePos){available = this.buffers[type].length;}
+      const readLength = Math.min(available, this.readers[type].length)
       const bufferLength = this.buffers[type].length;
       const first = Math.min(bufferLength - readPos, readLength);
       const second = readLength - first;
 
-      this.copy(playbackBuffer, readPos, reader, 0, first)
-      this.copy(playbackBuffer, 0, reader, first, second)
+      this.readers[type].set(this.buffers[type].subarray(readPos,readPos+first),0);
+      this.readers[type].set(this.buffers[type].subarray(0,second),first);
 
-      Atomics.store(
-        this.pointers[type].read,
-        0,
-        (readPos + readLength) % this.storage.length,
-      )
-      Atomics.store(this.readers[type].isFull,0,0);
+      readPos = (readPos + readLength) % this.buffers[type].length;
+
+      Atomics.store(this.pointers[type].read,0,readPos)
+      if(readPos !== Atomics.load(this.pointers[type].write,0) && readLength>0){
+        Atomics.store(this.pointers[type].isFull,0,0);
+      };
+      
 
       return readLength
     }
-
-  copy(input,offset_input,output,offset_output,size){
-    for (let i = 0; i < size; i++) {
-      output[offset_output + i] = input[offset_input + i]
-    }
-  }
 
   writeToRingBuffer() {
     let samplesWritten = 0;
@@ -174,7 +166,6 @@ class AudioProcessor extends AudioWorkletProcessor {
         const chunkLength = Math.min(samplesToFill - samplesWritten, remainingInPhysicalBuffer,this.buffers.record.length - sabWritePtr);
         const readerSubarray = this.readers.record.subarray(readerReadPtr,readerReadPtr+chunkLength);
         this.buffers.record.set(readerSubarray,sabWritePtr);
-        
         sabWritePtr = (sabWritePtr + chunkLength) % this.buffers.record.length;
         samplesWritten += chunkLength;
     }
@@ -185,20 +176,14 @@ class AudioProcessor extends AudioWorkletProcessor {
 }
 
   process(inputs,outputs) {
+    
     if(!this.state.isRecording && !this.state.isPlayback) return true;
-    /*
-    if(currentFrame+PROCESS_FRAMES<this.absolute.start){ return true;}
+    if(currentFrame+PROCESS_FRAMES<this.absolute.start) return true;
     //if not looping and at timeline end, stop playback
-    if(!this.looping && currentFrame - this.absolute.start > this.timeline.end - this.timeline.start){
-      this.state.isPlayback = false;
-    }
-    if(!this.looping && currentFrame - this.absolute.start - (.5 * sampleRate) > this.timeline.end - this.timeline.start){
-      this.state.isRecording = false;
-    }
     if(this.absolute.end){
       if(currentFrame > this.absolute.end){this.state.isPlayback = false;}
       if(currentFrame > this.absolute.end + this.halfSecondInSamples){this.state.isRecording = false;}
-    }*/
+    }
     const framesToDelay = 0//Math.max(0,this.absolute.start-currentFrame);
     const input = inputs[0];
     if (!input || !input[0]) return true;
@@ -213,7 +198,7 @@ class AudioProcessor extends AudioWorkletProcessor {
       this.absolute.packetPos++;
     }
     
-    //if(this.state.isPlayback) this.readTo(this.readers.staging,"staging");
+    if(this.state.isPlayback) this.readTo(this.readers.staging,"staging");
     //this.readTo(this.readers.mix,"mix");
     
     const output = outputs[0];
@@ -221,18 +206,17 @@ class AudioProcessor extends AudioWorkletProcessor {
     for (let i = 0; i < PROCESS_FRAMES; i++) {
       if(!this.state.isRecording && !this.state.isPlayback) break;
         for (let channel = 0; channel < 2; channel++) {
-          output[channel][i] = this.readers.mix[2 * i + channel] + (this.isPlayback ? this.readers.staging[i] : 0);
+          output[channel][i] = /*this.readers.mix[2 * i + channel]*/ (this.state.isPlayback ? this.readers.staging[i] : 0);
         }
     }
-
+    let isNonZero = false;
+    for(let i=0;i<PROCESS_FRAMES;i++){
+      if(output[0][i]!==0){
+        isNonZero = true;
+      }
+    }
     return true;
   }
 }
-
-
-
-
-
-
 
 registerProcessor("AudioProcessor", AudioProcessor);

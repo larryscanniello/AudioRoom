@@ -168,19 +168,22 @@ export const useAudioRecorder = (
                   updated.push(newTake);
                   newTakePushed = true;
                 }
-                const doesStartOverlap = t.start <= timelineStart && timelineStart < t.end;
-                const doesEndOverlap = t.start < timelineEnd && timelineEnd <= t.end
+                /*const doesStartOverlap = t.start <= timelineStart && timelineStart <= t.end;
+                const doesEndOverlap = t.start <= timelineEnd && timelineEnd <= t.end*/
+                const doesStartOverlap = timelineStart <= t.start && t.start <= timelineEnd;
+                const doesEndOverlap = timelineStart <= t.end && t.end <= timelineEnd
                 if(!doesStartOverlap && !doesEndOverlap){
                   updated.push(t);
                 }else if(!(doesStartOverlap&&doesEndOverlap)){
                   let newEnd = t.end; let newStart = t.start;
-                  if(doesStartOverlap){
+                  if(doesEndOverlap){
                     newEnd = timelineStart;
                   }
-                  if(doesEndOverlap){
+                  if(doesStartOverlap){
                     newStart = timelineEnd;
                   }
-                  updated.push({
+                  if(newStart<newEnd){
+                    updated.push({
                     start:newStart,
                     end:newEnd,
                     number: t.number,
@@ -188,6 +191,7 @@ export const useAudioRecorder = (
                     offset: t.offset,
                     length: t.length,
                   })
+                  }
                 }
               }
               if(!newTakePushed){updated.push(newTake);}

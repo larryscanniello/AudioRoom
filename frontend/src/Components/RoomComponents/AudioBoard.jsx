@@ -705,16 +705,38 @@ function handleRecord() {
 
 
     const handlePlayAudio = (fromOtherPerson) => {
-        const startTime = AudioCtxRef.current.currentTime + .05
-        const endTime = looping ? 
+        const startTimeAbsolute = AudioCtxRef.current.currentTime + .05
+        const endTimeAbsolute = looping ? 
         null : mouseDragEnd ? 
-        (startTime + mouseDragEnd.trounded - playheadLocation) : startTime + 32 * 4 * (60/BPM);
+        (startTimeAbsolute + mouseDragEnd.trounded - playheadLocation) : startTime + 32 * 4 * (60/BPM);
         recorderRef.current.startPlayback(
             otherPersonMonitoringOn,looping,playheadLocation,mouseDragEnd,
-            startTime,endTime,stagingTimeline
+            startTimeAbsolute,endTimeAbsolute,stagingTimeline
         )
+        const totalTime = (128*60/BPM)
+        const pixelsPerSecond = Math.floor(WAVEFORM_WINDOW_LEN*zoomFactor)/(128*60/BPM);
+        let startTimeRelative = 0;
+        let endTimeRelative = totalTime;
+        let timeToNextMeasure = 0;
+        if(mouseDragStart&&(!mouseDragEnd||!snapToGrid)){
+            startTimeRelative = totalTime * mouseDragStart.t*pixelsPerSecond/waveform1Ref.current.width;
+            const nextBeat = 128*mouseDragStart.t*pixelsPerSecond/waveform1Ref.current.width
+            metronomeRef.current.currentBeatInBar = Math.ceil(nextBeat)%4
+            const beatFractionToNextMeasure = Math.ceil(nextBeat)-nextBeat
+            const secondsPerBeat = (60/BPM)
+            timeToNextMeasure = beatFractionToNextMeasure * secondsPerBeat
+        }else if(mouseDragStart&&mouseDragEnd&&snapToGrid){
+            startTimeRelative = totalTime * mouseDragStart.trounded*pixelsPerSecond/ waveform1Ref.current.width;
+            const currBeat = 128*mouseDragStart.trounded*pixelsPerSecond/waveform1Ref.current.width
+            metronomeRef.current.currentBeatInBar = Math.floor(currBeat)%4
+        }
+        if(mouseDragEnd&&!snapToGrid){
+            endTimeRelative = mouseDragEnd.t;
+        }else if(mouseDragEnd&&snapToGrid){
+            endTimeRelative = mouseDragEnd.trounded;
+        }
         currentlyPlayingAudio.current = true;
-        //updatePlayhead(startTime);
+        //updatePlayhead(playheadLocation,startTimeAbsolute,endTimeRelative);
         if(numConnectedUsersRef.current>=2 && fromOtherPerson){
             socket.current.emit("comm_event",{type:"notify_that_partner_audio_played",roomID});
             clearTimeout(commsClearTimeoutRef.current);
@@ -723,10 +745,17 @@ function handleRecord() {
         }
     }
 
-    function updatePlayhead(start){
-        const elapsed = Math.max(AudioCtxRef.current.currentTime - now,0);
-        (looping && mouseDragEnd) ? setPlayheadLocation(start+(elapsed%(endTime-startTime))) : setPlayheadLocation(start+elapsed);
-        const x = (looping && mouseDragEnd) ? (start+(elapsed%(endTime-startTime)))*pixelsPerSecond : (start+elapsed) * pixelsPerSecond;
+
+    function updatePlayhead(startRelative,startAbsolute,endRelative){
+        const elapsed = Math.max(AudioCtxRef.current.currentTime - startAbsolute,0);
+        const pxPerSecond = Math.floor(WAVEFORM_WINDOW_LEN*zoomFactor)/(128*60/BPM);
+        console.log(pxPerSecond);
+        if(looping && mouseDragEnd){
+            playheadRef.current.style.transform = `translateX(${(startRelative + (elapsed%(endRelative-startRelative)))*pxPerSecond}px)`
+        }else{
+            playheadRef.current.style.transform = `translateX(${(startRelative + elapsed)*pxPerSecond}px)`
+        }
+        const x = (looping && mouseDragEnd) ? (start+(elapsed%(endRelative-startRelative)))*pxPerSecond : (startAbsolute+elapsed) * pxPerSecond;
         //auto scroll right if playhead moves far right enough
         const visibleStart = scrollWindowRef.current.scrollLeft
         const visibleEnd = visibleStart + WAVEFORM_WINDOW_LEN
@@ -734,19 +763,21 @@ function handleRecord() {
             scrollWindowRef.current.scrollLeft = 750 + visibleStart;
         }
         
-        if((start+elapsed<endTime&&currentlyPlayingAudio.current)||(looping && mouseDragEnd && currentlyPlayingAudio.current)){
-            requestAnimationFrame(()=>{updatePlayhead(start)});
+        if((startRelative+elapsed<endRelative&&currentlyPlayingAudio.current)||(looping && mouseDragEnd && currentlyPlayingAudio.current)){
+            requestAnimationFrame(()=>{updatePlayhead(startRelative,startAbsolute,endRelative)});
         }else if(!mouseDragEnd){
             //if no region has been dragged, and end is reached, reset playhead to the beginning
             metronomeRef.current.stop();
-            setMouseDragStart({trounded:x/pixelsPerSecond,t:x/pixelsPerSecond})
+            setMouseDragStart({trounded:x/pxPerSecond,t:x/pxPerSecond})
             setMouseDragEnd(null)
-            setPlayheadLocation(x/pixelsPerSecond);
+            setPlayheadLocation(x/pxPerSecond);
+            playheadRef.current.style.transform = 'translateX(0)'
             currentlyPlayingAudio.current = false;
         }else{
             //if a region has been dragged, reset playhead to 
             metronomeRef.current.stop();
-            setPlayheadLocation(start)
+            setPlayheadLocation(startRelative)
+            playheadRef.current.style.transform = 'translateX(0)'
             currentlyPlayingAudio.current = false;
         }
     }

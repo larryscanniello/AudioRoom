@@ -151,11 +151,11 @@ self.onmessage = (e) => {
         const init_playback = async () => {
             Object.assign(timeline,{
                 staging: e.data.stagingTimeline,
-                start: e.data.timelineStart,
+                start: Math.round(e.data.timelineStart*48000),
                 end: 48000 * 10,
                 pos: {
-                    staging: e.data.timelineStart,
-                    mix: e.data.timelineStart,
+                    staging: Math.round(48000*e.data.timelineStart),
+                    mix: Math.round(48000*e.data.timelineStart),
                 }
             });
             Atomics.store(pointers.staging.read,0,0);
@@ -300,10 +300,14 @@ function fillStagingPlaybackBuffer(){
     let samplesLeftToFill = (readPtr - writePtr + buffers.staging.length) % buffers.staging.length;
     if(readPtr === writePtr){samplesLeftToFill = buffers.staging.length;}
     while(samplesLeftToFill > 0){
+        console.log('timeline',timeline);
         const currTimeline = timeline.staging.length > 0 ? timeline.staging[timeline.staging.length-1] : [];
         const length = currTimeline.length;
+        console.log('currTimeline',currTimeline,'len',currTimeline.length);
         const take = length > 0 ? currTimeline.find(t => t.end > timeline.pos.staging) : null;
+        console.log('take',take,'timelineend',timeline.end,'takeend',take?take.end:null);
         const sliceEnd = take ? Math.min(take.end, timeline.end) : timeline.end;
+        console.log('timelineposstaging',timeline.pos.staging);
         let sliceLength = Math.min(samplesLeftToFill, sliceEnd - timeline.pos.staging);
         if (sliceLength <= 0) break; 
         if (take && timeline.pos.staging >= take.start && timeline.pos.staging < timeline.end) {

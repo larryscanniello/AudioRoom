@@ -112,8 +112,8 @@ class AudioProcessor extends AudioWorkletProcessor {
         start:Math.round(sampleRate * data.startTime),
         end: data.endTime ? Math.round(sampleRate * data.endTime) : null,
         packetPos: 0,
-      }
-      )
+      })
+      console.log('start timeline pos',this.timeline.pos);
     };
     if (data.actiontype === 'stop'){ 
       if (data.sessionId !== this.state.sessionId || this.state.sessionId === null) return;

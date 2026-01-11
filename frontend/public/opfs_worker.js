@@ -158,7 +158,10 @@ self.onmessage = (e) => {
                     mix: e.data.timelineStart,
                 }
             });
-            proceed.staging = true;
+            Atomics.store(pointers.staging.read,0,0);
+            Atomics.store(pointers.staging.write,0,0);
+            Atomics.store(pointers.staging.isFull,0,0);
+            proceed.staging = "ready";
             fillStagingPlaybackBuffer();
         }
         init_playback();
@@ -169,7 +172,7 @@ self.onmessage = (e) => {
         proceed.mix = false;
     }
     if(e.data.type === "stop_playback"){
-        proceed.staging = false;
+        proceed.staging = "off";
     }
     if(e.data.type === "new_bounce"){
 
@@ -186,8 +189,9 @@ self.onmessage = (e) => {
     }
     if(e.data.type === "get_waveform_array_to_render"){
         const timeline = e.data.timeline;
-        const bigArr = new Float32Array(timeline[timeline.length-1].end);
-        for(const take of timeline){
+        const currTimeline = timeline.length > 0 ? timeline[timeline.length -1] : [];
+        const bigArr = new Float32Array(currTimeline.length > 0 ? currTimeline[currTimeline.length-1].end : []);
+        for(const take of currTimeline){
             const slice = bigArr.subarray(take.start,take.end);
             tracks[curr.track].takeHandles[take.number].read(slice,{at:0});
         }
@@ -216,7 +220,6 @@ function writeToRingBuffer(samplesToFill, handle, type, takeStart, writePtr) {
         
         handle.read(chunkView, { at: timeline.pos[type] - takeStart });  
         writePtr = (writePtr + chunkLength) % PLAYBACK_BUFFER_SIZE;
-        timeline.pos[type] += chunkLength;
         samplesWritten += chunkLength;
     }
 }
@@ -234,6 +237,7 @@ function writeSilenceToRingBuffer(samplesToFill,type,writePtr){
 }
 
 function writeToOPFS(){
+    if(!proceed.record) return;
     let readPtr = Atomics.load(pointers.record.read,0);
     const writePtr = Atomics.load(pointers.record.write,0);
     const isFull = Atomics.load(pointers.record.isFull,0);
@@ -253,9 +257,7 @@ function writeToOPFS(){
     }
     Atomics.store(pointers.record.read,0,readPtr);
     Atomics.store(pointers.record.isFull,0,0);
-    if(proceed.record){
-        setTimeout(()=>writeToOPFS(),15);
-    }
+    setTimeout(()=>writeToOPFS(),15);
 }
 
 
@@ -286,6 +288,8 @@ function fillMixPlaybackBuffer(){
 }
 
 function fillStagingPlaybackBuffer(){
+    if(proceed.staging!=="ready") return;
+    proceed.staging = "working";
     const isFull = Atomics.load(pointers.staging.isFull,0);
     if(isFull){
         if(proceed.staging){setTimeout(()=>fillStagingPlaybackBuffer(),15)};
@@ -296,20 +300,22 @@ function fillStagingPlaybackBuffer(){
     let samplesLeftToFill = (readPtr - writePtr + buffers.staging.length) % buffers.staging.length;
     if(readPtr === writePtr){samplesLeftToFill = buffers.staging.length;}
     while(samplesLeftToFill > 0){
-        const length = timeline.staging.length;
-        const take = length > 0 ? timeline.staging.find(t => t.end > timeline.pos.staging) : null;
+        const currTimeline = timeline.staging.length > 0 ? timeline.staging[timeline.staging.length-1] : [];
+        const length = currTimeline.length;
+        const take = length > 0 ? currTimeline.find(t => t.end > timeline.pos.staging) : null;
         const sliceEnd = take ? Math.min(take.end, timeline.end) : timeline.end;
         let sliceLength = Math.min(samplesLeftToFill, sliceEnd - timeline.pos.staging);
         if (sliceLength <= 0) break; 
-        const handle = tracks[curr.track].takeHandles[/*take.number*/0];
-        
-        if (take && timeline.pos.staging >= take.start) {
+        if (take && timeline.pos.staging >= take.start && timeline.pos.staging < timeline.end) {
             // CASE: Fill from Take
+            const handle = tracks[curr.track].takeHandles[take.number];
             writeToRingBuffer(sliceLength, handle,"staging",take.start,writePtr);
+            console.log('wtrb',sliceLength,timeline.pos.staging);
         } else {
             // CASE: Fill Silence (either leading silence or gap after timeline)
             sliceLength = take ? Math.min(sliceLength, take.start - timeline.pos.staging) : sliceLength;
             writeSilenceToRingBuffer(sliceLength,"staging",writePtr);
+            console.log('wstrb',sliceLength,timeline.pos.staging);
         }
         // Advance timeline position
         timeline.pos.staging += sliceLength;
@@ -318,15 +324,13 @@ function fillStagingPlaybackBuffer(){
         // Handle Looping
         if (looping && timeline.pos.staging >= timeline.end){
             timeline.pos.staging = timeline.start;
-        } else if (!looping && curr.sample.staging === timeline.end){
-            break;
         }
 
         writePtr = (writePtr + sliceLength) % buffers.staging.length;
     }
     Atomics.store(pointers.staging.write,0,writePtr);
     Atomics.store(pointers.staging.isFull,0,1);
-    if(proceed.staging){
-        setTimeout(()=>fillStagingPlaybackBuffer(),15);
-    }
+    if(proceed.staging!=="off"){proceed.staging="ready";}
+    setTimeout(()=>fillStagingPlaybackBuffer(),15);
+    
 }

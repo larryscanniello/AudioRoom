@@ -714,11 +714,40 @@ function handleRecord() {
             startTime,endTime,stagingTimeline
         )
         currentlyPlayingAudio.current = true;
+        //updatePlayhead(startTime);
         if(numConnectedUsersRef.current>=2 && fromOtherPerson){
             socket.current.emit("comm_event",{type:"notify_that_partner_audio_played",roomID});
             clearTimeout(commsClearTimeoutRef.current);
             setCommMessage({text:"Partner played audio",time:performance.now()});
             setTimeout(()=>setCommMessage(""),COMM_TIMEOUT_TIME);
+        }
+    }
+
+    function updatePlayhead(start){
+        const elapsed = Math.max(AudioCtxRef.current.currentTime - now,0);
+        (looping && mouseDragEnd) ? setPlayheadLocation(start+(elapsed%(endTime-startTime))) : setPlayheadLocation(start+elapsed);
+        const x = (looping && mouseDragEnd) ? (start+(elapsed%(endTime-startTime)))*pixelsPerSecond : (start+elapsed) * pixelsPerSecond;
+        //auto scroll right if playhead moves far right enough
+        const visibleStart = scrollWindowRef.current.scrollLeft
+        const visibleEnd = visibleStart + WAVEFORM_WINDOW_LEN
+        if((x-visibleStart)/(visibleEnd-visibleStart)>(10/11)&&autoscrollEnabledRef.current){
+            scrollWindowRef.current.scrollLeft = 750 + visibleStart;
+        }
+        
+        if((start+elapsed<endTime&&currentlyPlayingAudio.current)||(looping && mouseDragEnd && currentlyPlayingAudio.current)){
+            requestAnimationFrame(()=>{updatePlayhead(start)});
+        }else if(!mouseDragEnd){
+            //if no region has been dragged, and end is reached, reset playhead to the beginning
+            metronomeRef.current.stop();
+            setMouseDragStart({trounded:x/pixelsPerSecond,t:x/pixelsPerSecond})
+            setMouseDragEnd(null)
+            setPlayheadLocation(x/pixelsPerSecond);
+            currentlyPlayingAudio.current = false;
+        }else{
+            //if a region has been dragged, reset playhead to 
+            metronomeRef.current.stop();
+            setPlayheadLocation(start)
+            currentlyPlayingAudio.current = false;
         }
     }
 

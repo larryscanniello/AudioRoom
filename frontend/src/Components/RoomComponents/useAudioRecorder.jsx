@@ -148,6 +148,7 @@ export const useAudioRecorder = (
         
         processor.port.onmessage = (event) => {
             const {timelineStart,timelineEnd,takeNumber,fileName,fileLength} = event.data;
+            console.log('rec stopped');
             setStagingTimeline(prev=>{
               const newTake = {
                 start:timelineStart,
@@ -157,25 +158,27 @@ export const useAudioRecorder = (
                 offset: delayCompensation[0],
                 length:fileLength,
               }
-              if(prev.length === 0){return [newTake];};
+              if(prev.length === 0){return [[newTake]];};
               const updated = [];
               let newTakePushed = false;
-              for(const t of prev){
-                if(t.start >= start && !newTakePushed){
+
+              for(const t of prev[prev.length-1]){
+                console.log(t);
+                if(t.start >= timelineStart && !newTakePushed){
                   updated.push(newTake);
                   newTakePushed = true;
                 }
-                const doesStartOverlap = t.start <= start && start < t.end;
-                const doesEndOverlap = t.start < end && end <= t.end
+                const doesStartOverlap = t.start <= timelineStart && timelineStart < t.end;
+                const doesEndOverlap = t.start < timelineEnd && timelineEnd <= t.end
                 if(!doesStartOverlap && !doesEndOverlap){
                   updated.push(t);
                 }else if(!(doesStartOverlap&&doesEndOverlap)){
                   let newEnd = t.end; let newStart = t.start;
                   if(doesStartOverlap){
-                    newEnd = start;
+                    newEnd = timelineStart;
                   }
                   if(doesEndOverlap){
-                    newStart = end;
+                    newStart = timelineEnd;
                   }
                   updated.push({
                     start:newStart,
@@ -187,7 +190,9 @@ export const useAudioRecorder = (
                   })
                 }
               }
-              return updated;
+              if(!newTakePushed){updated.push(newTake);}
+              console.log('updated',updated);
+              return [...prev,updated];
             })
         }
 

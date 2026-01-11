@@ -26,7 +26,7 @@ class AudioProcessor extends AudioWorkletProcessor {
       packetCount: 0,
       count:{
         track:0,
-        take:0
+        take:-1,
       }
     }
 
@@ -96,6 +96,10 @@ class AudioProcessor extends AudioWorkletProcessor {
         isPlayback: !data.isRecording,
         isStreaming: data.isStreaming,
         looping: data.looping,
+        count:{
+          track: 0,
+          take: data.isRecording ? this.state.count.take + 1 : this.state.count.take,
+        },
         packetCount: 0,
         recordingCount: data.recordingCount,
       });
@@ -116,6 +120,7 @@ class AudioProcessor extends AudioWorkletProcessor {
       this.absolute.end = Math.round(data.endTime * sampleRate); //record an extra half seconds for crossfades
       this.state.sessionId = null;
       if(this.state.isRecording){
+        console.log('postmessage take',this.state.count.take);
         this.port.postMessage({
           timelineStart: this.timeline.start,
           timelineEnd: this.timeline.start + ((data.timelineEnd*sampleRate) - this.absolute.start),

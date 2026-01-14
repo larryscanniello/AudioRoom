@@ -168,8 +168,6 @@ export const useAudioRecorder = (
                   updated.push(newTake);
                   newTakePushed = true;
                 }
-                /*const doesStartOverlap = t.start <= timelineStart && timelineStart <= t.end;
-                const doesEndOverlap = t.start <= timelineEnd && timelineEnd <= t.end*/
                 const doesStartOverlap = timelineStart <= t.start && t.start <= timelineEnd;
                 const doesEndOverlap = timelineStart <= t.end && t.end <= timelineEnd
                 if(!doesStartOverlap && !doesEndOverlap){

@@ -1,5 +1,7 @@
 import { useEffect,useRef,useState } from "react";
 import "./RecorderInterface.css";
+import { data } from "react-router-dom";
+import { PiNewspaperClippingBold } from "react-icons/pi";
 
 export default function RecorderInterface({
     audio,BPM,mouseDragEnd,zoomFactor,delayCompensation,
@@ -10,7 +12,7 @@ export default function RecorderInterface({
     currentlyPlayingAudio,numConnectedUsersRef,audio2,delayCompensation2,
     WAVEFORM_WINDOW_LEN,autoscrollEnabledRef,setZoomFactor,
     compactMode,loadingAudio,pxPerSecondRef,convertTimeToMeasuresRef,
-    fileSystemRef,stagingTimeline,
+    fileSystemRef,stagingTimeline,timeSignature,viewportDataRef
 }){
 
     const canvasContainerRef = useRef(null);
@@ -21,9 +23,12 @@ export default function RecorderInterface({
     const audio2Ref = useRef(null);
     const animation1Ref = useRef(null);
     const animation2Ref = useRef(null);
-
+    const mouseDragStartCloneRef = useRef(mouseDragStart);
+    const mouseDragEndCloneRef = useRef(mouseDragEnd);
+    const playheadLocationRef = useRef(playheadLocation)
     //Used to set playhead location in the DOM, and also for calculations on the canvas
-    const pxPerSecond = Math.floor(WAVEFORM_WINDOW_LEN*zoomFactor)/(128*60/BPM);
+    const pxPerSecond = WAVEFORM_WINDOW_LEN/(viewportDataRef.current.endTime - viewportDataRef.current.startTime)
+    //Math.floor(WAVEFORM_WINDOW_LEN*zoomFactor)/(128*60/BPM);
     pxPerSecondRef.current = pxPerSecond;
     const playheadPx = playheadLocation*pxPerSecond;
 
@@ -34,15 +39,37 @@ export default function RecorderInterface({
         return (1+Math.floor(locationinBeats/4)).toString() + "." + (1+Math.floor(locationinBeats%4)).toString();
     }
 
+    mouseDragStartCloneRef.current = mouseDragStart;
+    mouseDragEndCloneRef.current = mouseDragEnd;
+    playheadLocationRef.current = playheadLocation;
+
+    
     useEffect(()=>{
         const handleScroll = () => {
             autoscrollEnabledRef.current = false;
         }
         const scrollWindow = scrollWindowRef.current;
         scrollWindow.addEventListener("scroll", handleScroll);
-        return () => scrollWindow.removeEventListener("scroll", handleScroll);
-    },[])
 
+
+        const measureTicks = measureTickRef.current;
+        const waveform1 = waveform1Ref.current;
+        const waveform2 = waveform2Ref.current;
+        if(measureTicks){
+            //need to pass it in this way so passive is false, and scrolling doesnt trigger back/next page
+            measureTicks.addEventListener('wheel', handleWheel, { passive: false });
+            waveform1.addEventListener('wheel',handleWheel,{passive:false});
+            waveform2.addEventListener('wheel',handleWheel,{passive:false});
+        }
+        
+
+        return () => {
+            scrollWindow.removeEventListener("scroll", handleScroll);
+            measureTicks.removeEventListener('wheel',handleWheel);
+        }; 
+
+    },[])
+    
     useEffect(()=>{
         if(canvasContainerRef.current){ 
             drawCanvasContainer();
@@ -57,6 +84,9 @@ export default function RecorderInterface({
 
     useEffect(()=>{
         fillSelectedRegion(waveform1Ref);
+        fillSelectedRegion(waveform2Ref);
+        setPlayhead();
+        /*
         if(stagingTimeline && stagingTimeline.length > 0){
             drawWaveform();
         }   
@@ -67,8 +97,8 @@ export default function RecorderInterface({
             if(animation2Ref.current){
                 cancelAnimationFrame(animation2Ref.current);
             }
-        }
-    },[audio,audio2,delayCompensation,delayCompensation2,mouseDragStart,mouseDragEnd,loadingAudio,zoomFactor,BPM,compactMode,stagingTimeline]);
+        }*/
+    },[audio,audio2,delayCompensation,delayCompensation2,mouseDragStart,mouseDragEnd,loadingAudio,zoomFactor,BPM,compactMode,stagingTimeline,playheadLocation]);
 
     function drawCanvasContainer(){
         const canvas = canvasContainerRef.current;
@@ -80,35 +110,44 @@ export default function RecorderInterface({
         canvasContainerCtx.fillRect(0,0,WIDTH,HEIGHT);
         const drawBeats = () => {
             //draws the lower canvas beat lines
+
             canvasContainerCtx.lineWidth = 1;
             canvasContainerCtx.strokeStyle = "rgb(250,250,250)";
-            canvasContainerCtx.beginPath();
             canvasContainerCtx.globalAlpha = 1
-            const sliceWidth =  WIDTH / 128;  // Space between each of the 128 lines
-            let audioLength, bufferLength;
-            if(audio){
-                const dataArray = audio.getChannelData(0);
-                bufferLength = dataArray.length;
-                audioLength = audioCtxRef.current.sampleRate*128*(60/BPM)
-            }
-            for(let i = 0; i <= 128; i++) {
-                if(audio){
-                    if(i/128<bufferLength/audioLength){
-                        //temporarily defunct, omits beat lines where waveform is
-                        //continue
+            canvasContainerCtx.font = "12px sans-serif";
+            const textWidth = canvasContainerCtx.measureText("888").width;
+            const ticksPerQuarter = timeSignature.denominator/4;
+            const secondsPerTick = 60/BPM/ticksPerQuarter;
+            
+            const pxPerMeasure = secondsPerTick * pxPerSecondRef.current * timeSignature.numerator;
+            const resolution = Math.ceil(Math.log2(2*textWidth/pxPerMeasure))+1;
+            
+            const startTime = viewportDataRef.current.startTime;
+            const startOnBeat = startTime % secondsPerTick;
+            const startTickOffset = startOnBeat ? secondsPerTick - startOnBeat : 0;
+            const startTickTime = startTickOffset + startTime;
+            const startTickPx = startTickOffset * pxPerSecondRef.current;
+            let x = startTickPx;
+            let beatCount = Math.round(startTickTime/secondsPerTick);
+            canvasContainerCtx.beginPath();
+            while(x<WIDTH){
+                if(resolution<1){
+                    canvasContainerCtx.moveTo(x,0);
+                    canvasContainerCtx.lineTo(x,HEIGHT);
+                }else{
+                    let measureCount = Math.floor(beatCount/timeSignature.numerator);
+                    if(measureCount%(2**resolution)===0 && beatCount % timeSignature.numerator === 0){
+                        canvasContainerCtx.moveTo(x,0);
+                        canvasContainerCtx.lineTo(x,HEIGHT);
                     }
                 }
-                if(zoomFactor<8){
-                    //if zoomed in far enough, only show beat line every measure
-                    if(i%4>=1){
-                        continue
-                    }
-                }
-                const x = Math.round(i * sliceWidth);   
-                canvasContainerCtx.moveTo(x, 0);
-                canvasContainerCtx.lineTo(x, HEIGHT);
+                x += secondsPerTick*pxPerSecondRef.current;
+                beatCount += 1;
             }
+            
+        
             canvasContainerCtx.stroke();
+            
         }
         drawBeats()
         //draw the line separating the two tracks
@@ -130,29 +169,53 @@ export default function RecorderInterface({
         tickCtx.clearRect(0,0,WIDTH,HEIGHT);
         tickCtx.fillStyle = "rgb(175,175,175)"
         tickCtx.fillRect(0,0,WIDTH,HEIGHT);
-        if(mouseDragEnd&&snapToGrid){
+        /*if(mouseDragEnd&&snapToGrid){
             tickCtx.fillStyle = "rgb(225,125,0,.25)"
             tickCtx.fillRect(mouseDragStart.trounded*pxPerSecond,0,(mouseDragEnd.trounded-mouseDragStart.trounded)*pxPerSecond,HEIGHT)
         }
         if(mouseDragEnd&&!snapToGrid){
             tickCtx.fillStyle = "rgb(225,125,0,.25)"
             tickCtx.fillRect(mouseDragStart.t*pxPerSecond,0,(mouseDragEnd.t-mouseDragStart.t)*pxPerSecond,HEIGHT)
-        }
+        }*/
         tickCtx.lineWidth = 5;
-        const sliceWidth = WIDTH/128;
         tickCtx.strokeStyle = "rgb(250,250,250)"
         tickCtx.lineWidth = 1;
         tickCtx.font = "12px sans-serif";
         tickCtx.fillStyle = "#1a1a1a";
-        for(let i=1;i<=128;i++){
-            tickCtx.moveTo(i*sliceWidth,HEIGHT);
-            if(i%4==0){
-                tickCtx.lineTo(i*sliceWidth,HEIGHT/2)
-                tickCtx.fillText((i/4), (i-4)*(sliceWidth)+(2*sliceWidth/12), 4*HEIGHT/6); 
+        const textWidth = tickCtx.measureText("888").width; //888 is the widest number (probably?) so measure that
+        
+        const ticksPerQuarter = timeSignature.denominator/4;
+        const secondsPerTick = 60/BPM/ticksPerQuarter;
+        const pxPerMeasure = secondsPerTick * pxPerSecondRef.current * timeSignature.numerator;
+        
+        const resolution = Math.ceil(Math.log2(2*textWidth/pxPerMeasure))+1;
 
-            }else{
-                tickCtx.lineTo(i*sliceWidth,5*HEIGHT/6)
+        const startTime = viewportDataRef.current.startTime;
+        const startOnBeat = startTime % secondsPerTick;
+        const startTickOffset = startOnBeat ? secondsPerTick - startOnBeat : 0;
+        const startTickTime = startTickOffset + startTime;
+        const startTickPx = startTickOffset * pxPerSecondRef.current;
+        let beatCount = Math.round(startTickTime/secondsPerTick);
+        let x = startTickPx;
+        tickCtx.beginPath();
+        while(x<WIDTH){
+            let beatModulo = beatCount % timeSignature.numerator;
+            tickCtx.moveTo(x,HEIGHT);
+            if(beatModulo===0){
+                let measureCount = 1+Math.floor(beatCount / timeSignature.numerator);
+                let measureModulo = (measureCount-1)%(2**resolution);
+                if(measureModulo===0){
+                    tickCtx.lineTo(x,HEIGHT/2);
+                    tickCtx.fillText(measureCount,x+2,4*HEIGHT/6);
+                }else if(resolution>=1){
+                    tickCtx.lineTo(x,5*HEIGHT/6);               
+                }
+                
+            }else if(resolution<1){
+                tickCtx.lineTo(x,5*HEIGHT/6);
             }
+            x += secondsPerTick*pxPerSecondRef.current;
+            beatCount += 1;
         }
         tickCtx.stroke();
     }
@@ -164,44 +227,116 @@ export default function RecorderInterface({
     }
 
     if(fileSystemRef.current) {fileSystemRef.current.onmessage = ({data}) => {
-        const canvRef = waveform1Ref;
-        const dataArray = new Float32Array(data.bigArr);
-        const canvasCtx = canvRef.current.getContext('2d');
-        const WIDTH = canvRef.current.width;
-        const HEIGHT = canvRef.current.height;
-        canvasCtx.lineWidth =  1;
-        canvasCtx.strokeStyle = "rgb(0,0,0)";
-        canvasCtx.globalAlpha = 1.0
-        
-        canvasCtx.lineWidth = 1.5; // slightly thicker than 1px
-        canvasCtx.strokeStyle = "#1c1e22";
-        canvasCtx.lineCap = "round";
-        canvasCtx.lineJoin = "round";
-
-        const bufferLength = dataArray.length;
-        
-        //const sliceWidth = (WIDTH/128.0)/(audioCtxRef.current.sampleRate*(60/BPM));
-        const scaleFactor = (bufferLength)/(audioCtxRef.current.sampleRate*128*(60/BPM));
-        const samplesPerPixel = Math.ceil((bufferLength) / (WIDTH*scaleFactor));
-        canvasCtx.beginPath();
-        let lastx;
-        //algorithm: each pixel gets min/max of a range of samples
-        for (let x = 0; x < WIDTH; x++) {
-            const start = x * samplesPerPixel
-            const end = Math.min(start + samplesPerPixel, bufferLength);
-            let min = 1.0, max = -1.0;
-            for (let i = start; i < end; i++) {
-                const val = dataArray[i];
-                if (val < min) min = val;
-                if (val > max) max = val;
+        const refs = [waveform1Ref,waveform2Ref]
+        for(let i=0;i<2;i++){
+            const canvRef = refs[i];
+            const dataArray = new Float32Array(data.bigArr);
+            const canvasCtx = canvRef.current.getContext('2d');
+            if(i===1){
+                //canvasCtx.scale(1.5,1);
             }
-            const y1 = ((1 + min) * HEIGHT) / 2;
-            const y2 = ((1 + max) * HEIGHT) / 2;
+            const WIDTH = canvRef.current.width;
+            const HEIGHT = canvRef.current.height;
+            canvasCtx.lineWidth =  1;
+            canvasCtx.strokeStyle = "rgb(0,0,0)";
+            canvasCtx.globalAlpha = 1.0
+            
+            canvasCtx.lineWidth = 1; // slightly thicker than 1px
+            canvasCtx.strokeStyle = "#1c1e22";
+            canvasCtx.lineCap = "round";
+            canvasCtx.lineJoin = "round";
+
+            const bufferLength = dataArray.length;
+            
+            //const sliceWidth = (WIDTH/128.0)/(audioCtxRef.current.sampleRate*(60/BPM));
+            const scaleFactor = (bufferLength)/(audioCtxRef.current.sampleRate*128*(60/BPM));
+            const samplesPerPixel = Math.ceil((bufferLength) / (WIDTH*scaleFactor));
+            canvasCtx.beginPath();
+            let lastx;
+            //algorithm: each pixel gets min/max of a range of samples
+            /*for (let x = 0; x < WIDTH; x++) {
+                const start = x * samplesPerPixel
+                const end = Math.min(start + samplesPerPixel, bufferLength);
+                let min = 1.0, max = -1.0;
+                for (let i = start; i < end; i++) {
+                    const val = dataArray[i];
+                    if (val < min) min = val;
+                    if (val > max) max = val;
+                }
+                const y1 = ((1 + min) * HEIGHT) / 2;
+                const y2 = ((1 + max) * HEIGHT) / 2;
+                canvasCtx.moveTo(x, y1);
+                canvasCtx.lineTo(x, y2);
+                lastx = x;
+                
+                
+                if(end==bufferLength){
+                    break
+                }
+            }*/
+            for (let x = 0; x < WIDTH; x++) {
+        const start = x * samplesPerPixel;
+        const end = Math.min(start + samplesPerPixel, bufferLength);
+        let min = 1.0, max = -1.0;
+
+        for (let k = start; k < end; k++) { // Changed inner loop var to 'k' to avoid shadowing 'i'
+            const val = dataArray[k];
+            if (val < min) min = val;
+            if (val > max) max = val;
+        }
+
+        let y1, y2;
+
+        if (i === 1) {
+            // --- LOGARITHMIC (dB) SCALE CALCULATION ---
+            /*const dbFloor = -60; // Anything below -60dB will be at the center line
+            
+            // Helper to convert linear to normalized 0-1 log scale
+            const toLogY = (val) => {
+                const absVal = Math.abs(val);
+                if (absVal < 0.0001) return 0; // Avoid log(0)
+                
+                // Calculate dB: 20 * log10(amplitude)
+                const db = 20 * Math.log10(absVal);
+                
+                // Map dB range [-60, 0] to normalized [0, 1]
+                // (db - floor) / (max - floor) -> (db + 60) / 60
+                const normalized = Math.max(0, (db - dbFloor) / -dbFloor);
+                return normalized * Math.sign(val); 
+            };
+
+            const logMin = toLogY(min);
+            const logMax = toLogY(max);
+
+            // Map normalized log values to canvas HEIGHT
+            y1 = ((1 + logMin) * HEIGHT) / 2;
+            y2 = ((1 + logMax) * HEIGHT) / 2;
+
             canvasCtx.moveTo(x, y1);
             canvasCtx.lineTo(x, y2);
             lastx = x;
-            if(end==bufferLength){
-                break
+            if(end===bufferLength){
+                break;
+            }*/
+            const sMin = Math.sqrt(Math.abs(min)) * Math.sign(min);
+            const sMax = Math.sqrt(Math.abs(max)) * Math.sign(max);
+            
+            y1 = ((1 + sMin) * HEIGHT) / 2;
+            y2 = ((1 + sMax) * HEIGHT) / 2;
+            
+            canvasCtx.moveTo(x, y1);
+            canvasCtx.lineTo(x, y2);
+            lastx = x;
+            if(end===bufferLength) break;
+        } else {
+            // --- STANDARD LINEAR SCALE ---
+            y1 = ((1 + min) * HEIGHT) / 2;
+            y2 = ((1 + max) * HEIGHT) / 2;
+            canvasCtx.moveTo(x, y1);
+            canvasCtx.lineTo(x, y2);
+            lastx = x;
+            if(end===bufferLength){
+                break;
             }
         }
         canvasCtx.moveTo(0,HEIGHT/2);
@@ -209,8 +344,14 @@ export default function RecorderInterface({
         canvasCtx.stroke();
         canvasCtx.fillStyle = "rgb(0,125,225)" //"rgb(0,200,160)"
         canvasCtx.globalAlpha = .12
-        canvasCtx.fillRect(0,0,lastx,HEIGHT)
+        //canvasCtx.fillRect(0,0,lastx,HEIGHT)
+    
     }
+            
+        }
+    }
+
+
     }
     function fillSelectedRegion(waveformRef){
         const canvasCtx = waveformRef.current.getContext("2d");
@@ -218,14 +359,32 @@ export default function RecorderInterface({
         const HEIGHT = waveformRef.current.height;
         canvasCtx.clearRect(0,0,WIDTH,HEIGHT);   
         canvasCtx.globalAlpha = .2
-        if(mouseDragEnd&&snapToGrid){
-            canvasCtx.fillStyle = "rgb(75,75,75,.5)"
-            canvasCtx.fillRect(mouseDragStart.trounded*pxPerSecond,0,(mouseDragEnd.trounded-mouseDragStart.trounded)*pxPerSecond,HEIGHT)
+        const viewportStartTime = viewportDataRef.current.startTime;
+        const viewportEndTime = viewportDataRef.current.endTime;
+        const totalTime = viewportEndTime - viewportStartTime;
+        const rectStart = Math.max(viewportStartTime,mouseDragStartCloneRef.current.trounded);
+        if(!mouseDragEndCloneRef.current) return;
+        const rectEnd = Math.min(viewportEndTime,mouseDragEndCloneRef.current.trounded);
+        if(rectEnd < viewportStartTime || rectStart > viewportEndTime) return;
+        const rectStartPx = WIDTH * (rectStart-viewportStartTime)/totalTime;
+        const rectEndPx = WIDTH * (rectEnd - viewportStartTime)/totalTime;
+        canvasCtx.fillStyle = "rgb(75,75,75,.5)"
+        canvasCtx.fillRect(rectStartPx,0,rectEndPx-rectStartPx,HEIGHT);
+    }
+
+    function setPlayhead(){
+        const startTime = viewportDataRef.current.startTime;
+        const endTime = viewportDataRef.current.endTime;
+        const totalTime = endTime - startTime;
+        const playheadLocation = playheadLocationRef.current;
+        if(playheadLocation < startTime || playheadLocation > endTime){
+            playheadRef.current.style.display = "none";
+            return;
         }
-        if(mouseDragEnd&&!snapToGrid){
-            canvasCtx.fillStyle = "rgb(75,75,75,.5)"
-            canvasCtx.fillRect(mouseDragStart.t*pxPerSecond,0,(mouseDragEnd.t-mouseDragStart.t)*pxPerSecond,HEIGHT)
-        }
+        const playheadViewportTime = (playheadLocation - startTime)/totalTime;
+        const playheadPx = playheadViewportTime * WAVEFORM_WINDOW_LEN;
+        playheadRef.current.style.display = "block";
+        playheadRef.current.style.transform = `translateX(${playheadPx}px)`
     }
 
     function fillLoadingAudio(waveformRef,textPos,track){
@@ -275,11 +434,47 @@ export default function RecorderInterface({
     }
 
     const handleCanvasMouseDown = (e) => {
+        const calculateDragPos = (x,type) => {
+            const startTime = viewportDataRef.current.startTime;
+            const endTime = viewportDataRef.current.endTime;
+            const totalViewportTime = endTime - startTime;
+            const t = startTime + totalViewportTime * x/WAVEFORM_WINDOW_LEN;
+            const ticksPerQuarter = timeSignature.denominator/4;
+            const secondsPerTick = 60/BPM/ticksPerQuarter;
+            let pos;
+            if(type==="start"){
+                pos = startTime + secondsPerTick - (startTime % secondsPerTick);
+            }else{
+                pos = endTime - (endTime % secondsPerTick);
+            }
+            let trounded;
+            if(type==="start" && t<pos){
+                trounded = pos - secondsPerTick;
+            }else if(type==="end"&& t>pos){
+                trounded = pos + secondsPerTick;
+            }else if(type==="start"){
+                while(pos+secondsPerTick < t){
+                    pos += secondsPerTick;
+                }
+                trounded = pos;
+            }else{
+                while(pos-secondsPerTick > t){
+                    pos -= secondsPerTick;
+                }
+                trounded = pos;
+            }
+            return {t,trounded};
+        }
+
         if(currentlyPlayingAudio.current) return;
         const rect = canvasContainerRef.current.getBoundingClientRect();
         const x = (e.clientX-rect.left)
-        const rounded = rect.width*Math.floor(x*128/rect.width)/128;
-        const coords = {trounded:rounded/pxPerSecond, t:x/pxPerSecond}
+        
+        
+        
+        //const rounded = rect.width*Math.floor(x*128/rect.width)/128;
+
+        const coords = calculateDragPos(x,"start");
         setMouseDragStart(coords);
         setMouseDragEnd(null);
         mouseDragStartRef.current = coords;
@@ -291,17 +486,22 @@ export default function RecorderInterface({
                 const rect = canvasContainerRef.current.getBoundingClientRect();
                 const x = e.clientX-rect.left
                 const mousedragstart = mouseDragStartRef.current;
+                const startTime = viewportDataRef.current.startTime;
+                const endTime = viewportDataRef.current.endTime;
+                const ticksPerQuarter = timeSignature.denominator/4;
+                const secondsPerTick = 60/BPM/ticksPerQuarter;
+                const totalViewportTime = endTime - startTime;
                 //if mouse has been dragged 5 pixels or less, doesn't count as a playback region
                 if(x<0){
-                    const mousedragend = {t:0,trounded:0};
+                    const mousedragend = null//{t:0,trounded:0};
                     setMouseDragEnd(mousedragend);
                     mouseDragEndRef.current = mousedragend;
                 }else if(x>rect.width){
-                    const mousedragend = {t:rect.width,trounded:rect.width};
+                    const mousedragend = {t:endTime,trounded:endTime + secondsPerTick-(endTime%secondsPerTick)};
                     setMouseDragEnd(mousedragend);
                     mouseDragEndRef.current = mousedragend;
                 }else if(Math.abs(mousedragstart.t*pxPerSecond-x)>5){
-                        const mousedragend = {t:x/pxPerSecond,trounded:rect.width*Math.ceil(x*128/rect.width)/128/pxPerSecond}
+                        const mousedragend = calculateDragPos(x,"end");
                         setMouseDragEnd(mousedragend);
                         mouseDragEndRef.current = mousedragend;
                 }
@@ -313,7 +513,9 @@ export default function RecorderInterface({
             const x = Math.max(0,Math.min(rect.width,e.clientX-rect.left))
             const mousedragstart = mouseDragStartRef.current;
             const mousedragend = mouseDragEndRef.current;
-            if(Math.abs(mousedragstart.t*pxPerSecond-x)<=5){
+            const startTime = viewportDataRef.current.startTime;
+            const endTime = viewportDataRef.current.endTime;
+            if(Math.abs((mousedragstart.t-startTime)*pxPerSecondRef.current-x)<=5){
                 setPlayheadLocation(mousedragstart.t)
                 setMouseDragEnd(null);
                 if(numConnectedUsersRef.current >= 2){
@@ -326,11 +528,9 @@ export default function RecorderInterface({
                         roomID});
                 }
             }else{
-                const endrounded = rect.width*Math.ceil(x*128/rect.width)/128
-                const pos = {trounded:endrounded/pxPerSecond, t:x/pxPerSecond}
                 //check if region has been dragged forwards or backwards. Always put start at the left
-
-                if(x/pxPerSecond>=mousedragstart.t){
+                const pos = calculateDragPos(x,"end");
+                if(x/pxPerSecondRef.current>=mousedragstart.t-startTime){
                     if(snapToGrid){
                         setPlayheadLocation(mousedragstart.trounded)
                     }else{
@@ -338,13 +538,14 @@ export default function RecorderInterface({
                     }
                     setMouseDragEnd(pos);
                 }else{
-                    const xrounded = rect.width*Math.floor(x*128/rect.width)/128
+                    const {t,trounded} = calculateDragPos(x,"start");
+
                     if(snapToGrid){
-                        setPlayheadLocation(xrounded/pxPerSecond)
+                        setPlayheadLocation(trounded)
                     }else{
-                        setPlayheadLocation(x/pxPerSecond)
+                        setPlayheadLocation(t)
                     }
-                    setMouseDragStart({trounded:xrounded/pxPerSecond,t:x/pxPerSecond})
+                    setMouseDragStart({trounded,t})
                     setMouseDragEnd(mousedragstart)
                 }
                 if(numConnectedUsersRef.current >= 2){
@@ -366,8 +567,29 @@ export default function RecorderInterface({
         window.addEventListener('mouseup',handleCanvasMouseUp)
     };
 
-    
-
+    const handleWheel = (e) => {
+        
+        e.preventDefault();
+        const startTime = viewportDataRef.current.startTime;
+        const endTime = viewportDataRef.current.endTime;
+        const newStart = startTime+(e.deltaX/25);
+        const newEnd = endTime + (e.deltaX/25);
+        if(newStart<0){
+            viewportDataRef.current.startTime = 0;
+            viewportDataRef.current.endTime = endTime - startTime;
+        }else if(newEnd>15*60){
+            viewportDataRef.current.endTime = 15 * 60;
+            viewportDataRef.current.startTime = startTime + (15*60 - endTime);
+        }else{
+            viewportDataRef.current.startTime = newStart;
+            viewportDataRef.current.endTime = newEnd;
+        };
+        drawMeasureTicks();
+        drawCanvasContainer();
+        fillSelectedRegion(waveform1Ref);
+        fillSelectedRegion(waveform2Ref);
+        setPlayhead();
+    }
 
 
     const handleMovePlayhead = (e) => {
@@ -419,47 +641,67 @@ export default function RecorderInterface({
                 >
                 
                 <canvas className="row-start-1 col-start-2"
-                    style={{width:Math.floor(WAVEFORM_WINDOW_LEN*zoomFactor),height:Math.floor(35*compactMode)}}
-                    width={Math.floor(WAVEFORM_WINDOW_LEN*zoomFactor)}
+                    style={{width:900,height:Math.floor(35*compactMode)}}
+                    width={900}
                     height={Math.floor(35*compactMode)}
                     ref={measureTickRef}
-                    onMouseDown={handleCanvasMouseDown}
+                    
                 >
                     
                 </canvas>
                 <canvas
                     ref={canvasContainerRef}
-                    width={Math.floor(WAVEFORM_WINDOW_LEN*zoomFactor)}
+                    width={900}
                     height={Math.floor(115*compactMode)}
-                    style={{width:`${Math.floor(WAVEFORM_WINDOW_LEN*zoomFactor)}px`,height:Math.floor(115*compactMode),imageRendering:"pixelated"}}
+                    style={{width:`900px`,height:Math.floor(115*compactMode),imageRendering:"pixelated"}}
                     className="row-start-2 col-start-2"
+                    onMouseDown={handleCanvasMouseDown}
                     >
                     
                 </canvas>
                 <div className="row-start-2 col-start-3"
                     ref={waveformContainerRef}>
+                    {/*<div className="absolute bg-blue-500/15 w-35 h-14 border-r-2 border-t-2 border-b-2 rounded-r-md border-gray-300"
+                        ref={testRef}
+                    >
+
+                    </div>*/}
+                    {/*<div className="bg-black w-24 h-8"
+                        onClick={(e)=>console.log('black clicked',e.clientX)}
+                    >
+                    </div>
+                    <div className="bg-red-500 w-24 h-8"
+                        style={{transform:"scaleX(.75)"}}
+                        onClick={(e)=>{
+                            console.log('red clicked')
+                            console.log(e.clientX);
+                        }}
+                    >
+                    </div>*/}
                     <canvas 
                     ref={waveform1Ref}
-                    width={Math.floor(WAVEFORM_WINDOW_LEN*zoomFactor)}
+                    width={900}
                     height={Math.floor(58*compactMode)}
-                    style={{width:Math.floor(WAVEFORM_WINDOW_LEN*zoomFactor),imageRendering:"pixelated",height:Math.floor(58*compactMode)}} 
+                    style={{width:900,imageRendering:"pixelated",height:Math.floor(58*compactMode)}} 
                     className={`row-start-2 col-start-3`}
                     onMouseDown={handleCanvasMouseDown}
                     >
                     </canvas>
+                    
                     <canvas
                     ref={waveform2Ref}
                     height={Math.floor(57*compactMode)}
-                    width={Math.floor(WAVEFORM_WINDOW_LEN*zoomFactor)}
-                    style={{width:Math.floor(WAVEFORM_WINDOW_LEN*zoomFactor),imageRendering:"pixelated",height:Math.floor(57*compactMode)}}
+                    width={900}
+                    style={{width:900,imageRendering:"pixelated",height:Math.floor(57*compactMode)}}
                     onMouseDown={handleCanvasMouseDown}
                     >
 
                     </canvas>
+                    
                 </div>
                 
                 {<div ref={playheadRef} style={{position:"absolute",top:0,bottom:0,left:-1,
-                    width:"4px", transform:`translateX(${playheadPx}px)`}}
+                    width:"4px"}}
                     onMouseDown={handleMovePlayhead}
                     className="flex flex-col items-center"
                     onDragStart={(e) => e.preventDefault()}
@@ -470,6 +712,7 @@ export default function RecorderInterface({
                             borderRadius: "50%",
                             background: "red",
                             marginTop: Math.floor(26*compactMode),
+                            transform:"translateX(-3px)",
                             }}
                             >
                     

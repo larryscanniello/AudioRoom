@@ -27,6 +27,8 @@ import "./AudioBoard.css";
 const WAVEFORM_WINDOW_LEN = 900;
 const COMM_TIMEOUT_TIME = 5000;
 const PACKET_SIZE = 960;
+const TIMELINE_LENGTH = 15 * 60; //15 minutes
+const START_VIEWPORT_TIMELENGTH = 20;
 
 export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnteredRoom,
     localStreamRef,initializeAudioBoard,dataConnRef,audioCtxRef,audioSourceRef,dataConnAttached
@@ -43,7 +45,7 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
     const [mouseDragStart,setMouseDragStart] = useState(isDemo ? {trounded:2.142857142857143,t:2.142857142857143} : {trounded:0,t:0}); //time in seconds
     const [mouseDragEnd,setMouseDragEnd] = useState(isDemo ? {trounded:10.714285714285714,t:10.714285714285714}: null); //time in seconds
     const [roomResponse,setRoomResponse] = useState(null);
-    const [zoomFactor,setZoomFactor] = useState(2);
+    const [zoomFactor,setZoomFactor] = useState(START_VIEWPORT_TIMELENGTH);
     const [delayCompensation,setDelayCompensation] = useState(isDemo?[900]:[0]); //delayCompensation is in samples
     const [delayCompensation2,setDelayCompensation2] = useState(isDemo?[900]:[0]);
     const [currentlyAdjustingLatency,setCurrentlyAdjustingLatency] = useState(null);
@@ -66,6 +68,7 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
     const [otherPersonMonitoringOn,setOtherPersonMonitoringOn] = useState(false);
     const [autoTestLatency,setAutoTestLatency] = useState(false);
     const [initializeRecorder,setInitializeRecorder] = useState(false);
+    const [timeSignature,setTimeSignature] = useState({numerator:4,denominator:4});
 
     const waveform1Ref = useRef(null);
     const waveform2Ref = useRef(null);
@@ -75,6 +78,7 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
     const scrollWindowRef = useRef(null);
     const controlPanelRef = useRef(null);
     const autoscrollEnabledRef = useRef(false);
+    const viewportDataRef = useRef({startTime:0,endTime:START_VIEWPORT_TIMELENGTH,playheadLocation:0});
 
     const pxPerSecondRef = useRef(null);
     const convertTimeToMeasuresRef = useRef(null);
@@ -1010,6 +1014,25 @@ function handleRecord() {
         delayCompensationStep = 205;
     }
     
+    const handleZoom = ([newSliderVal]) => {
+        const b = (TIMELINE_LENGTH*5)**(1/1000);
+        const newZoom = .2 * b ** newSliderVal;
+        const start = viewportDataRef.current.startTime;
+        const end = viewportDataRef.current.endTime;
+        const center = (start+end)/2;
+        if(center + newZoom/2<=TIMELINE_LENGTH && center - newZoom/2 >= 0){
+            viewportDataRef.current.startTime = center - newZoom/2;
+            viewportDataRef.current.endTime = center + newZoom/2;
+        }
+        else if(center + newZoom/2>TIMELINE_LENGTH){
+            viewportDataRef.current.endTime = TIMELINE_LENGTH;
+            viewportDataRef.current.startTime = TIMELINE_LENGTH - newZoom;
+        }else{
+            viewportDataRef.current.startTime = 0;
+            viewportDataRef.current.endTime = newZoom;
+        }
+        setZoomFactor(newZoom);
+    }
 
     return <div className="">
         <div className="w-full grid place-items-center items-center">
@@ -1151,7 +1174,8 @@ function handleRecord() {
                                 WAVEFORM_WINDOW_LEN={WAVEFORM_WINDOW_LEN} autoscrollEnabledRef={autoscrollEnabledRef}
                                 setZoomFactor={setZoomFactor} compactMode={compactMode} loadingAudio={loadingAudio}
                                 pxPerSecondRef={pxPerSecondRef} convertTimeToMeasuresRef={convertTimeToMeasuresRef}
-                                fileSystemRef={fileSystemRef} stagingTimeline={stagingTimeline}
+                                fileSystemRef={fileSystemRef} stagingTimeline={stagingTimeline} timeSignature={timeSignature}
+                                viewportDataRef={viewportDataRef}
                     />
                     {/*<Button variant="default" size={compactMode==1?"lg":"sm"} onClick={()=>setSnapToGrid(prev=>!prev)} 
                         className="border-1 border-gray-300 hover:bg-gray-800"
@@ -1242,18 +1266,12 @@ function handleRecord() {
                     <div className={"flex flex-row items-center col-start-3 " + (compactMode!=1?"-translate-y-2":"")}>
                         <FaMagnifyingGlass style={{transform:"scale(1.1)",marginRight:1}} className="text-blue-200"/>
                         <Slider style={{width:100}}
-                        defaultValue={[20000/32]} max={1000} min={0} step={1} 
-                            className="pl-2 group" value={[Math.log10(zoomFactor)/Math.log10(10**(Math.log10(16)/1000))]} onValueChange={(value)=>{
-                                setZoomFactor(prev => {
-                                    /*if(currentlyPlayingAudio.current||currentlyRecording.current){
-                                        return prev
-                                    }*/
-                                    const b = 10**(Math.log10(16)/1000)
-                                    const newZoomFactor = b**value
-                                    return newZoomFactor
-                                })
+                        defaultValue={[Math.round(Math.log10(START_VIEWPORT_TIMELENGTH*5)/Math.log10((TIMELINE_LENGTH*5)**(1/1000)))]} max={1000} min={0} step={1} 
+                            className="pl-2 group" 
+                            value={[Math.round(Math.log10(zoomFactor*5)/Math.log10((TIMELINE_LENGTH*5)**(1/1000)))]}
+                            onValueChange={handleZoom}
 
-                            }}>
+                            >
                         </Slider>
                     </div>
                     <Popover>

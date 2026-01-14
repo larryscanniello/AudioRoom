@@ -152,7 +152,7 @@ self.onmessage = (e) => {
             Object.assign(timeline,{
                 staging: e.data.stagingTimeline,
                 start: Math.round(e.data.timelineStart*48000),
-                end: 48000 * 10,
+                end: e.data.timelineEnd,
                 pos: {
                     staging: Math.round(48000*e.data.timelineStart),
                     mix: Math.round(48000*e.data.timelineStart),

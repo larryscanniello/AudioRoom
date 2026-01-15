@@ -1,4 +1,4 @@
-import { useRef,useState,useEffect } from "react";
+import { useRef,useState,useEffect,useReducer } from "react";
 import { useParams } from "react-router-dom";
 import Metronome from "../../Classes/Metronome"
 import { useAudioRecorder } from "./useAudioRecorder";
@@ -70,6 +70,11 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
     const [initializeRecorder,setInitializeRecorder] = useState(false);
     const [timeSignature,setTimeSignature] = useState({numerator:4,denominator:4});
 
+    const [timeline,timelineDispatch] = useReducer(timelineReducer,{regionStack: [],
+                                                                    stagingTimeline:[],
+                                                                    mixTimeline: [],
+                                                                    undoStack: [],});
+
     const waveform1Ref = useRef(null);
     const waveform2Ref = useRef(null);
     const playheadRef = useRef(null);
@@ -123,6 +128,74 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
     const AudioCtxRef = useRef(null);
     const opusRef = useRef(null);
 
+    function timelineReducer(state,action){
+        switch(action.type){
+            case "add_region":
+                const {timelineStart,timelineEnd,takeNumber,fileName,fileLength} = action.data;
+                const newRegion = {
+                    start:timelineStart,
+                    end:timelineEnd,
+                    number:takeNumber,
+                    name:fileName,
+                    offset: delayCompensation[0],
+                    length:fileLength,
+                }
+                if(state.regionStack.length === 0) return {
+                    regionStack: [newRegion],
+                    stagingTimeline:[newRegion],
+                    mixTimeline: state.mixTimeline,
+                    undoStack: [], //clear undo stack
+                };
+                const regionStack = [...state.regionStack,newRegion];
+                const timeline = [];
+                for(const r of regionStack.reverse()){ 
+                    const shards = [r];
+                    for(let i=timeline.length-1;i>=0;i++){
+                        for(let j=0;j<shards.length;j++){
+                            const s = shards[j];
+                            if(!s) continue;
+                            const startCollision = timeline[i].start <= s.start && s.start < timeline[i].end;
+                            const endCollision = timeline[i].start <= s.end && s.end < timeline[i].end;
+                            const shardContainsRegion = s.start <= timeline[i].start && timeline[i].end < s.end;
+                            if(shardContainsRegion){
+                                const newShard1 = {...shards[j],end:timeline[i].start};
+                                const newShard2 = {...shards[j],start:timeline[i].end};
+                                shards[j] = null;
+                                shards.push(newShard1); shards.push(newShard2);
+                            }else if(startCollision && endCollision){
+                                shards[j] = null;
+                            }else if(startCollision){
+                                const newStart = timeline[i].end;
+                                if(newStart < shards[j].end){
+                                    shards[j] = {...shards[j],start:newStart}
+                                }else{
+                                    shards[j] = null;
+                                }
+                            }else if(endCollision){
+                                const newEnd = timeline[i].end;
+                                if(newEnd > shards[j].start){
+                                    shards[j] = {...shards[j],end:newEnd}
+                                }else{
+                                    shards[j] = null;
+                                }
+                            }
+                        }
+                    }
+                    for(s of shards){
+                        if(s) timeline.push(s);
+                    }
+                }
+                timeline.sort((a, b) => a.start - b.start);
+                regionStack.reverse();
+                return {
+                    regionStack,timeline,undoStack:[],mixTimeline:state.mixTimeline,
+                }
+        }
+
+    }
+
+    
+
     useEffect(()=>{
         if(height<700){
             setCompactMode(4/7);
@@ -148,7 +221,7 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
                                             otherPersonRecordingRef,setLoadingAudio,setAudio2,setLatencyTestRes,
                                             streamOnPlayProcessorRef,localStreamRef,initializeRecorder,dataConnRef,
                                             audioSourceRef,AudioCtxRef,isDemo,opusRef,fileSystemRef,
-                                            stagingTimeline,setStagingTimeline,recordSABRef,mixSABRef,stagingSABRef});
+                                            recordSABRef,mixSABRef,stagingSABRef,timeline,timelineDispatch});
 
     useEffect(() => {
         //This effect runs only when component first mounts. 
@@ -1174,8 +1247,8 @@ function handleRecord() {
                                 WAVEFORM_WINDOW_LEN={WAVEFORM_WINDOW_LEN} autoscrollEnabledRef={autoscrollEnabledRef}
                                 setZoomFactor={setZoomFactor} compactMode={compactMode} loadingAudio={loadingAudio}
                                 pxPerSecondRef={pxPerSecondRef} convertTimeToMeasuresRef={convertTimeToMeasuresRef}
-                                fileSystemRef={fileSystemRef} stagingTimeline={stagingTimeline} timeSignature={timeSignature}
-                                viewportDataRef={viewportDataRef}
+                                fileSystemRef={fileSystemRef} timeSignature={timeSignature}
+                                viewportDataRef={viewportDataRef} timeline={timeline}
                     />
                     {/*<Button variant="default" size={compactMode==1?"lg":"sm"} onClick={()=>setSnapToGrid(prev=>!prev)} 
                         className="border-1 border-gray-300 hover:bg-gray-800"

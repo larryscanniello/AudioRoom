@@ -12,7 +12,7 @@ export default function RecorderInterface({
     currentlyPlayingAudio,numConnectedUsersRef,audio2,delayCompensation2,
     WAVEFORM_WINDOW_LEN,autoscrollEnabledRef,setZoomFactor,
     compactMode,loadingAudio,pxPerSecondRef,convertTimeToMeasuresRef,
-    fileSystemRef,stagingTimeline,timeSignature,viewportDataRef
+    fileSystemRef,stagingTimeline,timeSignature,viewportDataRef,timeline
 }){
 
     const canvasContainerRef = useRef(null);
@@ -26,6 +26,7 @@ export default function RecorderInterface({
     const mouseDragStartCloneRef = useRef(mouseDragStart);
     const mouseDragEndCloneRef = useRef(mouseDragEnd);
     const playheadLocationRef = useRef(playheadLocation)
+    const regionsContainerRef = useRef(null);
     //Used to set playhead location in the DOM, and also for calculations on the canvas
     const pxPerSecond = WAVEFORM_WINDOW_LEN/(viewportDataRef.current.endTime - viewportDataRef.current.startTime)
     //Math.floor(WAVEFORM_WINDOW_LEN*zoomFactor)/(128*60/BPM);
@@ -86,6 +87,7 @@ export default function RecorderInterface({
         fillSelectedRegion(waveform1Ref);
         fillSelectedRegion(waveform2Ref);
         setPlayhead();
+        setRegions();
         /*
         if(stagingTimeline && stagingTimeline.length > 0){
             drawWaveform();
@@ -98,7 +100,7 @@ export default function RecorderInterface({
                 cancelAnimationFrame(animation2Ref.current);
             }
         }*/
-    },[audio,audio2,delayCompensation,delayCompensation2,mouseDragStart,mouseDragEnd,loadingAudio,zoomFactor,BPM,compactMode,stagingTimeline,playheadLocation]);
+    },[audio,audio2,delayCompensation,delayCompensation2,mouseDragStart,mouseDragEnd,loadingAudio,zoomFactor,BPM,compactMode,timeline,playheadLocation]);
 
     function drawCanvasContainer(){
         const canvas = canvasContainerRef.current;
@@ -387,6 +389,67 @@ export default function RecorderInterface({
         playheadRef.current.style.transform = `translateX(${playheadPx}px)`
     }
 
+    function setRegions(){
+        const container = regionsContainerRef.current;
+        const children = container.children;
+
+        const startTime = viewportDataRef.current.startTime;
+        const endTime = viewportDataRef.current.endTime;
+
+        for (let child of children) {
+            const start = child.dataset.start * 1 / audioCtxRef.current.sampleRate;
+            const end = child.dataset.end * 1 / audioCtxRef.current.sampleRate;
+            if (end < startTime || start > endTime){
+                child.style.display = "none";
+                continue;
+            }
+
+            
+
+            child.style.display = "block";
+
+            const left = Math.max(0,(start - startTime) / (endTime-startTime)) * WAVEFORM_WINDOW_LEN;
+            const leftOverflow = Math.max(0, startTime - start);
+            const rightOverflow = Math.max(0, end - endTime)
+            const width = Math.min(1,(end - start - leftOverflow - rightOverflow) / (endTime-startTime)) * WAVEFORM_WINDOW_LEN;
+
+            let borderRadius;
+            if(start < startTime && end > endTime){
+                borderRadius = "0px";
+            }else if(start < startTime){
+                borderRadius = "0px 7px 7px 0px";
+            }else if(end > endTime){
+                borderRadius = "7px 0px 0px 7px";
+            }else{
+                borderRadius = "7px";
+            }
+
+            child.style.left = 0;
+            child.style.top = "35px";
+            child.style.position = "absolute"
+            child.style.transform = `translateX(${left}px)`;
+            child.style.width = `${width}px`;
+            child.style.height = '57px';
+            child.style.background = "rgb(10, 138, 74,.5)";
+            child.style.borderRadius = borderRadius;
+            child.style.border = "1px solid rgb(0,0,0,.2)";
+            child.style.pointerEvents = "none";
+
+            /*
+            const [grandchild1,grandchild2] = child.children;
+            
+            
+            grandchild1.style.position = "absolute";
+            grandchild1.style.top = "0px";
+            grandchild1.style.left = "0px";
+            grandchild1.style.height = "15px";
+            grandchild1.style.width = `${width}px`;
+            grandchild1.style.background = "rgb(255,255,255,.5)";
+            grandchild1.style.borderRadius = "7px 7px 0px 0px"
+            */
+        }
+    }
+
     function fillLoadingAudio(waveformRef,textPos,track){
             const canvasCtx = waveformRef.current.getContext("2d");
             const WIDTH = waveformRef.current.width;
@@ -438,7 +501,7 @@ export default function RecorderInterface({
             const startTime = viewportDataRef.current.startTime;
             const endTime = viewportDataRef.current.endTime;
             const totalViewportTime = endTime - startTime;
-            const t = startTime + totalViewportTime * x/WAVEFORM_WINDOW_LEN;
+            const t = startTime + (totalViewportTime * x/WAVEFORM_WINDOW_LEN);
             const ticksPerQuarter = timeSignature.denominator/4;
             const secondsPerTick = 60/BPM/ticksPerQuarter;
             let pos;
@@ -568,7 +631,6 @@ export default function RecorderInterface({
     };
 
     const handleWheel = (e) => {
-        
         e.preventDefault();
         const startTime = viewportDataRef.current.startTime;
         const endTime = viewportDataRef.current.endTime;
@@ -589,6 +651,7 @@ export default function RecorderInterface({
         fillSelectedRegion(waveform1Ref);
         fillSelectedRegion(waveform2Ref);
         setPlayhead();
+        setRegions();
     }
 
 
@@ -636,6 +699,7 @@ export default function RecorderInterface({
 
     }    
 
+    console.log('tl',timeline);
     return <div className="grid overflow-x-auto relative border-black border-0 shadow-sm shadow-blak grid-cols-2 scrollwindow"
                 style={{width:WAVEFORM_WINDOW_LEN,height:Math.floor(150*compactMode)}} ref={scrollWindowRef}
                 >
@@ -687,6 +751,22 @@ export default function RecorderInterface({
                     onMouseDown={handleCanvasMouseDown}
                     >
                     </canvas>
+
+                    <div ref={regionsContainerRef} className="regions-layer">
+                        {timeline.stagingTimeline.map(region => (
+                            <div
+                            key={region.fileName}
+                            data-start={region.start}
+                            data-end={region.end}
+                            className="region"
+                            >
+                            <div></div>
+                            <div></div>
+                            </div>
+                        ))}
+                    </div>
+
+                    
                     
                     <canvas
                     ref={waveform2Ref}

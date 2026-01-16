@@ -49,6 +49,12 @@ const timeline = {
     },
 }
 
+const mipMap = {
+    staging: null,
+    mix: null,
+    halfLength: null,
+    resolutions: null,
+}
 let looping = false;
 
 const proceed = {
@@ -109,6 +115,7 @@ self.onmessage = (e) => {
                 mix: new Float32Array(e.data.mixPlaybackSAB,12),
                 record: new Float32Array(e.data.recordSAB,12),
             })
+            mipMap = new Uint8Array(e.data.mipMapSAB);
             Object.assign(pointers,{
                 staging:{
                     read: new Uint32Array(e.data.stagingPlaybackSAB,0,1),
@@ -125,6 +132,18 @@ self.onmessage = (e) => {
                     write: new Uint32Array(e.data.recordSAB,4,1),
                     isFull: new Uint32Array(e.data.recordSAB,8,1),
                 }
+            })
+            Object.assign(mipMap,{
+                staging: new Int8Array(e.data.mipMap.staging.subarray(1)),
+                mix: new Int8Array(e.data.mipMap.mix.subarray(1)),
+                isWorking: {
+                    staging: new Int8Array(e.data.mipMap.staging.subarray(0,1)),
+                    mix: new Int8Array(e.data.mipMap.mix.subarray(0,1)),
+                },
+                halfSize: e.data.MIPMAP_HALF_SIZE,
+                resolutions: e.data.MIPMAX_RESOLUTIONS,
+                totalTimelineSamples:e.data.TOTAL_TIMELINE_SAMPLES,
+                buffer: new Float32Array(65536),
             })
         }
         init();
@@ -187,13 +206,12 @@ self.onmessage = (e) => {
     if(e.data.type === "read"){
 
     }
-    if(e.data.type === "get_waveform_array_to_render"){
-        const timeline = e.data.timeline;
-        const currTimeline = timeline.length > 0 ? timeline[timeline.length -1] : [];
-        const bigArr = new Float32Array(currTimeline.length > 0 ? currTimeline[currTimeline.length-1].end : []);
-        for(const take of currTimeline){
-            const slice = bigArr.subarray(take.start,take.end);
-            tracks[curr.track].takeHandles[take.number].read(slice,{at:0});
+    if(e.data.type === "fill_staging_mipmap"){
+        const newTake = e.data.newTake;
+        writeToMipMap(type,newTake);
+        for(const reg of currTimeline){
+            const slice = bigArr.subarray(reg.start,reg.end);
+            tracks[curr.track].takeHandles[reg.number].read(slice,{at:0});
         }
         let max = 0;
         for(let i=0;i<bigArr.length;i++){
@@ -206,6 +224,61 @@ self.onmessage = (e) => {
             track.takeHandles.forEach(handle => handle.close());
         });
     }
+}
+
+function writeToMipMap(type,newTake){
+    Atomics.store(mipMap.isWorking[type],0,1);
+    const int8 = mipMap[type];
+    const halfLength = mipMap.halfLength;
+    const resolutions = mipMap.resolutions;
+    const iterateAmount = mipMap.totalTimelineSamples / resolutions[0];
+    let iterateAmountMultiple = 0;
+    let i=newTake.start;
+    let startBucket = 0;
+    while(iterateAmountMultiple + iterateAmount < newTake.start){
+        iterateAmountMultiple += iterateAmount;
+        startBucket += 1;
+    }
+    let currBucket = startBucket;
+    let max,min;
+    let bufferIndex = 0;
+    let at = 0;
+    //fill the bottom layer of the pyramid of the mipmap
+    while(i<newTake.end){
+        if(bufferIndex >= mipMap.buffer.length){
+            tracks[curr.track].takeHandles[newTake.number].read(mipMap.buffer.length,{at})
+            at = bufferIndex;
+            bufferIndex = 0;
+        }
+        if(i >= iterateAmountMultiple || i===newTake.end-1){
+            iterateAmountMultiple += iterateAmount;
+            int8[currBucket] = Math.floor(127 * max);
+            int8[mipMap.halfLength + currBucket] = Math.floor(127 * min);
+            currBucket += 1;
+            min = 1; max = -1;
+        }
+        max = Math.max(max,buffer[bufferIndex]);
+        min = Math.min(min,buffer[bufferIndex])
+        i += 1; bufferIndex += 1;
+    } 
+    //fill rest of the pyramid
+    count = 1;
+    while(count < mipMap.resolutions.length){
+        let start = resolutions.slice(0,count).reduce((acc, curr) => acc + curr, 0) + Math.floor(startBucket/2**count);
+        let end = resolutions.slice(0,count).reduce((acc, curr) => acc + curr, 0) + Math.floor(startBucket/2**count);
+        for(let j=start;j<end;j++){
+            const k = Math.floor(j/2);
+            const maxOption1 = int8[k];
+            const maxOption2 = int8[k+1];
+            int8[j] = Math.max(maxOption1,maxOption2);
+            const minOption1 = int8[halfLength + k];
+            const minOption2 = int8[halfLength + k + 1];
+            int8[j + halfLength] = Math.min(minOption1,minOption2);
+        }
+        count += 1;
+    }
+    Atomics.store(mipMap.isWorking[type],0,1);
+    postMessage({type:'mipmap_done'})
 }
 
 

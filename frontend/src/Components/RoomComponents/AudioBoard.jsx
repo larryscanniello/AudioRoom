@@ -23,12 +23,24 @@ import demoacoustic from "/audio/audioboarddemoacoustic.mp3"
 import demoelectric from "/audio/audioboarddemoelectric.mp3"
 import { useWindowSize } from "../useWindowSize";
 import "./AudioBoard.css";
+import timelineReducer from "./timelineReducer";
 
 const WAVEFORM_WINDOW_LEN = 900;
 const COMM_TIMEOUT_TIME = 5000;
 const PACKET_SIZE = 960;
 const TIMELINE_LENGTH = 15 * 60; //15 minutes
 const START_VIEWPORT_TIMELENGTH = 20;
+const TOTAL_TIMELINE_SAMPLES = TIMELINE_LENGTH * 48000;
+const MIPMAP_HIGHEST_RESOLUTION = 2**Math.ceil(Math.log2(TIMELINE_LENGTH / .2 * WAVEFORM_WINDOW_LEN));
+
+const MIPMAP_RESOLUTIONS = [MIPMAP_HIGHEST_RESOLUTION];
+let curr = MIPMAP_HIGHEST_RESOLUTION;
+while(curr/2>WAVEFORM_WINDOW_LEN){
+    MIPMAP_RESOLUTIONS.push(curr/2);
+    curr = MIPMAP_RESOLUTIONS[MIPMAP_RESOLUTIONS.length-1];
+}
+
+const MIPMAP_HALF_SIZE = MIPMAP_RESOLUTIONS.reduce((acc, curr) => acc + curr, 0);
 
 export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnteredRoom,
     localStreamRef,initializeAudioBoard,dataConnRef,audioCtxRef,audioSourceRef,dataConnAttached
@@ -120,6 +132,8 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
     const stagingSABRef = useRef(null);
     const mixSABRef = useRef(null);
     const recordSABRef = useRef(null);
+    const stagingMipMapSABRef = useRef(null);
+    const mixMipMapSABRef = useRef(null);
 
     const audioChunksRef = useRef([]);
     const audio2ChunksRef = useRef([]);
@@ -127,72 +141,6 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
     const metronomeRef = useRef(null);
     const AudioCtxRef = useRef(null);
     const opusRef = useRef(null);
-
-    function timelineReducer(state,action){
-        switch(action.type){
-            case "add_region":
-                const {timelineStart,timelineEnd,takeNumber,fileName,fileLength} = action.data;
-                const newRegion = {
-                    start:timelineStart,
-                    end:timelineEnd,
-                    number:takeNumber,
-                    name:fileName,
-                    offset: delayCompensation[0],
-                    length:fileLength,
-                }
-                if(state.regionStack.length === 0) return {
-                    regionStack: [newRegion],
-                    stagingTimeline:[newRegion],
-                    mixTimeline: state.mixTimeline,
-                    undoStack: [], //clear undo stack
-                };
-                const regionStack = [...state.regionStack,newRegion];
-                const timeline = [];
-                for(const r of regionStack.reverse()){ 
-                    const shards = [r];
-                    for(let i=timeline.length-1;i>=0;i++){
-                        for(let j=0;j<shards.length;j++){
-                            const s = shards[j];
-                            if(!s) continue;
-                            const startCollision = timeline[i].start <= s.start && s.start < timeline[i].end;
-                            const endCollision = timeline[i].start <= s.end && s.end < timeline[i].end;
-                            const shardContainsRegion = s.start <= timeline[i].start && timeline[i].end < s.end;
-                            if(shardContainsRegion){
-                                const newShard1 = {...shards[j],end:timeline[i].start};
-                                const newShard2 = {...shards[j],start:timeline[i].end};
-                                shards[j] = null;
-                                shards.push(newShard1); shards.push(newShard2);
-                            }else if(startCollision && endCollision){
-                                shards[j] = null;
-                            }else if(startCollision){
-                                const newStart = timeline[i].end;
-                                if(newStart < shards[j].end){
-                                    shards[j] = {...shards[j],start:newStart}
-                                }else{
-                                    shards[j] = null;
-                                }
-                            }else if(endCollision){
-                                const newEnd = timeline[i].end;
-                                if(newEnd > shards[j].start){
-                                    shards[j] = {...shards[j],end:newEnd}
-                                }else{
-                                    shards[j] = null;
-                                }
-                            }
-                        }
-                    }
-                    for(s of shards){
-                        if(s) timeline.push(s);
-                    }
-                }
-                timeline.sort((a, b) => a.start - b.start);
-                regionStack.reverse();
-                return {
-                    regionStack,timeline,undoStack:[],mixTimeline:state.mixTimeline,
-                }
-        }
-
-    }
 
     
 
@@ -250,7 +198,8 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
         stagingSABRef.current = new SharedArrayBuffer(48000 * 4 * 10 + 12);
         mixSABRef.current = new SharedArrayBuffer(48000 * 4 * 10 + 12);
         recordSABRef.current = new SharedArrayBuffer(48000 * 4 * 10 + 12);
-
+        stagingMipMapSABRef.current = new SharedArrayBuffer(2 * MIPMAP_HALF_SIZE + 1);
+        mixMipMapSABRef.current = new SharedArrayBuffer(2 * MIPMAP_HALF_SIZE + 1);
 
         fileSystemRef.current = new Worker("/opfs_worker.js",{type:'module'});
         fileSystemRef.current.postMessage({
@@ -258,6 +207,13 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
             stagingPlaybackSAB:stagingSABRef.current,
             mixPlaybackSAB:mixSABRef.current,
             recordSAB:recordSABRef.current,
+            mipMap:{
+                MIPMAP_HALF_SIZE,
+                MIPMAP_RESOLUTIONS,
+                TOTAL_TIMELINE_SAMPLES,
+                staging: stagingMipMapSABRef.current,
+                mix: mixMipMapSABRef.current,
+            }
         });
 
         const getDemo = async ()=>{
@@ -826,7 +782,6 @@ function handleRecord() {
     function updatePlayhead(startRelative,startAbsolute,endRelative){
         const elapsed = Math.max(AudioCtxRef.current.currentTime - startAbsolute,0);
         const pxPerSecond = Math.floor(WAVEFORM_WINDOW_LEN*zoomFactor)/(128*60/BPM);
-        console.log(pxPerSecond);
         if(looping && mouseDragEnd){
             playheadRef.current.style.transform = `translateX(${(startRelative + (elapsed%(endRelative-startRelative)))*pxPerSecond}px)`
         }else{
@@ -1088,22 +1043,40 @@ function handleRecord() {
     }
     
     const handleZoom = ([newSliderVal]) => {
+        //slider vals at between 0 and 1000, mapped exponentially to zoom values between .2 and 900 (i think, or 4500)
         const b = (TIMELINE_LENGTH*5)**(1/1000);
         const newZoom = .2 * b ** newSliderVal;
         const start = viewportDataRef.current.startTime;
         const end = viewportDataRef.current.endTime;
         const center = (start+end)/2;
-        if(center + newZoom/2<=TIMELINE_LENGTH && center - newZoom/2 >= 0){
-            viewportDataRef.current.startTime = center - newZoom/2;
-            viewportDataRef.current.endTime = center + newZoom/2;
+        let newStart; let newEnd;
+        if(center + newZoom/2<TIMELINE_LENGTH && center - newZoom/2 >= 0){
+            newStart = center - newZoom/2;
+            newEnd = center + newZoom/2;
         }
-        else if(center + newZoom/2>TIMELINE_LENGTH){
-            viewportDataRef.current.endTime = TIMELINE_LENGTH;
-            viewportDataRef.current.startTime = TIMELINE_LENGTH - newZoom;
+        else if(center + newZoom/2>=TIMELINE_LENGTH){
+            newEnd = TIMELINE_LENGTH;
+            newStart = TIMELINE_LENGTH - newZoom;
         }else{
-            viewportDataRef.current.startTime = 0;
-            viewportDataRef.current.endTime = newZoom;
+            newStart = 0;
+            newEnd = newZoom;
         }
+        //if playhead is on screen, translate window so playhead stays in the same place
+        if(playheadLocation >= start && playheadLocation < end && newStart >= 0 && newEnd < TIMELINE_LENGTH){
+            const playheadPos = (playheadLocation-start)/(end-start);
+            const newPlayheadPos = (playheadLocation-newStart)/(newEnd-newStart);
+            const translation = (newPlayheadPos - playheadPos)*(newEnd-newStart);
+            if(newStart + translation >= 0 && newEnd + translation < TIMELINE_LENGTH){
+                newStart += translation; newEnd += translation;
+            }else if(newEnd + translation >= TIMELINE_LENGTH){
+                newEnd = TIMELINE_LENGTH; newStart = TIMELINE_LENGTH - newZoom;
+            }else{
+                newStart = 0; newEnd = newZoom;
+            }
+        }
+        viewportDataRef.current.startTime = newStart;
+        viewportDataRef.current.endTime = newEnd;
+
         setZoomFactor(newZoom);
     }
 

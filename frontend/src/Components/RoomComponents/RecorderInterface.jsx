@@ -228,8 +228,11 @@ export default function RecorderInterface({
         fileSystemRef.current.postMessage({type:'get_waveform_array_to_render',timeline:stagingTimeline});
     }
 
-    if(fileSystemRef.current) {fileSystemRef.current.onmessage = ({data}) => {
-        const refs = [waveform1Ref,waveform2Ref]
+    if(fileSystemRef.current) {fileSystemRef.current.onmessage = () => {
+        renderWaveforms();
+    }
+
+    function renderWaveforms(){
         for(let i=0;i<2;i++){
             const canvRef = refs[i];
             const dataArray = new Float32Array(data.bigArr);
@@ -699,7 +702,6 @@ export default function RecorderInterface({
 
     }    
 
-    console.log('tl',timeline);
     return <div className="grid overflow-x-auto relative border-black border-0 shadow-sm shadow-blak grid-cols-2 scrollwindow"
                 style={{width:WAVEFORM_WINDOW_LEN,height:Math.floor(150*compactMode)}} ref={scrollWindowRef}
                 >
@@ -755,7 +757,7 @@ export default function RecorderInterface({
                     <div ref={regionsContainerRef} className="regions-layer">
                         {timeline.stagingTimeline.map(region => (
                             <div
-                            key={region.fileName}
+                            key={region.name}
                             data-start={region.start}
                             data-end={region.end}
                             className="region"
@@ -780,8 +782,7 @@ export default function RecorderInterface({
                     
                 </div>
                 
-                {<div ref={playheadRef} style={{position:"absolute",top:0,bottom:0,left:-1,
-                    width:"4px"}}
+                {<div ref={playheadRef} style={{position:"absolute",top:0,bottom:0,left:-1,pointerEvents:"none",width:"4px"}}
                     onMouseDown={handleMovePlayhead}
                     className="flex flex-col items-center"
                     onDragStart={(e) => e.preventDefault()}

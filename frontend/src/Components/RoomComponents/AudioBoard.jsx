@@ -83,8 +83,8 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
     const [timeSignature,setTimeSignature] = useState({numerator:4,denominator:4});
 
     const [timeline,timelineDispatch] = useReducer(timelineReducer,{regionStack: [],
-                                                                    stagingTimeline:[],
-                                                                    mixTimeline: [],
+                                                                    staging:[],
+                                                                    mix: [],
                                                                     undoStack: [],});
 
     const waveform1Ref = useRef(null);
@@ -132,8 +132,7 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
     const stagingSABRef = useRef(null);
     const mixSABRef = useRef(null);
     const recordSABRef = useRef(null);
-    const stagingMipMapSABRef = useRef(null);
-    const mixMipMapSABRef = useRef(null);
+    const mipMapRef = useRef(null);
 
     const audioChunksRef = useRef([]);
     const audio2ChunksRef = useRef([]);
@@ -198,8 +197,21 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
         stagingSABRef.current = new SharedArrayBuffer(48000 * 4 * 10 + 12);
         mixSABRef.current = new SharedArrayBuffer(48000 * 4 * 10 + 12);
         recordSABRef.current = new SharedArrayBuffer(48000 * 4 * 10 + 12);
-        stagingMipMapSABRef.current = new SharedArrayBuffer(2 * MIPMAP_HALF_SIZE + 1);
-        mixMipMapSABRef.current = new SharedArrayBuffer(2 * MIPMAP_HALF_SIZE + 1);
+
+        const stagingMipMapSAB = new SharedArrayBuffer(2 * MIPMAP_HALF_SIZE + 1);
+        const mixMipMapSAB = new SharedArrayBuffer(2 * MIPMAP_HALF_SIZE + 1);
+        mipMapRef.current = {
+            staging: new Int8Array(stagingMipMapSAB,1),
+            mix: new Int8Array(mixMipMapSAB,1),
+            isWorking: {
+                    staging: new Int8Array(stagingMipMapSAB,0,1),
+                    mix: new Int8Array(mixMipMapSAB,0,1),
+            },
+            MIPMAP_HALF_SIZE,
+            MIPMAP_RESOLUTIONS,
+            TIMELINE_LENGTH,
+            TOTAL_TIMELINE_SAMPLES
+        }
 
         fileSystemRef.current = new Worker("/opfs_worker.js",{type:'module'});
         fileSystemRef.current.postMessage({
@@ -211,8 +223,8 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
                 MIPMAP_HALF_SIZE,
                 MIPMAP_RESOLUTIONS,
                 TOTAL_TIMELINE_SAMPLES,
-                staging: stagingMipMapSABRef.current,
-                mix: mixMipMapSABRef.current,
+                staging: stagingMipMapSAB,
+                mix: mixMipMapSAB,
             }
         });
 
@@ -1222,6 +1234,7 @@ function handleRecord() {
                                 pxPerSecondRef={pxPerSecondRef} convertTimeToMeasuresRef={convertTimeToMeasuresRef}
                                 fileSystemRef={fileSystemRef} timeSignature={timeSignature}
                                 viewportDataRef={viewportDataRef} timeline={timeline}
+                                mipMapRef={mipMapRef}
                     />
                     {/*<Button variant="default" size={compactMode==1?"lg":"sm"} onClick={()=>setSnapToGrid(prev=>!prev)} 
                         className="border-1 border-gray-300 hover:bg-gray-800"

@@ -12,7 +12,7 @@ export default function RecorderInterface({
     currentlyPlayingAudio,numConnectedUsersRef,audio2,delayCompensation2,
     WAVEFORM_WINDOW_LEN,autoscrollEnabledRef,setZoomFactor,
     compactMode,loadingAudio,pxPerSecondRef,convertTimeToMeasuresRef,
-    fileSystemRef,stagingTimeline,timeSignature,viewportDataRef,timeline
+    fileSystemRef,stagingTimeline,timeSignature,viewportDataRef,timeline,mipMapRef
 }){
 
     const canvasContainerRef = useRef(null);
@@ -88,6 +88,7 @@ export default function RecorderInterface({
         fillSelectedRegion(waveform2Ref);
         setPlayhead();
         setRegions();
+        renderWaveforms();
         /*
         if(stagingTimeline && stagingTimeline.length > 0){
             drawWaveform();
@@ -222,142 +223,87 @@ export default function RecorderInterface({
         tickCtx.stroke();
     }
 
-    function drawWaveform(){
-        if(!fileSystemRef.current) return;
-        console.log('message sent to worker');
-        fileSystemRef.current.postMessage({type:'get_waveform_array_to_render',timeline:stagingTimeline});
-    }
 
     if(fileSystemRef.current) {fileSystemRef.current.onmessage = () => {
         renderWaveforms();
     }
-
+    }
     function renderWaveforms(){
-        for(let i=0;i<2;i++){
+        if(!mipMapRef.current) return;
+        Atomics.load(mipMapRef.current.staging,0);
+        const refs = [waveform1Ref,waveform2Ref];
+        const timelines = [timeline.staging,timeline.mix];
+
+        for(let i=0;i<1;i++){
+            if(timelines[i].length === 0) continue;
             const canvRef = refs[i];
-            const dataArray = new Float32Array(data.bigArr);
             const canvasCtx = canvRef.current.getContext('2d');
-            if(i===1){
-                //canvasCtx.scale(1.5,1);
-            }
             const WIDTH = canvRef.current.width;
             const HEIGHT = canvRef.current.height;
-            canvasCtx.lineWidth =  1;
-            canvasCtx.strokeStyle = "rgb(0,0,0)";
             canvasCtx.globalAlpha = 1.0
-            
             canvasCtx.lineWidth = 1; // slightly thicker than 1px
-            canvasCtx.strokeStyle = "#1c1e22";
+            canvasCtx.strokeStyle =  "#1c1e22";
             canvasCtx.lineCap = "round";
             canvasCtx.lineJoin = "round";
 
-            const bufferLength = dataArray.length;
+            const vpStartSamples = Math.round(viewportDataRef.current.startTime * audioCtxRef.current.sampleRate);
+            const vpEndSamples = Math.round(viewportDataRef.current.endTime * audioCtxRef.current.sampleRate);
+
+            const pxPerTimeline = mipMapRef.current.TIMELINE_LENGTH * audioCtxRef.current.sampleRate / (vpEndSamples-vpStartSamples) * WIDTH;
             
-            //const sliceWidth = (WIDTH/128.0)/(audioCtxRef.current.sampleRate*(60/BPM));
-            const scaleFactor = (bufferLength)/(audioCtxRef.current.sampleRate*128*(60/BPM));
-            const samplesPerPixel = Math.ceil((bufferLength) / (WIDTH*scaleFactor));
-            canvasCtx.beginPath();
-            let lastx;
-            //algorithm: each pixel gets min/max of a range of samples
-            /*for (let x = 0; x < WIDTH; x++) {
-                const start = x * samplesPerPixel
-                const end = Math.min(start + samplesPerPixel, bufferLength);
-                let min = 1.0, max = -1.0;
-                for (let i = start; i < end; i++) {
-                    const val = dataArray[i];
-                    if (val < min) min = val;
-                    if (val > max) max = val;
-                }
-                const y1 = ((1 + min) * HEIGHT) / 2;
-                const y2 = ((1 + max) * HEIGHT) / 2;
-                canvasCtx.moveTo(x, y1);
-                canvasCtx.lineTo(x, y2);
-                lastx = x;
-                
-                
-                if(end==bufferLength){
-                    break
-                }
-            }*/
-            for (let x = 0; x < WIDTH; x++) {
-        const start = x * samplesPerPixel;
-        const end = Math.min(start + samplesPerPixel, bufferLength);
-        let min = 1.0, max = -1.0;
+            let currRes = 0;
+            const resolutions = mipMapRef.current.MIPMAP_RESOLUTIONS
+            while(currRes+1<resolutions.length && resolutions[currRes + 1] > pxPerTimeline){
+                currRes += 1;
+            } 
 
-        for (let k = start; k < end; k++) { // Changed inner loop var to 'k' to avoid shadowing 'i'
-            const val = dataArray[k];
-            if (val < min) min = val;
-            if (val > max) max = val;
-        }
-
-        let y1, y2;
-
-        if (i === 1) {
-            // --- LOGARITHMIC (dB) SCALE CALCULATION ---
-            /*const dbFloor = -60; // Anything below -60dB will be at the center line
-            
-            // Helper to convert linear to normalized 0-1 log scale
-            const toLogY = (val) => {
-                const absVal = Math.abs(val);
-                if (absVal < 0.0001) return 0; // Avoid log(0)
-                
-                // Calculate dB: 20 * log10(amplitude)
-                const db = 20 * Math.log10(absVal);
-                
-                // Map dB range [-60, 0] to normalized [0, 1]
-                // (db - floor) / (max - floor) -> (db + 60) / 60
-                const normalized = Math.max(0, (db - dbFloor) / -dbFloor);
-                return normalized * Math.sign(val); 
+            let j=0;
+            while(j<timelines[i].length && timelines[i][j].end <= vpStartSamples){
+                j += 1;
+            }
+            if(j===timelines[i].length || timelines[i][j].start >= vpEndSamples){
+                break
             };
 
-            const logMin = toLogY(min);
-            const logMax = toLogY(max);
-
-            // Map normalized log values to canvas HEIGHT
-            y1 = ((1 + logMin) * HEIGHT) / 2;
-            y2 = ((1 + logMax) * HEIGHT) / 2;
-
-            canvasCtx.moveTo(x, y1);
-            canvasCtx.lineTo(x, y2);
-            lastx = x;
-            if(end===bufferLength){
-                break;
-            }*/
-            const sMin = Math.sqrt(Math.abs(min)) * Math.sign(min);
-            const sMax = Math.sqrt(Math.abs(max)) * Math.sign(max);
+            const halfLength = mipMapRef.current.MIPMAP_HALF_SIZE;
+            const iterateAmount = mipMapRef.current.TOTAL_TIMELINE_SAMPLES / halfLength;
+            let iterateAmountMultiple = 0;
+            let startBucket = 0;
             
-            y1 = ((1 + sMin) * HEIGHT) / 2;
-            y2 = ((1 + sMax) * HEIGHT) / 2;
-            
-            canvasCtx.moveTo(x, y1);
-            canvasCtx.lineTo(x, y2);
-            lastx = x;
-            if(end===bufferLength) break;
-        } else {
-            // --- STANDARD LINEAR SCALE ---
-            y1 = ((1 + min) * HEIGHT) / 2;
-            y2 = ((1 + max) * HEIGHT) / 2;
-            canvasCtx.moveTo(x, y1);
-            canvasCtx.lineTo(x, y2);
-            lastx = x;
-            if(end===bufferLength){
-                break;
+            const mipMapStart = resolutions.slice(0,currRes).reduce((acc, curr) => acc + curr, 0);
+            const pxGap = mipMapRef.current.TIMELINE_LENGTH / (viewportDataRef.current.endTime-viewportDataRef.current.startTime) * WAVEFORM_WINDOW_LEN / resolutions[currRes];
+
+            canvasCtx.beginPath();
+            while(j<timelines[i].length && timelines[i][j].start < vpEndSamples){
+                while(iterateAmountMultiple + iterateAmount < timelines[i][j].start){
+                    iterateAmountMultiple += iterateAmount;
+                    startBucket += 1;
+                }
+                
+                let mipMapIndex = mipMapStart + Math.floor(startBucket / 2**currRes);
+                let k = 0;
+                while((k+1)*pxGap  < WAVEFORM_WINDOW_LEN * (timelines[i][j].start - vpStartSamples)/(vpEndSamples - vpStartSamples)){
+                    k+=1;
+                }
+                while(k*pxGap < WAVEFORM_WINDOW_LEN * (timelines[i][j].end - vpStartSamples)/(vpEndSamples - vpStartSamples)){
+                    const max = mipMapRef.current.staging[mipMapIndex]/127;
+                    const min = mipMapRef.current.staging[halfLength + mipMapIndex]/127;
+                    const y1 = ((1 + min) * HEIGHT) / 2;
+                    const y2 = ((1 + max) * HEIGHT) / 2;
+                    
+                    canvasCtx.moveTo(k*pxGap,y1);
+                    canvasCtx.lineTo(k*pxGap,y2);
+                    mipMapIndex += 1; k+=1;
+                }
+                j+=1
             }
+            canvasCtx.stroke();
+
         }
-        canvasCtx.moveTo(0,HEIGHT/2);
-        canvasCtx.lineTo(lastx,HEIGHT/2);
-        canvasCtx.stroke();
-        canvasCtx.fillStyle = "rgb(0,125,225)" //"rgb(0,200,160)"
-        canvasCtx.globalAlpha = .12
-        //canvasCtx.fillRect(0,0,lastx,HEIGHT)
+    }
+
+
     
-    }
-            
-        }
-    }
-
-
-    }
     function fillSelectedRegion(waveformRef){
         const canvasCtx = waveformRef.current.getContext("2d");
         const WIDTH = waveformRef.current.width;
@@ -755,7 +701,7 @@ export default function RecorderInterface({
                     </canvas>
 
                     <div ref={regionsContainerRef} className="regions-layer">
-                        {timeline.stagingTimeline.map(region => (
+                        {timeline.staging.map(region => (
                             <div
                             key={region.name}
                             data-start={region.start}

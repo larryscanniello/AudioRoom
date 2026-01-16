@@ -147,7 +147,7 @@ export const useAudioRecorder = (
         }
         
         processor.port.onmessage = (event) => {
-            timelineDispatch({data:event.data,type:"add_region",fileSystemRef})
+            timelineDispatch({data:event.data,type:"add_region",fileSystemRef,delayCompensation})
         }
 
         const stopPlayback = (endTime)=>{

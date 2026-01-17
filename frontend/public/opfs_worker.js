@@ -244,7 +244,7 @@ function writeToMipMap(type,newTake){
             bytesRead += handle.read(mipMap.buffer,options);
             console.log(bytesRead);
             bufferIndexCount += 1;
-            at = bufferIndexCount * mipMap.buffer.length * 4; //4 bytes
+            at = bufferIndexCount * mipMap.buffer.length * Float32Array.BYTES_PER_ELEMENT;
             bufferIndex = 0;
         }
         if(i >= iterateAmountMultiple || i===newTake.end-1){

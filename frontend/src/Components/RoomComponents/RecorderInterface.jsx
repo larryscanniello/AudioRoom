@@ -232,7 +232,11 @@ export default function RecorderInterface({
         if(!mipMapRef.current) return;
         Atomics.load(mipMapRef.current.staging,0);
         const refs = [waveform1Ref,waveform2Ref];
-        const timelines = [timeline.staging,timeline.mix];
+        const container = regionsContainerRef.current;
+        const timelines = [container.children,timeline.mix];
+
+        const startTime = viewportDataRef.current.startTime;
+        const endTime = viewportDataRef.current.endTime;
 
         for(let i=0;i<1;i++){
             if(timelines[i].length === 0) continue;
@@ -246,8 +250,8 @@ export default function RecorderInterface({
             canvasCtx.lineCap = "round";
             canvasCtx.lineJoin = "round";
 
-            const vpStartSamples = Math.round(viewportDataRef.current.startTime * audioCtxRef.current.sampleRate);
-            const vpEndSamples = Math.round(viewportDataRef.current.endTime * audioCtxRef.current.sampleRate);
+            const vpStartSamples = Math.round(startTime * audioCtxRef.current.sampleRate);
+            const vpEndSamples = Math.round(endTime * audioCtxRef.current.sampleRate);
 
             const pxPerTimeline = mipMapRef.current.TIMELINE_LENGTH * audioCtxRef.current.sampleRate / (vpEndSamples-vpStartSamples) * WIDTH;
             
@@ -257,35 +261,34 @@ export default function RecorderInterface({
                 currRes += 1;
             } 
 
-            let j=0;
-            while(j<timelines[i].length && timelines[i][j].end <= vpStartSamples){
+            let j=0; //j is the region number in the timeline
+            while(j<timelines[i].length && timelines[i][j].dataset.end <= vpStartSamples){
                 j += 1;
             }
-            if(j===timelines[i].length || timelines[i][j].start >= vpEndSamples){
+            if(j===timelines[i].length || timelines[i][j].dataset.start >= vpEndSamples){
                 break
             };
 
             const halfLength = mipMapRef.current.MIPMAP_HALF_SIZE;
             const iterateAmount = mipMapRef.current.TOTAL_TIMELINE_SAMPLES / halfLength;
-            let iterateAmountMultiple = 0;
-            let startBucket = 0;
             
             const mipMapStart = resolutions.slice(0,currRes).reduce((acc, curr) => acc + curr, 0);
             const pxGap = mipMapRef.current.TIMELINE_LENGTH / (viewportDataRef.current.endTime-viewportDataRef.current.startTime) * WAVEFORM_WINDOW_LEN / resolutions[currRes];
 
             canvasCtx.beginPath();
-            while(j<timelines[i].length && timelines[i][j].start < vpEndSamples){
-                while(iterateAmountMultiple + iterateAmount < timelines[i][j].start){
-                    iterateAmountMultiple += iterateAmount;
-                    startBucket += 1;
-                }
+            while(j<timelines[i].length && timelines[i][j].dataset.start < vpEndSamples){ // iterate through regions of the timeline whose start is left of the viewport
+
+                const regionStartSamples = timelines[i][j].dataset.start;
+                const startSamples = Math.max(regionStartSamples,vpStartSamples);
+
+                let startBucket = Math.floor(startSamples/iterateAmount) //the index of the lowest level of the pyramid corresponding to the start
                 
-                let mipMapIndex = mipMapStart + Math.floor(startBucket / 2**currRes);
-                let k = 0;
-                while((k+1)*pxGap  < WAVEFORM_WINDOW_LEN * (timelines[i][j].start - vpStartSamples)/(vpEndSamples - vpStartSamples)){
+                let mipMapIndex = mipMapStart + Math.floor(startBucket / 2**(currRes+1));
+                let k = 0; //k iterates through vertical lines to be drawn
+                while((k+1)*pxGap  < WAVEFORM_WINDOW_LEN * (startSamples - vpStartSamples)/(vpEndSamples - vpStartSamples)){ 
                     k+=1;
                 }
-                while(k*pxGap < WAVEFORM_WINDOW_LEN * (timelines[i][j].end - vpStartSamples)/(vpEndSamples - vpStartSamples)){
+                while(k*pxGap < WAVEFORM_WINDOW_LEN * (timelines[i][j].dataset.end - vpStartSamples)/(vpEndSamples - vpStartSamples)){
                     const max = mipMapRef.current.staging[mipMapIndex]/127;
                     const min = mipMapRef.current.staging[halfLength + mipMapIndex]/127;
                     const y1 = ((1 + min) * HEIGHT) / 2;
@@ -352,9 +355,6 @@ export default function RecorderInterface({
                 child.style.display = "none";
                 continue;
             }
-
-            
-
             child.style.display = "block";
 
             const left = Math.max(0,(start - startTime) / (endTime-startTime)) * WAVEFORM_WINDOW_LEN;
@@ -583,8 +583,15 @@ export default function RecorderInterface({
         e.preventDefault();
         const startTime = viewportDataRef.current.startTime;
         const endTime = viewportDataRef.current.endTime;
-        const newStart = startTime+(e.deltaX/25);
-        const newEnd = endTime + (e.deltaX/25);
+        const pxPerTimeline = mipMapRef.current.TIMELINE_LENGTH / (endTime - startTime) * WAVEFORM_WINDOW_LEN;
+            
+        let currRes = 0;
+        const resolutions = mipMapRef.current.MIPMAP_RESOLUTIONS
+        while(currRes+1<resolutions.length && resolutions[currRes + 1] > pxPerTimeline){
+            currRes += 1;
+        } 
+        const newStart = startTime+(e.deltaX/25*(2**(currRes-6)));
+        const newEnd = endTime + (e.deltaX/25*(2**(currRes-6)));
         if(newStart<0){
             viewportDataRef.current.startTime = 0;
             viewportDataRef.current.endTime = endTime - startTime;
@@ -601,6 +608,7 @@ export default function RecorderInterface({
         fillSelectedRegion(waveform2Ref);
         setPlayhead();
         setRegions();
+        renderWaveforms();
     }
 
 
@@ -701,8 +709,8 @@ export default function RecorderInterface({
                     </canvas>
 
                     <div ref={regionsContainerRef} className="regions-layer">
-                        {timeline.staging.map(region => (
-                            <div
+                        {timeline.staging.map(region => {
+                            return <div
                             key={region.name}
                             data-start={region.start}
                             data-end={region.end}
@@ -711,7 +719,7 @@ export default function RecorderInterface({
                             <div></div>
                             <div></div>
                             </div>
-                        ))}
+                        })}
                     </div>
 
                     

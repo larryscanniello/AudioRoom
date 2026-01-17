@@ -12,14 +12,14 @@ export default function timelineReducer(state,action){
                     offset: action.delayCompensation[0],
                     length:fileLength,
                 }
-                if(state.regionStack.length === 0) 
+                if(state.regionStack.length === 0){ 
                     action.fileSystemRef.current.postMessage({type:"fill_staging_mipmap",newTake:newRegion});
                     return {
                     regionStack: [newRegion],
                     staging:[newRegion],
-                    mix: state.mixTimeline,
+                    mix: state.mix,
                     undoStack: [], //clear undo stack
-                };
+                }};
                 const regionStack = [...state.regionStack,newRegion];
                 const timeline = [];
                 for(const r of regionStack.reverse()){ 
@@ -61,7 +61,7 @@ export default function timelineReducer(state,action){
                 }
                 timeline.sort((a, b) => a.start - b.start);
                 regionStack.reverse();
-                const toReturn = {regionStack,staging:timeline,undoStack:[],mixTimeline:state.mix}
+                const toReturn = {regionStack,staging:timeline,undoStack:[],mix:state.mix}
                 action.fileSystemRef.current.postMessage({type:"fill_staging_mipmap",newTake:regionStack[regionStack.length-1]});
                 return toReturn;
         }

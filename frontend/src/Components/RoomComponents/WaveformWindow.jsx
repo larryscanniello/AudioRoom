@@ -1,9 +1,7 @@
 import { useEffect,useRef,useState } from "react";
 import "./RecorderInterface.css";
-import { data } from "react-router-dom";
-import { PiNewspaperClippingBold } from "react-icons/pi";
 
-export default function RecorderInterface({
+export default function WaveformWindow({
     audio,BPM,mouseDragEnd,zoomFactor,delayCompensation,
     measureTickRef,mouseDragStart,audioCtxRef,
     waveform1Ref,waveform2Ref,playheadRef,setMouseDragStart,
@@ -12,7 +10,8 @@ export default function RecorderInterface({
     currentlyPlayingAudio,numConnectedUsersRef,audio2,delayCompensation2,
     WAVEFORM_WINDOW_LEN,autoscrollEnabledRef,setZoomFactor,
     compactMode,loadingAudio,pxPerSecondRef,convertTimeToMeasuresRef,
-    fileSystemRef,stagingTimeline,timeSignature,viewportDataRef,timeline,mipMapRef
+    fileSystemRef,stagingTimeline,timeSignature,viewportDataRef,timeline,mipMapRef,
+    width,height,
 }){
 
     const canvasContainerRef = useRef(null);
@@ -75,13 +74,13 @@ export default function RecorderInterface({
         if(canvasContainerRef.current){ 
             drawCanvasContainer();
         }
-    },[compactMode,zoomFactor]);
+    },[compactMode,zoomFactor,width]);
 
     useEffect(()=>{
         if(measureTickRef.current){
             drawMeasureTicks();
         }
-    },[compactMode,zoomFactor,mouseDragStart,mouseDragEnd,BPM,compactMode])
+    },[compactMode,zoomFactor,mouseDragStart,mouseDragEnd,BPM,compactMode,width])
 
     useEffect(()=>{
         fillSelectedRegion(waveform1Ref);
@@ -101,7 +100,7 @@ export default function RecorderInterface({
                 cancelAnimationFrame(animation2Ref.current);
             }
         }*/
-    },[audio,audio2,delayCompensation,delayCompensation2,mouseDragStart,mouseDragEnd,loadingAudio,zoomFactor,BPM,compactMode,timeline,playheadLocation]);
+    },[audio,audio2,delayCompensation,delayCompensation2,mouseDragStart,mouseDragEnd,loadingAudio,zoomFactor,BPM,compactMode,timeline,playheadLocation,width]);
 
     function drawCanvasContainer(){
         const canvas = canvasContainerRef.current;
@@ -115,7 +114,7 @@ export default function RecorderInterface({
             //draws the lower canvas beat lines
 
             canvasContainerCtx.lineWidth = 1;
-            canvasContainerCtx.strokeStyle = "rgb(250,250,250)";
+            canvasContainerCtx.strokeStyle = "rgb(175,175,175)";
             canvasContainerCtx.globalAlpha = 1
             canvasContainerCtx.font = "12px sans-serif";
             const textWidth = canvasContainerCtx.measureText("888").width;
@@ -181,7 +180,7 @@ export default function RecorderInterface({
             tickCtx.fillRect(mouseDragStart.t*pxPerSecond,0,(mouseDragEnd.t-mouseDragStart.t)*pxPerSecond,HEIGHT)
         }*/
         tickCtx.lineWidth = 5;
-        tickCtx.strokeStyle = "rgb(250,250,250)"
+        tickCtx.strokeStyle = "rgb(225,225,225)"
         tickCtx.lineWidth = 1;
         tickCtx.font = "12px sans-serif";
         tickCtx.fillStyle = "#1a1a1a";
@@ -360,7 +359,7 @@ export default function RecorderInterface({
             const left = Math.max(0,(start - startTime) / (endTime-startTime)) * WAVEFORM_WINDOW_LEN;
             const leftOverflow = Math.max(0, startTime - start);
             const rightOverflow = Math.max(0, end - endTime)
-            const width = Math.min(1,(end - start - leftOverflow - rightOverflow) / (endTime-startTime)) * WAVEFORM_WINDOW_LEN;
+            const regionWidth = Math.min(1,(end - start - leftOverflow - rightOverflow) / (endTime-startTime)) * WAVEFORM_WINDOW_LEN;
 
             let borderRadius;
             if(start < startTime && end > endTime){
@@ -377,11 +376,11 @@ export default function RecorderInterface({
             child.style.top = "35px";
             child.style.position = "absolute"
             child.style.transform = `translateX(${left}px)`;
-            child.style.width = `${width}px`;
+            child.style.width = `${regionWidth}px`;
             child.style.height = '57px';
             child.style.background = "rgb(10, 138, 74,.5)";
             child.style.borderRadius = borderRadius;
-            child.style.border = "1px solid rgb(0,0,0,.2)";
+            child.style.border = "2px solid rgb(220,220,2020,.8)";
             child.style.pointerEvents = "none";
 
             /*
@@ -661,8 +660,8 @@ export default function RecorderInterface({
                 >
                 
                 <canvas className="row-start-1 col-start-2"
-                    style={{width:900,height:Math.floor(35*compactMode)}}
-                    width={900}
+                    style={{width:`${WAVEFORM_WINDOW_LEN}px`,height:Math.floor(35*compactMode)}}
+                    width={WAVEFORM_WINDOW_LEN}
                     height={Math.floor(35*compactMode)}
                     ref={measureTickRef}
                     
@@ -671,9 +670,9 @@ export default function RecorderInterface({
                 </canvas>
                 <canvas
                     ref={canvasContainerRef}
-                    width={900}
+                    width={WAVEFORM_WINDOW_LEN}
                     height={Math.floor(115*compactMode)}
-                    style={{width:`900px`,height:Math.floor(115*compactMode),imageRendering:"pixelated"}}
+                    style={{width:`${WAVEFORM_WINDOW_LEN}px`,height:Math.floor(115*compactMode),imageRendering:"pixelated"}}
                     className="row-start-2 col-start-2"
                     onMouseDown={handleCanvasMouseDown}
                     >
@@ -700,9 +699,9 @@ export default function RecorderInterface({
                     </div>*/}
                     <canvas 
                     ref={waveform1Ref}
-                    width={900}
+                    width={WAVEFORM_WINDOW_LEN}
                     height={Math.floor(58*compactMode)}
-                    style={{width:900,imageRendering:"pixelated",height:Math.floor(58*compactMode)}} 
+                    style={{width:`${WAVEFORM_WINDOW_LEN}px`,imageRendering:"pixelated",height:Math.floor(58*compactMode)}} 
                     className={`row-start-2 col-start-3`}
                     onMouseDown={handleCanvasMouseDown}
                     >
@@ -727,8 +726,8 @@ export default function RecorderInterface({
                     <canvas
                     ref={waveform2Ref}
                     height={Math.floor(57*compactMode)}
-                    width={900}
-                    style={{width:900,imageRendering:"pixelated",height:Math.floor(57*compactMode)}}
+                    width={WAVEFORM_WINDOW_LEN}
+                    style={{width:`${WAVEFORM_WINDOW_LEN}px`,imageRendering:"pixelated",height:Math.floor(57*compactMode)}}
                     onMouseDown={handleCanvasMouseDown}
                     >
 

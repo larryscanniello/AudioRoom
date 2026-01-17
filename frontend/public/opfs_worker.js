@@ -65,8 +65,6 @@ const proceed = {
 
 const tracks = [];
 
-const PLAYBACK_BUFFER_SIZE = 48000 * 10;
-
 
 async function listFiles(dir,dirstr) {
     let root;
@@ -163,14 +161,16 @@ self.onmessage = (e) => {
             writeToOPFS();
             fillMixPlaybackBuffer();
         }
+        console.log('rec inited???')
         init_recording();
     }
     if(e.data.type === "init_playback"){
         const init_playback = async () => {
+            console.log('opfs tl',e.data.timeline)
             Object.assign(timeline,{
-                staging: e.data.stagingTimeline,
+                staging: e.data.timeline.staging,
                 start: Math.round(e.data.timelineStart*48000),
-                end: e.data.timelineEnd,
+                end: Math.round(e.data.timelineEnd * 48000),
                 pos: {
                     staging: Math.round(48000*e.data.timelineStart),
                     mix: Math.round(48000*e.data.timelineStart),
@@ -286,26 +286,27 @@ function writeToMipMap(type,newTake){
 function writeToRingBuffer(samplesToFill, handle, type, takeStart, writePtr) {
     let samplesWritten = 0;
     while (samplesWritten < samplesToFill) {
-        const remainingInPhysicalBuffer = PLAYBACK_BUFFER_SIZE - writePtr;
+        const remainingInPhysicalBuffer = buffers[type].length - writePtr;
         const chunkLength = Math.min(samplesToFill - samplesWritten, remainingInPhysicalBuffer);
         const chunkView = buffers[type].subarray(writePtr, writePtr + chunkLength);
-        
-        handle.read(chunkView, { at: timeline.pos[type] - takeStart });  
-        writePtr = (writePtr + chunkLength) % PLAYBACK_BUFFER_SIZE;
+        handle.read(chunkView, { at: (timeline.pos[type] - takeStart) * 4 });  
+        writePtr = (writePtr + chunkLength) % buffers[type].length;
         samplesWritten += chunkLength;
     }
+    return writePtr;
 }
 
 function writeSilenceToRingBuffer(samplesToFill,type,writePtr){
     let samplesWritten = 0;
     while(samplesWritten < samplesToFill){
-        const remainingInPhysicalBuffer = PLAYBACK_BUFFER_SIZE - writePtr;
+        const remainingInPhysicalBuffer = buffers[type].length - writePtr;
         const chunkLength = Math.min(samplesToFill - samplesWritten, remainingInPhysicalBuffer);
         const chunkView = buffers[type].subarray(writePtr, writePtr + chunkLength);
         chunkView.fill(0);      
-        writePtr = (writePtr + chunkLength) % PLAYBACK_BUFFER_SIZE;
+        writePtr = (writePtr + chunkLength) % buffers[type].length;
         samplesWritten += chunkLength;
     }
+    return writePtr;
 }
 
 function writeToOPFS(){
@@ -364,7 +365,10 @@ function fillStagingPlaybackBuffer(){
     proceed.staging = "working";
     const isFull = Atomics.load(pointers.staging.isFull,0);
     if(isFull){
-        if(proceed.staging){setTimeout(()=>fillStagingPlaybackBuffer(),15)};
+        if(proceed.staging!=="off"){
+            proceed.staging = "ready";
+            setTimeout(()=>fillStagingPlaybackBuffer(),15)
+        }
         return;
     };
     let writePtr = Atomics.load(pointers.staging.write, 0);
@@ -372,26 +376,22 @@ function fillStagingPlaybackBuffer(){
     let samplesLeftToFill = (readPtr - writePtr + buffers.staging.length) % buffers.staging.length;
     if(readPtr === writePtr){samplesLeftToFill = buffers.staging.length;}
     while(samplesLeftToFill > 0){
-        console.log('timeline',timeline);
-        const currTimeline = timeline.staging.length > 0 ? timeline.staging[timeline.staging.length-1] : [];
+        const currTimeline = timeline.staging;
         const length = currTimeline.length;
-        console.log('currTimeline',currTimeline,'len',currTimeline.length);
         const take = length > 0 ? currTimeline.find(t => t.end > timeline.pos.staging) : null;
-        console.log('take',take,'timelineend',timeline.end,'takeend',take?take.end:null);
         const sliceEnd = take ? Math.min(take.end, timeline.end) : timeline.end;
-        console.log('timelineposstaging',timeline.pos.staging);
-        let sliceLength = Math.min(samplesLeftToFill, sliceEnd - timeline.pos.staging);
-        if (sliceLength <= 0) break; 
+        let sliceLength = Math.min(samplesLeftToFill, sliceEnd - timeline.pos.staging,buffers.staging.length - writePtr);
+        if (sliceLength < 0) break; 
         if (take && timeline.pos.staging >= take.start && timeline.pos.staging < timeline.end) {
             // CASE: Fill from Take
             const handle = tracks[curr.track].takeHandles[take.number];
-            writeToRingBuffer(sliceLength, handle,"staging",take.start,writePtr);
-            console.log('wtrb',sliceLength,timeline.pos.staging);
+            writePtr = writeToRingBuffer(sliceLength, handle,"staging",take.start,writePtr);
+            console.log('wtrb slicelen:',sliceLength,'timelinepos:',timeline.pos.staging);
         } else {
             // CASE: Fill Silence (either leading silence or gap after timeline)
             sliceLength = take ? Math.min(sliceLength, take.start - timeline.pos.staging) : sliceLength;
-            writeSilenceToRingBuffer(sliceLength,"staging",writePtr);
-            console.log('wstrb',sliceLength,timeline.pos.staging);
+            writePtr = writeSilenceToRingBuffer(sliceLength,"staging",writePtr);
+            console.log('wstrb slicelen:',sliceLength,'timelinepos:',timeline.pos.staging);
         }
         // Advance timeline position
         timeline.pos.staging += sliceLength;
@@ -401,8 +401,7 @@ function fillStagingPlaybackBuffer(){
         if (looping && timeline.pos.staging >= timeline.end){
             timeline.pos.staging = timeline.start;
         }
-
-        writePtr = (writePtr + sliceLength) % buffers.staging.length;
+        //write ptr is adjusted in writeToRingBuffer / writeSilenceToRingBuffer
     }
     Atomics.store(pointers.staging.write,0,writePtr);
     Atomics.store(pointers.staging.isFull,0,1);

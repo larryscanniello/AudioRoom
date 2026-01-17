@@ -2,9 +2,9 @@ import { useRef,useState,useEffect,useReducer } from "react";
 import { useParams } from "react-router-dom";
 import Metronome from "../../Classes/Metronome"
 import { useAudioRecorder } from "./useAudioRecorder";
-import RecorderInterface from "./RecorderInterface";
+import RecorderInterface from "./WaveformWindow";
 import { Button } from "@/Components/ui/button"
-import { Play, Square, Circle,SkipBack,Lock,LockOpen,
+import { Play, Square, Circle,SkipBack,Lock,LockOpen,Undo,Redo,
     Columns4,Magnet,Trash2,Repeat2} from "lucide-react"
 import {
   ButtonGroup,
@@ -24,29 +24,37 @@ import demoelectric from "/audio/audioboarddemoelectric.mp3"
 import { useWindowSize } from "../useWindowSize";
 import "./AudioBoard.css";
 import timelineReducer from "./timelineReducer";
+import ControlPanel from "./ControlPanel/ControlPanel";
+import WaveformWindow from "./WaveformWindow";
 
-const WAVEFORM_WINDOW_LEN = 900;
-const COMM_TIMEOUT_TIME = 5000;
-const PACKET_SIZE = 960;
-const TIMELINE_LENGTH = 15 * 60; //15 minutes
-const START_VIEWPORT_TIMELENGTH = 20;
-const TOTAL_TIMELINE_SAMPLES = TIMELINE_LENGTH * 48000;
-const MIPMAP_HIGHEST_RESOLUTION = 2**Math.ceil(Math.log2(TIMELINE_LENGTH / .2 * WAVEFORM_WINDOW_LEN));
 
-const MIPMAP_RESOLUTIONS = [MIPMAP_HIGHEST_RESOLUTION];
-let curr = MIPMAP_HIGHEST_RESOLUTION;
-while(curr/2>WAVEFORM_WINDOW_LEN){
-    MIPMAP_RESOLUTIONS.push(curr/2);
-    curr = MIPMAP_RESOLUTIONS[MIPMAP_RESOLUTIONS.length-1];
-}
-
-const MIPMAP_HALF_SIZE = MIPMAP_RESOLUTIONS.reduce((acc, curr) => acc + curr, 0);
 
 export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnteredRoom,
     localStreamRef,initializeAudioBoard,dataConnRef,audioCtxRef,audioSourceRef,dataConnAttached
 }){
 
     const [width,height] = useWindowSize();
+
+    const LEFT_CONTROLS_WIDTH = 250;
+    const WAVEFORM_WINDOW_LEN = Math.max(750,width-LEFT_CONTROLS_WIDTH-50);
+    
+    const COMM_TIMEOUT_TIME = 5000;
+    const PACKET_SIZE = 960;
+    const TIMELINE_LENGTH = 15 * 60; //15 minutes
+    const START_VIEWPORT_TIMELENGTH = 20;
+    const TOTAL_TIMELINE_SAMPLES = TIMELINE_LENGTH * 48000;
+    const MIPMAP_HIGHEST_RESOLUTION = 2**Math.ceil(Math.log2(TIMELINE_LENGTH / .2 * WAVEFORM_WINDOW_LEN));
+
+    const MIPMAP_RESOLUTIONS = [MIPMAP_HIGHEST_RESOLUTION];
+    let curr = MIPMAP_HIGHEST_RESOLUTION;
+    while(curr/2>WAVEFORM_WINDOW_LEN){
+        MIPMAP_RESOLUTIONS.push(curr/2);
+        curr = MIPMAP_RESOLUTIONS[MIPMAP_RESOLUTIONS.length-1];
+    }
+
+    const MIPMAP_HALF_SIZE = MIPMAP_RESOLUTIONS.reduce((acc, curr) => acc + curr, 0);
+    
+
 
     const [stagingTimeline,setStagingTimeline] = useState([]);
     const [mixTimeline,setMixTimeline] = useState([]);
@@ -143,6 +151,7 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
 
     
 
+
     useEffect(()=>{
         if(height<700){
             setCompactMode(4/7);
@@ -194,9 +203,9 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
         metronomeGainRef.current.connect(AudioCtxRef.current.destination);
         metronomeRef.current.gainRef = metronomeGainRef;
 
-        stagingSABRef.current = new SharedArrayBuffer(48000 * 4 * 10 + 12);
-        mixSABRef.current = new SharedArrayBuffer(48000 * 4 * 10 + 12);
-        recordSABRef.current = new SharedArrayBuffer(48000 * 4 * 10 + 12);
+        stagingSABRef.current = new SharedArrayBuffer(48000 * 4 * 2 + 12);
+        mixSABRef.current = new SharedArrayBuffer(48000 * 4 * 2 + 12);
+        recordSABRef.current = new SharedArrayBuffer(48000 * 4 * 2 + 12);
 
         const stagingMipMapSAB = new SharedArrayBuffer(2 * MIPMAP_HALF_SIZE + 1);
         const mixMipMapSAB = new SharedArrayBuffer(2 * MIPMAP_HALF_SIZE + 1);
@@ -634,7 +643,7 @@ function handleRecord() {
         false,
         false,
         playheadLocation,
-        mixTimeline,
+        timeline,
         looping,
         startTime,
         endTime,
@@ -754,9 +763,11 @@ function handleRecord() {
         const endTimeAbsolute = looping ? 
         null : mouseDragEnd ? 
         (startTimeAbsolute + mouseDragEnd.trounded - playheadLocation) : startTime + 32 * 4 * (60/BPM);
+
+        const timelineEnd = mouseDragEnd ? mouseDragEnd.trounded : TIMELINE_LENGTH;
         recorderRef.current.startPlayback(
-            otherPersonMonitoringOn,looping,playheadLocation,mouseDragEnd,
-            startTimeAbsolute,endTimeAbsolute,stagingTimeline
+            otherPersonMonitoringOn,looping,playheadLocation,timelineEnd,
+            startTimeAbsolute,endTimeAbsolute,timeline
         )
         const totalTime = (128*60/BPM)
         const pixelsPerSecond = Math.floor(WAVEFORM_WINDOW_LEN*zoomFactor)/(128*60/BPM);
@@ -1057,7 +1068,7 @@ function handleRecord() {
     const handleZoom = ([newSliderVal]) => {
         //slider vals at between 0 and 1000, mapped exponentially to zoom values between .2 and 900 (i think, or 4500)
         const b = (TIMELINE_LENGTH*5)**(1/1000);
-        const newZoom = .2 * b ** newSliderVal;
+        const newZoom = .2 * b ** (1000-newSliderVal);
         const start = viewportDataRef.current.startTime;
         const end = viewportDataRef.current.endTime;
         const center = (start+end)/2;
@@ -1098,127 +1109,21 @@ function handleRecord() {
             className={`grid bg-gray-700 border-gray-500 border-4 rounded-2xl shadow-gray shadow-md`}
                 style={{
                     gridTemplateRows: `1px ${Math.floor(172*compactMode)}px`,
-                    width: 1050, 
+                    width: `${Math.max(1050,width)}px`, 
                     height: Math.floor(232*compactMode) 
                 }}>
-                <div className={"relative row-start-2 grid pt-3 grid-cols-[20px_100px_0px]"}
+                <div className={`relative row-start-2 grid pt-3 grid-cols-[20px_250px_0px]`}
                 style={{height:Math.floor(172*compactMode)}}
                 >
-                    <div
-                        ref={controlPanelRef}
-                        className="col-start-2"
-                        style={{width:100,height:Math.floor(150*compactMode)}}
-                    >
-                    <div className="bg-[rgb(86,86,133)] flex flex-col justify-center items-center text-xs text-white"
-                            style={{width:100,height:Math.floor(35*compactMode)}}
-                    >
-                        <button className={"border-1 border-black rounded-2xl px-1 " + (monitoringOn?"bg-amber-600":"bg-[rgb(106,106,133)")}
-                        onClick={()=>setMonitoringOn(prev=>{
-                            if(numConnectedUsersRef.current >= 2 && !currentlyPlayingAudio.current && !currentlyRecording.current){ 
-                                socket.current.emit("monitoring_change_client_to_server",{roomID,status:!prev});
-                                return !prev;
-                            }
-                            return prev;})}
-                        >Prtnr Monitor</button>
-                    </div>
-                    <div className="bg-[rgb(114,120,155)]"
-                        style={{width:100,height:Math.floor(115*compactMode)}}
-                    >
-                        <div style={{width:100,height:Math.floor(58*compactMode)}} className="border-b border-black flex flex-row items-center">
-                            <button onClick={()=>{
-                                //did this trick so that setAudio always triggers a rerender, but will still have the same truthiness
-                                setAudio(prev=>{
-                                    if(prev) handleStop(true,false,false);
-                                    return prev===false?null:false
-                                });
-                                if(numConnectedUsersRef.current >= 2){
-                                    socket.current.emit("client_to_server_audio_deleted",{roomID,track:1});
-                                }
-                            }}>
-                                <Trash2 className="scale-75"/>
-                            </button>
-                            <button className={"border-1 border-black text-white text-xs w-8 h-5 ml-1 pr-1 pl-1 rounded-sm " + (track1Muted ? "bg-amber-600" : "")}
-                                onClick={(e)=>{
-                                    e.preventDefault();
-                                    if(!track1Muted){
-                                        gainRef.current.gain.value = 0;
-                                    }else{
-                                        gainRef.current.gain.value = track1Vol;
-                                    }
-                                    streamOnPlayProcessorRef.current.port.postMessage({
-                                            actiontype:"gain1",
-                                            gain:gainRef.current.gain.value,
-                                    })
-                                    setTrack1Muted(prev=>!prev);
-                                }}
-                            >
-                                M
-                            </button>
-                            <Slider className="ml-2 mr-2"
-                                defaultValue={[1.0]} max={1.0} min={0.0} step={.025}
-                                onValueChange={(value)=>{
-                                    if(!track1Muted){
-                                        gainRef.current.gain.value = value;
-                                        streamOnPlayProcessorRef.current.port.postMessage({
-                                            actiontype:"gain1",
-                                            gain:value,
-                                        })
-                                    }
-                                    setTrack1Vol(value);
-                                }} 
-                            >
-                            </Slider>
-                        </div>
-                        <div style={{width:100,height:Math.floor(58*compactMode)}} className="border-b border-black flex flex-row items-center">
-                            <button onClick={()=>{
-                                //did this trick so that setAudio2 always triggers a rerender, but will still have the same truthiness
-                                setAudio2(prev=>{
-                                    if(prev) handleStop(false,false,false);
-                                    prev===false?null:false}
-                                );
-                                if(numConnectedUsersRef.current >= 2){
-                                    socket.current.emit("client_to_server_audio_deleted",{roomID,track:2});
-                                }
-                                }} className="scale-75">
-                                <Trash2/>
-                            </button>
-                            <button className={"border-1 border-black text-xs text-white w-8 h-5 ml-1 pr-1 pl-1 rounded-sm " + (track2Muted ? "bg-amber-600" : "")}
-                                onClick={(e)=>{
-                                        e.preventDefault();
-                                        if(!track2Muted){
-                                            gain2Ref.current.gain.value = 0;
-                                        }else{
-                                            gain2Ref.current.gain.value = track2Vol;
-                                        }
-                                        streamOnPlayProcessorRef.current.port.postMessage({
-                                            actiontype:"gain2",
-                                            gain:gain2Ref.current.gain.value,
-                                        })
-                                        setTrack2Muted(prev=>!prev);
-                                    }}
-                            >
-                                M
-                            </button>
-                            <Slider className="ml-2 mr-2"
-                            defaultValue={[1.0]} max={1.0} min={0.0} step={.025}
-                            onValueChange={(value)=>{
-                                    if(!track2Muted){
-                                        gain2Ref.current.gain.value = value;
-                                        streamOnPlayProcessorRef.current.port.postMessage({
-                                            actiontype:"gain2",
-                                            gain:value,
-                                        })
-                                    }
-                                    setTrack2Vol(value);
-                                }} 
-                            >
+                <ControlPanel params={{
+                    LEFT_CONTROLS_WIDTH,controlPanelRef,compactMode,monitoringOn,setMonitoringOn,
+                    currentlyRecording,currentlyPlayingAudio,socket,numConnectedUsersRef,roomID,
+                    gainRef,track1Muted,setTrack1Muted,streamOnPlayProcessorRef,
+                    track2Muted,gain2Ref,setTrack2Muted
+                }}/>
 
-                            </Slider>
-                        </div>
 
-                    </div>
-                    </div>
-                    <RecorderInterface audio={audio} BPM={BPM} mouseDragEnd={mouseDragEnd} zoomFactor={zoomFactor}
+                <WaveformWindow audio={audio} BPM={BPM} mouseDragEnd={mouseDragEnd} zoomFactor={zoomFactor}
                                 delayCompensation={delayCompensation} measureTickRef={measureTickRef}
                                 mouseDragStart={mouseDragStart}
                                 audioCtxRef={AudioCtxRef} waveform1Ref={waveform1Ref}
@@ -1234,7 +1139,7 @@ function handleRecord() {
                                 pxPerSecondRef={pxPerSecondRef} convertTimeToMeasuresRef={convertTimeToMeasuresRef}
                                 fileSystemRef={fileSystemRef} timeSignature={timeSignature}
                                 viewportDataRef={viewportDataRef} timeline={timeline}
-                                mipMapRef={mipMapRef}
+                                mipMapRef={mipMapRef} width={width} height={height}
                     />
                     {/*<Button variant="default" size={compactMode==1?"lg":"sm"} onClick={()=>setSnapToGrid(prev=>!prev)} 
                         className="border-1 border-gray-300 hover:bg-gray-800"
@@ -1325,9 +1230,9 @@ function handleRecord() {
                     <div className={"flex flex-row items-center col-start-3 " + (compactMode!=1?"-translate-y-2":"")}>
                         <FaMagnifyingGlass style={{transform:"scale(1.1)",marginRight:1}} className="text-blue-200"/>
                         <Slider style={{width:100}}
-                        defaultValue={[Math.round(Math.log10(START_VIEWPORT_TIMELENGTH*5)/Math.log10((TIMELINE_LENGTH*5)**(1/1000)))]} max={1000} min={0} step={1} 
+                        defaultValue={[1000-Math.round(Math.log10(START_VIEWPORT_TIMELENGTH*5)/Math.log10((TIMELINE_LENGTH*5)**(1/1000)))]} max={1000} min={0} step={1} 
                             className="pl-2 group" 
-                            value={[Math.round(Math.log10(zoomFactor*5)/Math.log10((TIMELINE_LENGTH*5)**(1/1000)))]}
+                            value={[1000 - Math.round(Math.log10((zoomFactor)*5)/Math.log10((TIMELINE_LENGTH*5)**(1/1000)))]}
                             onValueChange={handleZoom}
 
                             >

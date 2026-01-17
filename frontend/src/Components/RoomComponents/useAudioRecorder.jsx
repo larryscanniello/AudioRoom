@@ -64,7 +64,7 @@ export const useAudioRecorder = (
         source.connect(processor);
         processor.connect(gain2Ref.current);
 
-        const startPlayback = (isStreaming,looping,timelineStart,timelineEnd,startTime,endTime,stagingTimeline) => {
+        const startPlayback = (isStreaming,looping,timelineStart,timelineEnd,startTime,endTime,timeline) => {
           const sessionId = crypto.randomUUID()
           sessionIdRef.current = sessionId;
           processor.port.postMessage({
@@ -74,13 +74,13 @@ export const useAudioRecorder = (
             timelineEnd,startTime,endTime
           })
           fileSystemRef.current.postMessage({
-            type:"init_playback",stagingTimeline,timelineStart,timelineEnd
+            type:"init_playback",timeline,timelineStart,timelineEnd
           });
         }
 
         const startRecording = (isStreaming,autoTestLatency,timelineStart,timeline,looping,startTime,endTime) => {
 
-
+          console.log('use AR start rec????');
           fileSystemRef.current.postMessage({
             type:'init_recording',
             timelineStart,timeline,

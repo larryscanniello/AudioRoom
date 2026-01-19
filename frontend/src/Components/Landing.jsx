@@ -13,7 +13,7 @@ export default function Landing() {
 
   return <div>
         <div className="flex items-center justify-center flex-col">
-          <h6 className="mt-8 text-6xl">audioroom</h6>
+          <h6 className="mt-8 text-6xl">AudioRoom</h6>          
           <h4 className="mt-4 text-2xl">Video chat + shared recorder for music and audio</h4>
         </div>
         <div className="mt-4 w-full max-w-4xl mx-auto px-4">

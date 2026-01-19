@@ -4,7 +4,8 @@ import { Slider } from "@/Components/ui/slider"
 
 export default function StagingControls({params}){
 
-    const {LEFT_CONTROLS_WIDTH,compactMode,gainRef,track1Muted,setTrack1Muted,streamOnPlayProcessorRef,timelineDispatch,fileSystemRef} = params;
+    const {LEFT_CONTROLS_WIDTH,compactMode,gainRef,track1Muted,setTrack1Muted,
+        streamOnPlayProcessorRef,timelineDispatch,fileSystemRef,recorderRef} = params;
 
     return <div style={{width:`${LEFT_CONTROLS_WIDTH}`,height:Math.floor(58*compactMode)}} className="border-b border-black flex flex-row items-center">
                 <button>
@@ -51,7 +52,10 @@ export default function StagingControls({params}){
             >
             </Slider>
             <button className="mr-3 relative w-8 h-5"
-            onClick={()=>timelineDispatch({type:"bounce_to_mix",fileSystemRef})}
+            onClick={()=>{
+                timelineDispatch({type:"bounce_to_mix",fileSystemRef});
+                recorderRef.current.processor.port.postMessage({actiontype:"bounce_to_mix"});
+            }}
             >
                     <ArrowDownToLine className="absolute scale-75 -top-2.5 -left-1"/>
                     <CassetteTape className="absolute scale-75 top-1.5 -left-1"/>

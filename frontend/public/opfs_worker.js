@@ -198,11 +198,13 @@ self.onmessage = (e) => {
     if(e.data.type === "bounce_to_mix"){
         const mixTimelines = e.data.mixTimelines;
         writeToMixMipMap(mixTimelines);
+        curr.track ++;
+        curr.take = 0;
         const createNewTrack = async () => {
             const newTrack = await opfs.root.getDirectoryHandle(`track_${curr.track}`,{create:true});
             tracks.push({dirHandle:newTrack,takeHandles:[]});
+
         }
-        curr.track ++;
         createNewTrack();
         
     }

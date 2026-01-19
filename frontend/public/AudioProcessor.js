@@ -132,6 +132,10 @@ class AudioProcessor extends AudioWorkletProcessor {
       this.state.isPlayback = false;
       this.state.isRecording = false;
     };
+    if(data.actiontype === "bounce_to_mix"){
+      this.state.count.track += 1;
+      this.state.count.take = -1;
+    }
   }
 
   readTo(reader,type){

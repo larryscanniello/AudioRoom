@@ -1119,7 +1119,8 @@ function handleRecord() {
                     LEFT_CONTROLS_WIDTH,controlPanelRef,compactMode,monitoringOn,setMonitoringOn,
                     currentlyRecording,currentlyPlayingAudio,socket,numConnectedUsersRef,roomID,
                     gainRef,track1Muted,setTrack1Muted,streamOnPlayProcessorRef,
-                    track2Muted,gain2Ref,setTrack2Muted,timelineDispatch,fileSystemRef
+                    track2Muted,gain2Ref,setTrack2Muted,timelineDispatch,fileSystemRef,
+                    recorderRef,
                 }}/>
 
 

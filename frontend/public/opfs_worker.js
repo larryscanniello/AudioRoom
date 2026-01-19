@@ -54,6 +54,7 @@ const mipMap = {
     mix: null,
     halfLength: null,
     resolutions: null,
+    subBuffer: null,
 }
 let looping = false;
 
@@ -65,6 +66,8 @@ const proceed = {
 
 const tracks = [];
 
+const TRACK_COUNT = 16;
+const MIX_MIPMAP_BUFFER_SIZE_PER_TRACK = 2**16;
 
 async function listFiles(dir,dirstr) {
     let root;
@@ -140,8 +143,9 @@ self.onmessage = (e) => {
                 halfSize: e.data.mipMap.MIPMAP_HALF_SIZE,
                 resolutions: e.data.mipMap.MIPMAP_RESOLUTIONS,
                 totalTimelineSamples:e.data.mipMap.TOTAL_TIMELINE_SAMPLES,
-                buffer: new Float32Array(65536),
+                buffer: new Float32Array(TRACK_COUNT * MIX_MIPMAP_BUFFER_SIZE_PER_TRACK),
             })
+            opfs.root = root;
         }
         init();
     }
@@ -166,7 +170,6 @@ self.onmessage = (e) => {
     }
     if(e.data.type === "init_playback"){
         const init_playback = async () => {
-            console.log('opfs tl',e.data.timeline)
             Object.assign(timeline,{
                 staging: e.data.timeline.staging,
                 start: Math.round(e.data.timelineStart*48000),
@@ -192,22 +195,21 @@ self.onmessage = (e) => {
     if(e.data.type === "stop_playback"){
         proceed.staging = "off";
     }
-    if(e.data.type === "new_bounce"){
+    if(e.data.type === "bounce_to_mix"){
+        const mixTimelines = e.data.mixTimelines;
+        writeToMixMipMap(mixTimelines);
+        const createNewTrack = async () => {
+            const newTrack = await opfs.root.getDirectoryHandle(`track_${curr.track}`,{create:true});
+            tracks.push({dirHandle:newTrack,takeHandles:[]});
+        }
+        curr.track ++;
+        createNewTrack();
+        
+    }
 
-    }
-    if(e.data.type === "fill_mix_playback_buffer"){
-        fillMixPlaybackBuffer();
-    }
-    if(e.data.type === "fill_staging_playback_buffer"){
-        fillStagingPlaybackBuffer();
-    }
-
-    if(e.data.type === "read"){
-
-    }
     if(e.data.type === "fill_staging_mipmap"){
         const newTake = e.data.newTake;
-        writeToMipMap("staging",newTake);
+        writeToStagingMipMap("staging",newTake);
     }
     if(e.data.type === "cleanup"){
         tracks.forEach(track => {
@@ -216,7 +218,101 @@ self.onmessage = (e) => {
     }
 }
 
-function writeToMipMap(type,newTake){
+function writeToMixMipMap(mixTimelines){
+    //writes the whole mipmap
+    console.log('mixTimelines',mixTimelines);
+    const int8 = mipMap.mix;
+    const halfLength = mipMap.halfSize;
+    const resolutions = mipMap.resolutions;
+    const iterateAmount = mipMap.totalTimelineSamples / resolutions[0];
+    let iterateAmountMultiple = 0;
+    let currBucket = 0;
+    let bufferIndex = mipMap.buffer.length;
+    let max = -1;
+    let min = 1;
+    let endSample = 0;
+    mipMap.buffer.fill(0);
+    for(let i=0;i<mixTimelines.length;i++){
+        const currTimeline = mixTimelines[i];
+        const len = currTimeline.length;
+        if(len>0){
+            endSample = Math.max(endSample,currTimeline[len-1].end);
+        }
+    }
+    
+    const readTo = (startSample,endSample) => {
+        //mipMap.buffer.fill(0);
+        for(let i=0;i<mixTimelines.length;i++){
+            let currPos = startSample;
+            const currTimeline = mixTimelines[i];
+            let bufferPos = i * MIX_MIPMAP_BUFFER_SIZE_PER_TRACK;
+            const bufferEndPos = bufferPos + (endSample - startSample);
+            while(currPos < endSample){
+                const region = currTimeline.find(r => r.end > currPos);
+                if(!region){
+                    mipMap.buffer.subarray(bufferPos,bufferEndPos).fill(0);
+                    currPos = endSample; //0
+                }else if(region.start > currPos){
+                    const toFill = Math.min(region.start-currPos,bufferEndPos-bufferPos);
+                    mipMap.buffer.subarray(bufferPos,bufferPos+toFill).fill(0);
+                    currPos += toFill;
+                    bufferPos += toFill;
+                }else{
+                    const toFill = Math.min(region.end - currPos,bufferEndPos-bufferPos);
+                    const subarray = mipMap.buffer.subarray(bufferPos,bufferPos+toFill);
+                    tracks[i].takeHandles[region.number].read(subarray,{at:(currPos-region.start)*Float32Array.BYTES_PER_ELEMENT});
+                    currPos += toFill;
+                    bufferPos += toFill;
+                }
+            }
+        }
+        
+    }
+    //generate the combined (summed) waveform, and then take mins / maxes and put into buckets
+    for(let i=0;i<endSample;i++){
+        if(bufferIndex >= mipMap.buffer.length/TRACK_COUNT){
+            const readToEnd = Math.min(endSample,i+MIX_MIPMAP_BUFFER_SIZE_PER_TRACK)
+            readTo(i,readToEnd)
+            bufferIndex = 0;
+        }
+        if(i >= iterateAmountMultiple){
+            iterateAmountMultiple += iterateAmount;
+            int8[currBucket] = Math.max(-128, Math.min(127, Math.round(max * 127)));
+            int8[halfLength + currBucket] = Math.max(-128, Math.min(127, Math.round(min * 127)));
+            currBucket += 1;
+            min = 1; max = -1;
+        }
+        let currSample = 0;
+        for(let b=0;b<TRACK_COUNT;b++){
+            const toAdd =  mipMap.buffer[b*MIX_MIPMAP_BUFFER_SIZE_PER_TRACK + bufferIndex];
+            currSample += toAdd;
+        }
+        max = Math.max(max,currSample);
+        min = Math.min(min,currSample);
+        bufferIndex += 1;
+    }
+    let count = 1;
+    while(count < mipMap.resolutions.length){
+        let highStart = resolutions.slice(0,count).reduce((acc, curr) => acc + curr, 0);
+        let highEnd = highStart + Math.ceil(currBucket/2**count);
+        let lowIndex = resolutions.slice(0,count-1).reduce((acc,curr) => acc + curr,0);
+        for(let j=highStart;j<highEnd;j++){
+            const maxOption1 = int8[lowIndex];
+            const maxOption2 = int8[lowIndex+1];
+            int8[j] = Math.max(maxOption1,maxOption2);
+            const minOption1 = int8[halfLength + lowIndex];
+            const minOption2 = int8[halfLength + lowIndex + 1];
+            int8[j + halfLength] = Math.min(minOption1,minOption2);
+            lowIndex += 2;
+        }
+        count += 1;
+    }
+    Atomics.store(mipMap.isWorking.mix,0,1);
+    postMessage({type:'mipmap_done'})
+}
+
+function writeToStagingMipMap(type,newTake){
+    //only writes the new take to the mipmap
     const int8 = mipMap[type];
     const halfLength = mipMap.halfSize;
     const resolutions = mipMap.resolutions;
@@ -226,23 +322,19 @@ function writeToMipMap(type,newTake){
     let iterateAmountMultiple = startBucket * iterateAmount;
     let currBucket = startBucket;
     let max = -1; let min = 1;
-    let bufferIndex = mipMap.buffer.length;
+    let bufferIndex = mipMap.buffer.length; // so that buffer fills up on first iteration
     let at = 0;
     let bufferIndexCount = 0;
+    mipMap.buffer.fill(0);
     //fill the bottom layer of the pyramid of the mipmap
 
 
-    const reader = new Float32Array(tracks[curr.track].takeHandles[newTake.number].getSize());
-    tracks[curr.track].takeHandles[newTake.number].read(reader,{at:0});
+    //const reader = new Float32Array(tracks[curr.track].takeHandles[newTake.number].getSize());
+    //tracks[curr.track].takeHandles[newTake.number].read(reader,{at:0});
     const handle = tracks[curr.track].takeHandles[newTake.number]
-    let bytesRead = 0;
     while(i<newTake.end){
         if(bufferIndex >= mipMap.buffer.length){
-            const options = {at:at};
-            console.log(options);
-            mipMap.buffer.fill(0);
-            bytesRead += handle.read(mipMap.buffer,options);
-            console.log(bytesRead);
+            handle.read(mipMap.buffer,{at});
             bufferIndexCount += 1;
             at = bufferIndexCount * mipMap.buffer.length * Float32Array.BYTES_PER_ELEMENT;
             bufferIndex = 0;
@@ -267,7 +359,7 @@ function writeToMipMap(type,newTake){
         let lowIndex = (highStart - currLevel)*2 + resolutions.slice(0,count-1).reduce((acc,curr) => acc + curr,0);
         for(let j=highStart;j<highEnd;j++){
             const maxOption1 = int8[lowIndex];
-            const maxOption2 = int8[lowIndex+1];
+            const maxOption2 = int8[lowIndex + 1];
             int8[j] = Math.max(maxOption1,maxOption2);
             const minOption1 = int8[halfLength + lowIndex];
             const minOption2 = int8[halfLength + lowIndex + 1];

@@ -25,7 +25,8 @@ export default function WaveformWindow({
     const mouseDragStartCloneRef = useRef(mouseDragStart);
     const mouseDragEndCloneRef = useRef(mouseDragEnd);
     const playheadLocationRef = useRef(playheadLocation)
-    const regionsContainerRef = useRef(null);
+    const stagingRegionsRef = useRef(null);
+    const mixRegionsRef = useRef(null);
     //Used to set playhead location in the DOM, and also for calculations on the canvas
     const pxPerSecond = WAVEFORM_WINDOW_LEN/(viewportDataRef.current.endTime - viewportDataRef.current.startTime)
     //Math.floor(WAVEFORM_WINDOW_LEN*zoomFactor)/(128*60/BPM);
@@ -87,7 +88,8 @@ export default function WaveformWindow({
         fillSelectedRegion(waveform2Ref);
         setPlayhead();
         setRegions();
-        renderWaveforms();
+        renderStagingWaveforms();
+        renderMixWaveforms();
         /*
         if(stagingTimeline && stagingTimeline.length > 0){
             drawWaveform();
@@ -224,84 +226,145 @@ export default function WaveformWindow({
 
 
     if(fileSystemRef.current) {fileSystemRef.current.onmessage = () => {
-        renderWaveforms();
+        renderStagingWaveforms();
+        renderMixWaveforms();
     }
     }
-    function renderWaveforms(){
+    function renderStagingWaveforms(){
         if(!mipMapRef.current) return;
         Atomics.load(mipMapRef.current.staging,0);
-        const refs = [waveform1Ref,waveform2Ref];
-        const container = regionsContainerRef.current;
-        const timelines = [container.children,timeline.mix];
+        const regions = stagingRegionsRef.current;
+        const timeline = regions.children;
+        const mipMap = mipMapRef.current;
 
         const startTime = viewportDataRef.current.startTime;
         const endTime = viewportDataRef.current.endTime;
 
-        for(let i=0;i<1;i++){
-            if(timelines[i].length === 0) continue;
-            const canvRef = refs[i];
-            const canvasCtx = canvRef.current.getContext('2d');
-            const WIDTH = canvRef.current.width;
-            const HEIGHT = canvRef.current.height;
-            canvasCtx.globalAlpha = 1.0
-            canvasCtx.lineWidth = 1; // slightly thicker than 1px
-            canvasCtx.strokeStyle =  "#1c1e22";
-            canvasCtx.lineCap = "round";
-            canvasCtx.lineJoin = "round";
+        if(timeline.length === 0) return;
+        const canvRef = waveform1Ref;
+        const canvasCtx = canvRef.current.getContext('2d');
+        const WIDTH = canvRef.current.width;
+        const HEIGHT = canvRef.current.height;
+        canvasCtx.globalAlpha = 1.0
+        canvasCtx.lineWidth = 1; // slightly thicker than 1px
+        canvasCtx.strokeStyle =  "#1c1e22";
+        canvasCtx.lineCap = "round";
+        canvasCtx.lineJoin = "round";
 
-            const vpStartSamples = Math.round(startTime * audioCtxRef.current.sampleRate);
-            const vpEndSamples = Math.round(endTime * audioCtxRef.current.sampleRate);
+        const vpStartSamples = Math.round(startTime * audioCtxRef.current.sampleRate);
+        const vpEndSamples = Math.round(endTime * audioCtxRef.current.sampleRate);
 
-            const pxPerTimeline = mipMapRef.current.TIMELINE_LENGTH * audioCtxRef.current.sampleRate / (vpEndSamples-vpStartSamples) * WIDTH;
-            
-            let currRes = 0;
-            const resolutions = mipMapRef.current.MIPMAP_RESOLUTIONS
-            while(currRes+1<resolutions.length && resolutions[currRes + 1] > pxPerTimeline){
-                currRes += 1;
-            } 
+        const pxPerTimeline = mipMapRef.current.TIMELINE_LENGTH * audioCtxRef.current.sampleRate / (vpEndSamples-vpStartSamples) * WIDTH;
+        
+        let currRes = 0;
+        const resolutions = mipMapRef.current.MIPMAP_RESOLUTIONS
+        while(currRes+1<resolutions.length && resolutions[currRes + 1] > pxPerTimeline){
+            currRes += 1;
+        } 
 
-            let j=0; //j is the region number in the timeline
-            while(j<timelines[i].length && timelines[i][j].dataset.end <= vpStartSamples){
-                j += 1;
-            }
-            if(j===timelines[i].length || timelines[i][j].dataset.start >= vpEndSamples){
-                break
-            };
-
-            const halfLength = mipMapRef.current.MIPMAP_HALF_SIZE;
-            const iterateAmount = mipMapRef.current.TOTAL_TIMELINE_SAMPLES / halfLength;
-            
-            const mipMapStart = resolutions.slice(0,currRes).reduce((acc, curr) => acc + curr, 0);
-            const pxGap = mipMapRef.current.TIMELINE_LENGTH / (viewportDataRef.current.endTime-viewportDataRef.current.startTime) * WAVEFORM_WINDOW_LEN / resolutions[currRes];
-
-            canvasCtx.beginPath();
-            while(j<timelines[i].length && timelines[i][j].dataset.start < vpEndSamples){ // iterate through regions of the timeline whose start is left of the viewport
-
-                const regionStartSamples = timelines[i][j].dataset.start;
-                const startSamples = Math.max(regionStartSamples,vpStartSamples);
-
-                let startBucket = Math.floor(startSamples/iterateAmount) //the index of the lowest level of the pyramid corresponding to the start
-                
-                let mipMapIndex = mipMapStart + Math.floor(startBucket / 2**(currRes+1));
-                let k = 0; //k iterates through vertical lines to be drawn
-                while((k+1)*pxGap  < WAVEFORM_WINDOW_LEN * (startSamples - vpStartSamples)/(vpEndSamples - vpStartSamples)){ 
-                    k+=1;
-                }
-                while(k*pxGap < WAVEFORM_WINDOW_LEN * (timelines[i][j].dataset.end - vpStartSamples)/(vpEndSamples - vpStartSamples)){
-                    const max = mipMapRef.current.staging[mipMapIndex]/127;
-                    const min = mipMapRef.current.staging[halfLength + mipMapIndex]/127;
-                    const y1 = ((1 + min) * HEIGHT) / 2;
-                    const y2 = ((1 + max) * HEIGHT) / 2;
-                    
-                    canvasCtx.moveTo(k*pxGap,y1);
-                    canvasCtx.lineTo(k*pxGap,y2);
-                    mipMapIndex += 1; k+=1;
-                }
-                j+=1
-            }
-            canvasCtx.stroke();
-
+        let j=0; //j is the region number in the timeline
+        while(j<timeline.length && timeline[j].dataset.end <= vpStartSamples){
+            j += 1;
         }
+        if(j===timeline.length || timeline[j].dataset.start >= vpEndSamples) return;
+
+        const halfLength = mipMap.MIPMAP_HALF_SIZE;
+        const iterateAmount = mipMap.TOTAL_TIMELINE_SAMPLES / halfLength;
+        
+        const mipMapStart = resolutions.slice(0,currRes).reduce((acc, curr) => acc + curr, 0);
+        const pxGap = mipMapRef.current.TIMELINE_LENGTH / (viewportDataRef.current.endTime-viewportDataRef.current.startTime) * WAVEFORM_WINDOW_LEN / resolutions[currRes];
+
+        canvasCtx.beginPath();
+        while(j<timeline.length && timeline[j].dataset.start < vpEndSamples){ // iterate through regions of the timeline whose start is left of the viewport
+
+            const regionStartSamples = timeline[j].dataset.start;
+            const startSamples = Math.max(regionStartSamples,vpStartSamples);
+
+            let startBucket = Math.floor(startSamples/iterateAmount) //the index of the lowest level of the pyramid corresponding to the start
+            
+            let mipMapIndex = mipMapStart + Math.floor(startBucket / 2**(currRes+1));
+            let k = 0; //k iterates through vertical lines to be drawn
+            while((k+1)*pxGap  < WAVEFORM_WINDOW_LEN * (startSamples - vpStartSamples)/(vpEndSamples - vpStartSamples)){ 
+                k+=1;
+            }
+            while(k*pxGap < WAVEFORM_WINDOW_LEN * (timeline[j].dataset.end - vpStartSamples)/(vpEndSamples - vpStartSamples)){
+                const max = mipMap.staging[mipMapIndex]/127;
+                const min = mipMap.staging[halfLength + mipMapIndex]/127;
+                const y1 = ((1 + min) * HEIGHT) / 2;
+                const y2 = ((1 + max) * HEIGHT) / 2;
+                
+                canvasCtx.moveTo(k*pxGap,y1);
+                canvasCtx.lineTo(k*pxGap,y2);
+                mipMapIndex += 1; k+=1;
+            }
+            j+=1
+        }
+        canvasCtx.stroke();
+
+        
+    }
+
+    function renderMixWaveforms(){
+        if(!mipMapRef.current) return;
+        Atomics.load(mipMapRef.current.mix,0);
+        const regions = mixRegionsRef.current;
+        const mipMap = mipMapRef.current;
+
+        const startTime = viewportDataRef.current.startTime;
+        const endTime = viewportDataRef.current.endTime;
+
+        if(timeline.length === 0) return;
+        const canvRef = waveform2Ref;
+        const canvasCtx = canvRef.current.getContext('2d');
+        const WIDTH = canvRef.current.width;
+        const HEIGHT = canvRef.current.height;
+        canvasCtx.globalAlpha = 1.0
+        canvasCtx.lineWidth = 1; // slightly thicker than 1px
+        canvasCtx.strokeStyle =  "#1c1e22";
+        canvasCtx.lineCap = "round";
+        canvasCtx.lineJoin = "round";
+
+        const vpStartSamples = Math.round(startTime * audioCtxRef.current.sampleRate);
+        const vpEndSamples = Math.round(endTime * audioCtxRef.current.sampleRate);
+
+        const pxPerTimeline = mipMap.TIMELINE_LENGTH * audioCtxRef.current.sampleRate / (vpEndSamples-vpStartSamples) * WIDTH;
+        
+        let currRes = 0;
+        const resolutions = mipMap.MIPMAP_RESOLUTIONS
+        while(currRes+1<resolutions.length && resolutions[currRes + 1] > pxPerTimeline){
+            currRes += 1;
+        } 
+
+        const halfLength = mipMap.MIPMAP_HALF_SIZE;
+        const iterateAmount = mipMap.TOTAL_TIMELINE_SAMPLES / halfLength;
+        
+        const mipMapStart = resolutions.slice(0,currRes).reduce((acc, curr) => acc + curr, 0);
+        const pxGap = mipMap.TIMELINE_LENGTH / (viewportDataRef.current.endTime-viewportDataRef.current.startTime) * WAVEFORM_WINDOW_LEN / resolutions[currRes];
+
+        let startBucket = Math.floor(vpStartSamples/iterateAmount) //the index of the lowest level of the pyramid corresponding to the start
+        
+        let mipMapIndex = mipMapStart + Math.floor(startBucket / 2**(currRes+1));
+        let k = 0; //k iterates through vertical lines to be drawn
+
+        let endSample = 0;
+        for(let region of regions.children){
+            endSample = Math.max(endSample,region.dataset.end)
+        }
+        
+        canvasCtx.beginPath();
+        while(k*pxGap < WAVEFORM_WINDOW_LEN * (endSample - vpStartSamples)/(vpEndSamples - vpStartSamples)){
+            const max = mipMap.mix[mipMapIndex]/127;
+            const min = mipMap.mix[halfLength + mipMapIndex]/127;
+            const y1 = ((1 + min) * HEIGHT) / 2;
+            const y2 = ((1 + max) * HEIGHT) / 2;
+            
+            canvasCtx.moveTo(k*pxGap,y1);
+            canvasCtx.lineTo(k*pxGap,y2);
+            mipMapIndex += 1; k+=1;
+        }
+        
+        canvasCtx.stroke();
+
     }
 
 
@@ -341,13 +404,13 @@ export default function WaveformWindow({
     }
 
     function setRegions(){
-        const container = regionsContainerRef.current;
-        const children = container.children;
+        const stagingContainer = stagingRegionsRef.current;
+        const stagingChildren = stagingContainer.children;
 
         const startTime = viewportDataRef.current.startTime;
         const endTime = viewportDataRef.current.endTime;
 
-        for (let child of children) {
+        for (let child of stagingChildren) {
             const start = child.dataset.start * 1 / audioCtxRef.current.sampleRate;
             const end = child.dataset.end * 1 / audioCtxRef.current.sampleRate;
             if (end < startTime || start > endTime){
@@ -396,6 +459,45 @@ export default function WaveformWindow({
             grandchild1.style.borderRadius = "7px 7px 0px 0px"
             */
         }
+
+        const mixContainer = mixRegionsRef.current;
+        const mixChildren = mixContainer.children;
+        if(!mixContainer || !mixChildren || mixChildren.length === 0) return;
+        let endSample = 0;
+        for(let region of mixChildren){
+            endSample = Math.max(endSample,region.dataset.end)
+            region.style.display = "none";
+        }
+        
+        const regionToDisplay = mixChildren[0];
+        const start = 0;
+        const end = endSample * 1 / audioCtxRef.current.sampleRate;
+        const left = Math.max(0,(start - startTime) / (endTime-startTime)) * WAVEFORM_WINDOW_LEN;
+        const leftOverflow = Math.max(0, startTime - start);
+        const rightOverflow = Math.max(0, end - endTime)
+        const regionWidth = Math.min(1,(end - start - leftOverflow - rightOverflow) / (endTime-startTime)) * WAVEFORM_WINDOW_LEN;
+        let borderRadius;
+            if(start < startTime && end > endTime){
+                borderRadius = "0px";
+            }else if(start < startTime){
+                borderRadius = "0px 7px 7px 0px";
+            }else if(end > endTime){
+                borderRadius = "7px 0px 0px 7px";
+            }else{
+                borderRadius = "7px";
+            }
+        regionToDisplay.style.display = "block"
+        regionToDisplay.style.left = 0;
+        regionToDisplay.style.top = "93px";
+        regionToDisplay.style.position = "absolute"
+        regionToDisplay.style.transform = `translateX(${left}px)`;
+        regionToDisplay.style.width = `${regionWidth}px`;
+        regionToDisplay.style.height = '57px';
+        regionToDisplay.style.background = "rgb(10, 138, 74,.5)";
+        regionToDisplay.style.borderRadius = borderRadius;
+        regionToDisplay.style.border = "2px solid rgb(220,220,2020,.8)";
+        regionToDisplay.style.pointerEvents = "none";
+
     }
 
     function fillLoadingAudio(waveformRef,textPos,track){
@@ -607,7 +709,8 @@ export default function WaveformWindow({
         fillSelectedRegion(waveform2Ref);
         setPlayhead();
         setRegions();
-        renderWaveforms();
+        renderStagingWaveforms();
+        renderMixWaveforms();
     }
 
 
@@ -707,7 +810,7 @@ export default function WaveformWindow({
                     >
                     </canvas>
 
-                    <div ref={regionsContainerRef} className="regions-layer">
+                    <div ref={stagingRegionsRef} className="">
                         {timeline.staging.map(region => {
                             return <div
                             key={region.name}
@@ -732,6 +835,20 @@ export default function WaveformWindow({
                     >
 
                     </canvas>
+
+                    <div ref={mixRegionsRef} className="">
+                        {timeline.mix.map(timeline => 
+                        timeline.map(region => <div
+                            key={region.name}
+                            data-start={region.start}
+                            data-end={region.end}
+                            className="region"
+                            >
+                            <div></div>
+                            <div></div>
+                            </div>))}
+
+                    </div>
                     
                 </div>
                 

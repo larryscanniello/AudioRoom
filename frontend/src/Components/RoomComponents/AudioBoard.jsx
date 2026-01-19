@@ -93,7 +93,7 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
     const [timeline,timelineDispatch] = useReducer(timelineReducer,{regionStack: [],
                                                                     staging:[],
                                                                     mix: [],
-                                                                    undoStack: [],});
+                                                                    redoStack: []});
 
     const waveform1Ref = useRef(null);
     const waveform2Ref = useRef(null);
@@ -1119,7 +1119,7 @@ function handleRecord() {
                     LEFT_CONTROLS_WIDTH,controlPanelRef,compactMode,monitoringOn,setMonitoringOn,
                     currentlyRecording,currentlyPlayingAudio,socket,numConnectedUsersRef,roomID,
                     gainRef,track1Muted,setTrack1Muted,streamOnPlayProcessorRef,
-                    track2Muted,gain2Ref,setTrack2Muted
+                    track2Muted,gain2Ref,setTrack2Muted,timelineDispatch,fileSystemRef
                 }}/>
 
 

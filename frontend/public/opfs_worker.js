@@ -24,6 +24,7 @@ const pointers = {
 
 const opfs = {
     root: null,
+    sessionDir: null,
     tracks: [],
     mixes: [],
     recordHandle: null,
@@ -39,8 +40,8 @@ const curr = {
 }
 
 const timeline = {
-    staging: null,
-    mix: null,
+    staging: [],
+    mix: [],
     start: null,
     end: null,
     pos: {
@@ -66,14 +67,16 @@ const proceed = {
 
 const tracks = [];
 
-const TRACK_COUNT = 16;
-const MIX_MIPMAP_BUFFER_SIZE_PER_TRACK = 2**16;
+let TRACK_COUNT;
+let MIX_MIPMAP_BUFFER_SIZE_PER_TRACK;
+let MIX_BUFFER_SIZE;
 
 async function listFiles(dir,dirstr) {
     let root;
     if(!dir){
         root = await navigator.storage.getDirectory();
     }else{root=dir;}
+    console.log('listFiles',root);
     for await (let [name, handle] of root) {
         if (handle.kind === 'file') {
         const file = await handle.getFile();
@@ -86,13 +89,11 @@ async function listFiles(dir,dirstr) {
 }
 
 async function closeHandles(dir){
-    console.log('cl han',dir);
     let root;
     if(!dir){
         root = await navigator.storage.getDirectory();
     }else{root=dir;}
-    console.log('check root',root);
-    for (let [name, handle] of root) {
+    for await (let [name,handle] of root) {
         if (handle.kind === 'file') {
         await handle.close();
         } else {
@@ -106,11 +107,15 @@ self.onmessage = (e) => {
         console.log('opfs worker inited');
         const init = async () => {
             await (await navigator.storage.getDirectory()).remove({recursive: true}); //delete all previous files in opfs
-            listFiles(await navigator.storage.getDirectory(),"root/");
             const root = await navigator.storage.getDirectory();
-            const currDir = await root.getDirectoryHandle(`track_${curr.track}`,{create:true});
+            const uuid = crypto.randomUUID();
+            const sessionDir = await root.getDirectoryHandle(`session_${uuid}`,{create:true});
+            opfs.sessionDir = sessionDir;
+            const currDir = await sessionDir.getDirectoryHandle(`track_${curr.track}`,{create:true});
             tracks.push({dirHandle:currDir,takeHandles:[]});
-            listFiles(root,"root/");
+            MIX_MIPMAP_BUFFER_SIZE_PER_TRACK = e.data.MIX_MIPMAP_BUFFER_SIZE_PER_TRACK;
+            MIX_BUFFER_SIZE = e.data.MIX_BUFFER_SIZE;
+            TRACK_COUNT = e.data.TRACK_COUNT;
             Object.assign(buffers,{
                 staging: new Float32Array(e.data.stagingPlaybackSAB,12),
                 mix: new Float32Array(e.data.mixPlaybackSAB,12),
@@ -145,6 +150,7 @@ self.onmessage = (e) => {
                 totalTimelineSamples:e.data.mipMap.TOTAL_TIMELINE_SAMPLES,
                 buffer: new Float32Array(TRACK_COUNT * MIX_MIPMAP_BUFFER_SIZE_PER_TRACK),
             })
+            
             opfs.root = root;
         }
         init();
@@ -154,18 +160,31 @@ self.onmessage = (e) => {
             const currTakeFile = await tracks[curr.track].dirHandle.getFileHandle(`track_${curr.track}_take_${curr.take}`,{create:true});
             const currTakeHandle = await currTakeFile.createSyncAccessHandle();
             tracks[curr.track].takeHandles.push(currTakeHandle);
-            timeline.staging = e.data.timeline;
-            timeline.start = Math.floor(e.data.timelineStart * 48000); //convert to samples
-            curr.sample.mix = timeline.start;
-            timeline.end = e.data.timelineEnd ? Math.floor(e.data.timelineEnd * 48000) : null;
+            const start = Math.round(e.data.timelineStart * 48000);
+            const end = Math.round(e.data.timelineEnd * 48000);
+            Object.assign(timeline,{
+                staging: e.data.timeline.staging,
+                mix: e.data.timeline.mix,
+                start,
+                end,
+                pos: {
+                    mix: start,
+                    staging: start,
+                },
+                length: end-start,
+            });
             looping = e.data.looping;
-            timeline.length = timeline.start - timeline.end;
-            proceed.record = true;
-            proceed.mix = true;
+            Atomics.store(pointers.record.read,0,0);
+            Atomics.store(pointers.record.write,0,0);
+            Atomics.store(pointers.record.isFull,0,0);
+            Atomics.store(pointers.mix.read,0,0);
+            Atomics.store(pointers.mix.write,0,0);
+            Atomics.store(pointers.mix.isFull,0,0);
+            proceed.record = "ready";
             writeToOPFS();
+            proceed.mix = "ready";
             fillMixPlaybackBuffer();
         }
-        console.log('rec inited???')
         init_recording();
     }
     if(e.data.type === "init_playback"){
@@ -182,33 +201,37 @@ self.onmessage = (e) => {
             Atomics.store(pointers.staging.read,0,0);
             Atomics.store(pointers.staging.write,0,0);
             Atomics.store(pointers.staging.isFull,0,0);
+            Atomics.store(pointers.mix.read,0,0);
+            Atomics.store(pointers.mix.write,0,0);
+            Atomics.store(pointers.mix.isFull,0,0);
             proceed.staging = "ready";
             fillStagingPlaybackBuffer();
+            proceed.mix = "ready";
+            fillMixPlaybackBuffer();
         }
         init_playback();
     }
     if(e.data.type === "stop_recording"){
         curr.take++;
-        proceed.record = false;
-        proceed.mix = false;
+        proceed.record = "off";
+        proceed.mix = "off";
     }
     if(e.data.type === "stop_playback"){
         proceed.staging = "off";
+        proceed.mix = "off";
     }
     if(e.data.type === "bounce_to_mix"){
         const mixTimelines = e.data.mixTimelines;
+        timeline.mix = mixTimelines;
         writeToMixMipMap(mixTimelines);
         curr.track ++;
         curr.take = 0;
         const createNewTrack = async () => {
-            const newTrack = await opfs.root.getDirectoryHandle(`track_${curr.track}`,{create:true});
+            const newTrack = await opfs.sessionDir.getDirectoryHandle(`track_${curr.track}`,{create:true});
             tracks.push({dirHandle:newTrack,takeHandles:[]});
-
         }
         createNewTrack();
-        
     }
-
     if(e.data.type === "fill_staging_mipmap"){
         const newTake = e.data.newTake;
         writeToStagingMipMap("staging",newTake);
@@ -222,7 +245,6 @@ self.onmessage = (e) => {
 
 function writeToMixMipMap(mixTimelines){
     //writes the whole mipmap
-    console.log('mixTimelines',mixTimelines);
     const int8 = mipMap.mix;
     const halfLength = mipMap.halfSize;
     const resolutions = mipMap.resolutions;
@@ -329,8 +351,6 @@ function writeToStagingMipMap(type,newTake){
     let bufferIndexCount = 0;
     mipMap.buffer.fill(0);
     //fill the bottom layer of the pyramid of the mipmap
-
-
     //const reader = new Float32Array(tracks[curr.track].takeHandles[newTake.number].getSize());
     //tracks[curr.track].takeHandles[newTake.number].read(reader,{at:0});
     const handle = tracks[curr.track].takeHandles[newTake.number]
@@ -377,20 +397,23 @@ function writeToStagingMipMap(type,newTake){
 
 
 
-function writeToRingBuffer(samplesToFill, handle, type, takeStart, writePtr) {
+function writeToStagingRingBuffer(samplesToFill, handle, type, takeStart, writePtr) {
     let samplesWritten = 0;
+    let timelinePos = timeline.pos.staging;
     while (samplesWritten < samplesToFill) {
+
         const remainingInPhysicalBuffer = buffers[type].length - writePtr;
         const chunkLength = Math.min(samplesToFill - samplesWritten, remainingInPhysicalBuffer);
         const chunkView = buffers[type].subarray(writePtr, writePtr + chunkLength);
-        handle.read(chunkView, { at: (timeline.pos[type] - takeStart) * 4 });  
+        handle.read(chunkView, { at: (timelinePos - takeStart) * Float32Array.BYTES_PER_ELEMENT });  
         writePtr = (writePtr + chunkLength) % buffers[type].length;
+        timelinePos += chunkLength;
         samplesWritten += chunkLength;
     }
     return writePtr;
 }
 
-function writeSilenceToRingBuffer(samplesToFill,type,writePtr){
+function writeSilenceToStagingRingBuffer(samplesToFill,type,writePtr){
     let samplesWritten = 0;
     while(samplesWritten < samplesToFill){
         const remainingInPhysicalBuffer = buffers[type].length - writePtr;
@@ -404,14 +427,18 @@ function writeSilenceToRingBuffer(samplesToFill,type,writePtr){
 }
 
 function writeToOPFS(){
-    if(!proceed.record) return;
+    if(proceed.record!=="ready") return;
+    proceed.record = "working";
     let readPtr = Atomics.load(pointers.record.read,0);
     const writePtr = Atomics.load(pointers.record.write,0);
     const isFull = Atomics.load(pointers.record.isFull,0);
     let samplesToWrite = (writePtr - readPtr + buffers.record.length) % buffers.record.length;
     if(isFull){samplesToWrite = buffers.record.length;}
     if(samplesToWrite===0){
-        if(proceed.record){setTimeout(()=>writeToOPFS(),15);}
+        if(proceed.record!=="off"){
+            proceed.record = "ready";
+            setTimeout(()=>writeToOPFS(),15);
+        }
         return;
     }
     while(samplesToWrite > 0){
@@ -424,34 +451,101 @@ function writeToOPFS(){
     }
     Atomics.store(pointers.record.read,0,readPtr);
     Atomics.store(pointers.record.isFull,0,0);
+    if(proceed.record!=="off"){proceed.record = "ready";}
     setTimeout(()=>writeToOPFS(),15);
+}
+
+function writeToMixRingBuffer(samplesToFill, handle, takeStart, write, track, pos){
+    let writePtr = write;
+    let samplesWritten = 0;
+    let timelinePos = pos;
+    const trackBufferLen = buffers.mix.length / TRACK_COUNT;
+    while (samplesWritten < samplesToFill) {
+        const remainingInPhysicalBuffer = trackBufferLen - writePtr;
+        const chunkLength = Math.min(samplesToFill - samplesWritten, remainingInPhysicalBuffer);
+        const chunkView = buffers.mix.subarray(track * trackBufferLen + writePtr, track * trackBufferLen + writePtr + chunkLength);
+        handle.read(chunkView, { at: (timelinePos - takeStart) * Float32Array.BYTES_PER_ELEMENT });  
+        writePtr = (writePtr + chunkLength) % trackBufferLen;
+        samplesWritten += chunkLength;
+        timelinePos += chunkLength;
+    }
+    
+    return writePtr;
+}
+
+function writeSilenceToMixRingBuffer(samplesToFill,write,track){
+    let writePtr = write;
+    let samplesWritten = 0;
+    const trackBufferLen = buffers.mix.length / TRACK_COUNT;
+    while(samplesWritten < samplesToFill){
+        const remainingInPhysicalBuffer = trackBufferLen - writePtr;
+        const chunkLength = Math.min(samplesToFill - samplesWritten, remainingInPhysicalBuffer);
+        const chunkView = buffers.mix.subarray(track * trackBufferLen + writePtr, track * trackBufferLen + writePtr + chunkLength);
+        chunkView.fill(0);      
+        writePtr = (writePtr + chunkLength) % trackBufferLen;
+        samplesWritten += chunkLength;
+    }
+    
+    return writePtr;
 }
 
 
 function fillMixPlaybackBuffer(){
-    return;
-    const writePtr = Atomics.load(mixPlaybackWritePtr,0);
-    const mixBufferIsFull = Atomics.load(mixBufferIsFull,0);
-    const available = (writePtr - readPtr + mixPlaybackBuffer.length) % mixPlaybackBuffer.length;
-    if(mixBufferIsFull) return;
-    let samplesToFill = available;
-    while(samplesToFill>0){
-        const sliceEnd = timelineEnd;
-        const sliceLength = Math.min(samplesToFill,timelineEnd - currMixPlaybackSample);
-        if(sliceLength<=0) break;
-        writeToRingBuffer(sliceLength,(view,offset)=>{
-            masters[-1].read(view, { at: offset });
-        })
-        currMixPlaybackSample += sliceLength;
-        if(looping && currMixPlaybackSample >= timelineEnd){
-            currMixPlaybackSample = timelineStart;
-        }else if(!looping && currMixPlaybackSample >= timelineEnd){
-            break;
+    if(proceed.mix!=="ready") return;
+    proceed.mix = "working";
+    const writePtr = Atomics.load(pointers.mix.write,0);
+    const readPtr = Atomics.load(pointers.mix.read,0);
+    const isFull = Atomics.load(pointers.mix.isFull,0);
+    if(isFull){ 
+        
+        if(proceed.mix!=="off"){
+            proceed.mix = "ready";
+            setTimeout(()=>fillMixPlaybackBuffer(),25)
         }
-    }   
-    if(proceed.mix){
-        setTimeout(()=>fillMixPlaybackBuffer(),15);
+        return;
     }
+    const trackBufferLen = buffers.mix.length/TRACK_COUNT
+    const available = writePtr === readPtr ? trackBufferLen : (readPtr - writePtr + trackBufferLen) % (trackBufferLen);
+    let timelinePos;
+    let writePtrPerTrack = writePtr;
+    for(let track=0;track<timeline.mix.length;track++){
+        let samplesToFill = available;
+        writePtrPerTrack = writePtr;
+        const length = timeline.mix[track].length;
+        timelinePos = timeline.pos.mix
+        while(samplesToFill>0){
+            const region = length > 0 ? timeline.mix[track].find(reg => reg.end > timelinePos) : null;
+            const sliceEnd = region ? Math.min(region.end, timeline.end) : timeline.end;
+            let sliceLength = Math.min(samplesToFill, sliceEnd - timelinePos,trackBufferLen - writePtrPerTrack);
+            if (sliceLength < 0) break; 
+            if (region && timelinePos >= region.start && timelinePos < timeline.end) {
+                // CASE: Fill from Take
+                const handle = tracks[track].takeHandles[region.number];
+                writePtrPerTrack = writeToMixRingBuffer(sliceLength, handle,region.start,writePtrPerTrack,track,timelinePos);
+            } else {
+                // CASE: Fill Silence (either leading silence or gap after timeline)
+                sliceLength = region ? Math.min(sliceLength, region.start - timelinePos) : sliceLength;
+                writePtrPerTrack = writeSilenceToMixRingBuffer(sliceLength,writePtrPerTrack,track);
+            }
+            // Advance timeline position
+            timelinePos += sliceLength;
+            samplesToFill -= sliceLength;
+            
+            // Handle Looping
+            if (looping && timelinePos >= timeline.end){
+                timelinePos = timeline.start;
+            }
+            //write ptr is adjusted in writeToRingBuffer / writeSilenceToRingBuffer
+            }
+    }
+    timeline.pos.mix = timelinePos;
+    const newWritePtr = (writePtr+available)%trackBufferLen
+    Atomics.store(pointers.mix.write,0,newWritePtr);
+    if(newWritePtr === readPtr){
+        Atomics.store(pointers.mix.isFull,0,1);
+    }
+    if(proceed.mix!=="off"){proceed.mix = "ready";}
+    setTimeout(()=>fillMixPlaybackBuffer(),50);
 }
 
 function fillStagingPlaybackBuffer(){
@@ -469,6 +563,7 @@ function fillStagingPlaybackBuffer(){
     let readPtr = Atomics.load(pointers.staging.read,0);
     let samplesLeftToFill = (readPtr - writePtr + buffers.staging.length) % buffers.staging.length;
     if(readPtr === writePtr){samplesLeftToFill = buffers.staging.length;}
+
     while(samplesLeftToFill > 0){
         const currTimeline = timeline.staging;
         const length = currTimeline.length;
@@ -478,14 +573,12 @@ function fillStagingPlaybackBuffer(){
         if (sliceLength < 0) break; 
         if (take && timeline.pos.staging >= take.start && timeline.pos.staging < timeline.end) {
             // CASE: Fill from Take
-            const handle = tracks[curr.track].takeHandles[take.number];
-            writePtr = writeToRingBuffer(sliceLength, handle,"staging",take.start,writePtr);
-            console.log('wtrb slicelen:',sliceLength,'timelinepos:',timeline.pos.staging);
+            const handle = tracks[curr.track].takeHandles[take.number]
+            writePtr = writeToStagingRingBuffer(sliceLength, handle,"staging",take.start,writePtr);
         } else {
             // CASE: Fill Silence (either leading silence or gap after timeline)
             sliceLength = take ? Math.min(sliceLength, take.start - timeline.pos.staging) : sliceLength;
-            writePtr = writeSilenceToRingBuffer(sliceLength,"staging",writePtr);
-            console.log('wstrb slicelen:',sliceLength,'timelinepos:',timeline.pos.staging);
+            writePtr = writeSilenceToStagingRingBuffer(sliceLength,"staging",writePtr);
         }
         // Advance timeline position
         timeline.pos.staging += sliceLength;

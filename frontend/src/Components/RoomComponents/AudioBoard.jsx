@@ -44,6 +44,8 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
     const START_VIEWPORT_TIMELENGTH = 20;
     const TOTAL_TIMELINE_SAMPLES = TIMELINE_LENGTH * 48000;
     const MIPMAP_HIGHEST_RESOLUTION = 2**Math.ceil(Math.log2(TIMELINE_LENGTH / .2 * WAVEFORM_WINDOW_LEN));
+    const TRACK_COUNT = 16;
+    const MIX_MIPMAP_BUFFER_SIZE_PER_TRACK = 2**16;
 
     const MIPMAP_RESOLUTIONS = [MIPMAP_HIGHEST_RESOLUTION];
     let curr = MIPMAP_HIGHEST_RESOLUTION;
@@ -177,7 +179,8 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
                                             otherPersonRecordingRef,setLoadingAudio,setAudio2,setLatencyTestRes,
                                             streamOnPlayProcessorRef,localStreamRef,initializeRecorder,dataConnRef,
                                             audioSourceRef,AudioCtxRef,isDemo,opusRef,fileSystemRef,
-                                            recordSABRef,mixSABRef,stagingSABRef,timeline,timelineDispatch});
+                                            recordSABRef,mixSABRef,stagingSABRef,timeline,timelineDispatch,
+                                            TRACK_COUNT});
 
     useEffect(() => {
         //This effect runs only when component first mounts. 
@@ -203,9 +206,9 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
         metronomeGainRef.current.connect(AudioCtxRef.current.destination);
         metronomeRef.current.gainRef = metronomeGainRef;
 
-        stagingSABRef.current = new SharedArrayBuffer(48000 * 4 * 2 + 12);
-        mixSABRef.current = new SharedArrayBuffer(48000 * 4 * 2 + 12);
-        recordSABRef.current = new SharedArrayBuffer(48000 * 4 * 2 + 12);
+        stagingSABRef.current = new SharedArrayBuffer(48000 * Float32Array.BYTES_PER_ELEMENT + 12);
+        mixSABRef.current = new SharedArrayBuffer(48000 * Float32Array.BYTES_PER_ELEMENT * TRACK_COUNT + 12);
+        recordSABRef.current = new SharedArrayBuffer(48000 * Float32Array.BYTES_PER_ELEMENT + 12); 
 
         const stagingMipMapSAB = new SharedArrayBuffer(2 * MIPMAP_HALF_SIZE + 1);
         const mixMipMapSAB = new SharedArrayBuffer(2 * MIPMAP_HALF_SIZE + 1);
@@ -234,7 +237,10 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
                 TOTAL_TIMELINE_SAMPLES,
                 staging: stagingMipMapSAB,
                 mix: mixMipMapSAB,
-            }
+            },
+            MIX_MIPMAP_BUFFER_SIZE_PER_TRACK,
+            TRACK_COUNT,
+            MIX_BUFFER_SIZE: 48000 * Float32Array.BYTES_PER_ELEMENT * TRACK_COUNT,
         });
 
         const getDemo = async ()=>{
@@ -638,7 +644,8 @@ function handleRecord() {
     const startTime = AudioCtxRef.current.currentTime + .05
     const endTime = looping ? 
         null : mouseDragEnd ? 
-        (startTime + mouseDragEnd.trounded - playheadLocation) : startTime + 32 * 4 * (60/BPM);
+        (startTime + mouseDragEnd.trounded - playheadLocation) : null;
+    const timelineEnd = mouseDragEnd ? mouseDragEnd : TIMELINE_LENGTH;
     recorderRef.current.startRecording(
         false,
         false,
@@ -647,6 +654,7 @@ function handleRecord() {
         looping,
         startTime,
         endTime,
+        timelineEnd,
     );
     if(numConnectedUsersRef.current >= 2){
         socket.current.emit("start_recording_client_to_server",roomID);

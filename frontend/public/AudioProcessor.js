@@ -1,4 +1,5 @@
 const PROCESS_FRAMES = 128;
+let TRACK_COUNT;
 
 class AudioProcessor extends AudioWorkletProcessor {
   constructor() {
@@ -12,9 +13,9 @@ class AudioProcessor extends AudioWorkletProcessor {
     this.buffers = {};
 
     this.readers = {
-      staging: new Float32Array(PROCESS_FRAMES),
-      mix: new Float32Array(PROCESS_FRAMES * 2),
-      record: new Float32Array(this.packetSize)
+      staging: null,
+      mix: null,
+      record :null,
     }
 
     this.state = {
@@ -61,6 +62,7 @@ class AudioProcessor extends AudioWorkletProcessor {
         isFull: null,
       }
     }
+
     this.port.onmessage = (e) => this.handleMessage(e.data);
   }
 
@@ -88,6 +90,12 @@ class AudioProcessor extends AudioWorkletProcessor {
         isFull: new Uint32Array(data.recordSAB,8),
       }
       })
+      TRACK_COUNT = data.TRACK_COUNT;
+      Object.assign(this.readers,{
+        staging: new Float32Array(PROCESS_FRAMES),
+        mix: new Float32Array(PROCESS_FRAMES * TRACK_COUNT),
+        record: new Float32Array(this.packetSize)
+      });
     }
     if (data.actiontype === 'start'){ 
       Object.assign(this.state, {
@@ -138,7 +146,7 @@ class AudioProcessor extends AudioWorkletProcessor {
     }
   }
 
-  readTo(reader,type){
+  readToStaging(reader,type){
       let readPos = Atomics.load(this.pointers[type].read, 0);
      
       const writePos = Atomics.load(this.pointers[type].write, 0);
@@ -163,6 +171,31 @@ class AudioProcessor extends AudioWorkletProcessor {
       
 
       return readLength
+    }
+
+    readToMix(){
+      let readPtr = Atomics.load(this.pointers.mix.read, 0);
+      const writePos = Atomics.load(this.pointers.mix.write, 0);
+      const isFull = Atomics.load(this.pointers.mix.isFull,0);
+      if(readPtr===writePos && !isFull) return;
+      const trackBufferLen = this.buffers.mix.length/TRACK_COUNT;
+      const trackReaderLen = this.readers.mix.length/TRACK_COUNT;
+      let available = (writePos - readPtr + trackBufferLen) % trackBufferLen;
+      if(readPtr === writePos){available = trackBufferLen;}
+      const readLength = Math.min(available, trackReaderLen);
+      for(let track=0;track<TRACK_COUNT;track++){
+        const first = Math.min(trackBufferLen - readPtr, readLength);
+        const second = readLength - first;
+        const bufferStart = track * trackBufferLen;
+        const readerStart = track * PROCESS_FRAMES;
+        this.readers.mix.set(this.buffers.mix.subarray(bufferStart + readPtr,bufferStart + readPtr + first),readerStart);
+        this.readers.mix.set(this.buffers.mix.subarray(bufferStart,bufferStart+second),readerStart + first);
+      }
+      readPtr = (readPtr + readLength) % trackBufferLen;
+      Atomics.store(this.pointers.mix.read,0,readPtr);
+        if(readPtr !== Atomics.load(this.pointers.mix.write,0) && readLength>0){
+          Atomics.store(this.pointers.mix.isFull,0,0);
+        };
     }
 
   writeToRingBuffer() {
@@ -207,22 +240,20 @@ class AudioProcessor extends AudioWorkletProcessor {
       this.absolute.packetPos++;
     }
     
-    if(this.state.isPlayback) this.readTo(this.readers.staging,"staging");
-    //this.readTo(this.readers.mix,"mix");
+    if(this.state.isPlayback) this.readToStaging(this.readers.staging,"staging");
+    this.readToMix(this.readers.mix);
     
     const output = outputs[0];
-
     for (let i = 0; i < PROCESS_FRAMES; i++) {
       if(!this.state.isRecording && !this.state.isPlayback) break;
         for (let channel = 0; channel < 2; channel++) {
-          output[channel][i] = /*this.readers.mix[2 * i + channel]*/ (this.state.isPlayback ? this.readers.staging[i] : 0);
+
+          output[channel][i] = (this.state.isPlayback ? this.readers.staging[i] : 0);
+          for(let track=0;track<TRACK_COUNT;track++){
+            output[channel][i] += this.readers.mix[track * PROCESS_FRAMES + i];
+          }
+          
         }
-    }
-    let isNonZero = false;
-    for(let i=0;i<PROCESS_FRAMES;i++){
-      if(output[0][i]!==0){
-        isNonZero = true;
-      }
     }
     return true;
   }

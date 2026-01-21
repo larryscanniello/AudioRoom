@@ -10,7 +10,7 @@ export const useAudioRecorder = (
   setLoadingAudio,otherPersonRecordingRef,setAudio2,setLatencyTestRes,streamOnPlayProcessorRef,
   autoTestLatency,localStreamRef,initializeRecorder,dataConnRef,audioSourceRef,audioCtxRef,
   isDemo,AudioCtxRef,opusRef,fileSystemRef,timeline,timelineDispatch,
-  recordSABRef,stagingSABRef,mixSABRef,
+  recordSABRef,stagingSABRef,mixSABRef,TRACK_COUNT,
 }
 ) => {
   const delayCompensationRecorderRef = useRef(null);
@@ -60,6 +60,7 @@ export const useAudioRecorder = (
           recordSAB:recordSABRef.current,
           stagingSAB:stagingSABRef.current,
           mixSAB:mixSABRef.current,
+          TRACK_COUNT,
         })
         source.connect(processor);
         processor.connect(gain2Ref.current);
@@ -78,13 +79,12 @@ export const useAudioRecorder = (
           });
         }
 
-        const startRecording = (isStreaming,autoTestLatency,timelineStart,timeline,looping,startTime,endTime) => {
+        const startRecording = (isStreaming,autoTestLatency,timelineStart,timeline,looping,startTime,endTime,timelineEnd) => {
 
-          console.log('use AR start rec????');
           fileSystemRef.current.postMessage({
             type:'init_recording',
             timelineStart,timeline,
-            looping,
+            looping,timelineEnd,
           })
 
           const sessionId = crypto.randomUUID();

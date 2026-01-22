@@ -2,7 +2,7 @@ import { useRef,useState,useEffect,useReducer } from "react";
 import { useParams } from "react-router-dom";
 import Metronome from "../../Classes/Metronome"
 import { useAudioRecorder } from "./useAudioRecorder";
-import RecorderInterface from "./WaveformWindow";
+import RecorderInterface from "./Timeline";
 import { Button } from "@/Components/ui/button"
 import { Play, Square, Circle,SkipBack,Lock,LockOpen,Undo,Redo,
     Columns4,Magnet,Trash2,Repeat2} from "lucide-react"
@@ -25,7 +25,8 @@ import { useWindowSize } from "../useWindowSize";
 import "./AudioBoard.css";
 import timelineReducer from "./timelineReducer";
 import ControlPanel from "./ControlPanel/ControlPanel";
-import WaveformWindow from "./WaveformWindow";
+import WaveformWindow from "./Timeline";
+import Timeline from "./Timeline";
 
 
 
@@ -1132,7 +1133,7 @@ function handleRecord() {
                 }}/>
 
 
-                <WaveformWindow audio={audio} BPM={BPM} mouseDragEnd={mouseDragEnd} zoomFactor={zoomFactor}
+                <Timeline audio={audio} BPM={BPM} mouseDragEnd={mouseDragEnd} zoomFactor={zoomFactor}
                                 delayCompensation={delayCompensation} measureTickRef={measureTickRef}
                                 mouseDragStart={mouseDragStart}
                                 audioCtxRef={AudioCtxRef} waveform1Ref={waveform1Ref}

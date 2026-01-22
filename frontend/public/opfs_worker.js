@@ -591,7 +591,10 @@ function fillStagingPlaybackBuffer(){
         //write ptr is adjusted in writeToRingBuffer / writeSilenceToRingBuffer
     }
     Atomics.store(pointers.staging.write,0,writePtr);
-    Atomics.store(pointers.staging.isFull,0,1);
+    if(writePtr === Atomics.load(pointers.staging.read,0)){
+        Atomics.store(pointers.staging.isFull,0,1);
+    }
+    
     if(proceed.staging!=="off"){proceed.staging="ready";}
     setTimeout(()=>fillStagingPlaybackBuffer(),15);
     

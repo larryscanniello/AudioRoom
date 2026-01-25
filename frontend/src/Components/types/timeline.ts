@@ -2,7 +2,8 @@
 export interface Region {
     start: number;
     end: number;
-    number: number;
+    take: number;
+    bounce:number,
     name: string;
     offset: number;
 }
@@ -20,6 +21,7 @@ interface AddRegionAction {
         timelineStart: number;
         timelineEnd: number;
         takeNumber: number;
+        bounceNumber: number;
         fileName: string;
     };
     delayCompensation: number[];

@@ -226,7 +226,7 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
             TOTAL_TIMELINE_SAMPLES
         }
 
-        fileSystemRef.current = new Worker("/opfs_worker.js",{type:'module'});
+        fileSystemRef.current = new Worker(new URL("/opfs_worker.ts",import.meta.url),{type:'module'});
         fileSystemRef.current.postMessage({
             type:"init",
             stagingPlaybackSAB:stagingSABRef.current,
@@ -660,6 +660,14 @@ function handleRecord() {
     if(numConnectedUsersRef.current >= 2){
         socket.current.emit("start_recording_client_to_server",roomID);
     }
+}
+
+function handleBounce(){
+    mipMapRef.current.staging.fill(0);
+    recorderRef.current.processor.port.postMessage({actiontype:"bounce_to_mix"});
+    timelineDispatch({type:"bounce_to_mix",fileSystemRef});
+    
+    
 }
     
 
@@ -1129,7 +1137,7 @@ function handleRecord() {
                     currentlyRecording,currentlyPlayingAudio,socket,numConnectedUsersRef,roomID,
                     gainRef,track1Muted,setTrack1Muted,streamOnPlayProcessorRef,
                     track2Muted,gain2Ref,setTrack2Muted,timelineDispatch,fileSystemRef,
-                    recorderRef,
+                    recorderRef,handleBounce
                 }}/>
 
 

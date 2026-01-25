@@ -26,7 +26,7 @@ class AudioProcessor extends AudioWorkletProcessor {
       sessionId:null,
       packetCount: 0,
       count:{
-        track:0,
+        bounce:0,
         take:-1,
       }
     }
@@ -105,7 +105,7 @@ class AudioProcessor extends AudioWorkletProcessor {
         isStreaming: data.isStreaming,
         looping: data.looping,
         count:{
-          track: 0,
+          bounce: this.state.count.bounce,
           take: data.isRecording ? this.state.count.take + 1 : this.state.count.take,
         },
         packetCount: 0,
@@ -121,19 +121,18 @@ class AudioProcessor extends AudioWorkletProcessor {
         end: data.endTime ? Math.round(sampleRate * data.endTime) : null,
         packetPos: 0,
       })
-      console.log('start timeline pos',this.timeline.pos);
     };
     if (data.actiontype === 'stop'){ 
       if (data.sessionId !== this.state.sessionId || this.state.sessionId === null) return;
       this.absolute.end = Math.round(data.endTime * sampleRate); //record an extra half seconds for crossfades
       this.state.sessionId = null;
       if(this.state.isRecording){
-        console.log('postmessage take',this.state.count.take);
         this.port.postMessage({
           timelineStart: this.timeline.start,
           timelineEnd: this.timeline.start + ((data.timelineEnd*sampleRate) - this.absolute.start),
           takeNumber: this.state.count.take,
-          fileName: `track_${this.state.count.track}_take_${this.state.count.take}`,
+          bounceNumber: this.state.count.bounce,
+          fileName: `bounce_${this.state.count.bounce}_take_${this.state.count.take}`,
           fileLength: this.absolute.end + this.halfSecondInSamples - this.absolute.start,
         })
       }
@@ -141,7 +140,7 @@ class AudioProcessor extends AudioWorkletProcessor {
       this.state.isRecording = false;
     };
     if(data.actiontype === "bounce_to_mix"){
-      this.state.count.track += 1;
+      this.state.count.bounce += 1;
       this.state.count.take = -1;
     }
   }

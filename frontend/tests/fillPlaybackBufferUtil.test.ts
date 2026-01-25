@@ -5,30 +5,34 @@ import type { TimelineState, TrackEntry, Region } from '../public/opfs_utils/typ
 
 function createMockTimeline(regionsToAdd: number[][][], timelineStart: number, timelineEnd: number) {
     
-    const mix: Region[][] = regionsToAdd.map(trackRegions => 
+    const mix: Region[][] = regionsToAdd.map((trackRegions,i) => 
         trackRegions.map(([start, end],j) => ({
             start, end,
-            number: j,
-            name: "mock-region",
+            bounce: i,
+            take: j,
+            name: `bounce_${i}_take_${j}`,
             offset: 0,
         }))
     );
 
     const tracks: TrackEntry[] = regionsToAdd.map((trackRegions, i) => ({
         dirHandle: null,
-        takeHandles: trackRegions.map((_, j) => ({
-            read: vi.fn(async (view: Float32Array, options: { at: number }) => {
-                // Fill buffer with a predictable value based on track/region
-                // Example: Track 0, Region 1 fills with 0.1
-                const signalValue = (i + 1) * 0.01 + (j + 1) * 0.001;;
-                
-                for (let i = 0; i < view.length; i++) {
-                    view[i] = signalValue;
-                }
-                
-                return { bytesRead: view.byteLength }; // Real OPFS handles usually return metadata
-            })
-        }))
+        takeHandles: trackRegions.reduce((handles, _, j) => {
+            handles[`bounce_${i}_take_${j}`] = {
+                read: vi.fn(async (view: Float32Array, options: { at: number }) => {
+                    // Fill buffer with a predictable value based on track/region
+                    // Example: Track 0, Region 1 fills with 0.1
+                    const signalValue = (i + 1) * 0.01 + (j + 1) * 0.001;
+
+                    for (let k = 0; k < view.length; k++) {
+                        view[k] = signalValue;
+                    }
+
+                    return { bytesRead: view.byteLength }; // Real OPFS handles usually return metadata
+                })
+            };
+            return handles;
+        }, {} as Record<string, any>)
     }));
 
     const timeline: TimelineState = {
@@ -257,15 +261,19 @@ describe('fillPlaybackBufferUtil', () => {
     it('does not crash if a takeHandle is missing for a region and correctly fills in silence', () => {
         const { timeline, tracks } = createMockTimeline([[[0, 50],[50,100]]], 0, 100);
         // Simulate a corrupted track state where takeHandles doesn't match regions
-        tracks[0].takeHandles = [{
-            read: vi.fn(async (view: Float32Array, options: { at: number }) => {
-                // Fill buffer with a predictable value based on track/region
-                // Example: Track 0, Region 1 fills with 0.1
-                const signalValue = .11;
-                
-                for (let i = 0; i < view.length; i++) {
-                    view[i] = signalValue;
-                }})}]; 
+        tracks[0].takeHandles = {
+            "bounce_0_take_0": {
+                read: vi.fn(async (view: Float32Array, options: { at: number }) => {
+                    // Fill buffer with a predictable value based on track/region
+                    // Example: Track 0, Region 1 fills with 0.1
+                    const signalValue = .11;
+
+                    for (let i = 0; i < view.length; i++) {
+                        view[i] = signalValue;
+                    }
+                })
+            }
+        }; 
 
         const call = () => fillPlaybackBufferUtil(buffer, TRACK_COUNT, 0, 0, timeline, tracks, false);
         
@@ -383,7 +391,7 @@ describe('fillPlaybackBufferUtil', () => {
         
         timeline.mix[0][0].offset = 10;
         
-        const readSpy = tracks[0].takeHandles[0].read;
+        const readSpy = tracks[0].takeHandles["bounce_0_take_0"].read;
 
         console.log('readSpy',readSpy)
         

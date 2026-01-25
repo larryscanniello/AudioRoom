@@ -14,8 +14,9 @@ export const addRegionTest = (initialRegions: number[][],regionToAdd:number[]) =
     const newRegion:Region = {
         start: initialRegions[i][0],
         end: initialRegions[i][1],
-        number: i,
-        name: `track_${0}_take_${i}`,
+        bounce: 0,
+        take: i,
+        name: `bounce_${0}_take_${i}`,
         offset: 0,
     };
     regionStack.push(newRegion);
@@ -33,7 +34,8 @@ export const addRegionTest = (initialRegions: number[][],regionToAdd:number[]) =
             timelineStart: regionToAdd[0],
             timelineEnd: regionToAdd[1],
             takeNumber: regionStack.length,
-            fileName: `track_0_take_${regionStack.length}`,
+            bounceNumber: 0,
+            fileName: `bounce_${0}_take_${regionStack.length}`,
         },
         delayCompensation: [0],
         fileSystemRef,
@@ -46,19 +48,19 @@ export const addRegionTest = (initialRegions: number[][],regionToAdd:number[]) =
 
 const getGenericTimelines = (): TimelineState => {
     const regionStack: Region[] = [
-      { start: 0, end: 10, number: 0, name: 'track_1_take_0', offset: 0, },
+      { start: 0, end: 10, take: 0, bounce: 1, name: 'bounce_1_take_0', offset: 0, },
     ];
 
     const staging: Region[] = [
-      { start: 0, end: 10, number: 0, name: 'track_0_take_0', offset: 0, },
+      { start: 0, end: 10, take: 0, bounce: 1, name: 'bounce_1_take_1', offset: 0, },
     ];
 
     const mix: Region[][] = [
-        [{ start: 0, end: 10, number: 0, name: 'track_0_take_0', offset: 0, }],
+        [{ start: 0, end: 10, take: 0, bounce: 0, name: 'bounce_0_take_0', offset: 0, }],
     ];
 
     const redoStack: Region[] = [
-        { start: 10, end: 20, number: 0, name: 'track_1_take_1', offset: 0, }
+        { start: 10, end: 20, take: 0, bounce: 1, name: 'bounce_1_take_0', offset: 0, }
     ];
 
     return {
@@ -222,6 +224,7 @@ describe('timelineReducer Scenarios', () => {
           timelineStart: 5,
           timelineEnd: 5,
           takeNumber: 1,
+          bounceNumber: 0,
           fileName: `track_0_take_2`,
       },
       delayCompensation: [0],
@@ -252,6 +255,7 @@ describe('timelineReducer Scenarios', () => {
           timelineStart: 10,
           timelineEnd: 5,
           takeNumber: 1,
+          bounceNumber: 0,
           fileName: `track_0_take_2`,
       },
       delayCompensation: [0],
@@ -275,10 +279,10 @@ describe('timelineReducer Scenarios', () => {
                       } as React.RefObject<Worker>;
 
     const regionStack: Region[] = [
-      { start: 0, end: 10, number: 0, name: 'track_0_take_0', offset: 0,},
-      { start: 20, end: 30, number: 1, name: 'track_0_take_1', offset: 0,},
-      { start: 40, end: 50, number: 2, name: 'track_0_take_2', offset: 0,},
-      { start: 50, end: 70, number: 3, name: 'track_0_take_3', offset: 0,},
+      { start: 0, end: 10, take: 0, bounce: 0, name: 'track_0_take_0', offset: 0,},
+      { start: 20, end: 30, take: 1, bounce: 0, name: 'track_0_take_1', offset: 0,},
+      { start: 40, end: 50, take: 2, bounce: 0, name: 'track_0_take_2', offset: 0,},
+      { start: 50, end: 70, take: 3, bounce: 0, name: 'track_0_take_3', offset: 0,},
     ];
 
     const prevState: TimelineState = {

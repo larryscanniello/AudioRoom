@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fillPlaybackBufferUtil } from '../public/opfs_utils/fillPlaybackBufferUtil.ts'; // Update this path
-import type { TimelineState, TrackEntry, Region } from '../public/opfs_utils/types.ts';
+import type { TimelineState, BounceEntry, Region } from '../public/opfs_utils/types.ts';
 
 
 function createMockTimeline(regionsToAdd: number[][][], timelineStart: number, timelineEnd: number) {
@@ -15,7 +15,7 @@ function createMockTimeline(regionsToAdd: number[][][], timelineStart: number, t
         }))
     );
 
-    const tracks: TrackEntry[] = regionsToAdd.map((trackRegions, i) => ({
+    const tracks: BounceEntry[] = regionsToAdd.map((trackRegions, i) => ({
         dirHandle: null,
         takeHandles: trackRegions.reduce((handles, _, j) => {
             handles[`bounce_${i}_take_${j}`] = {
@@ -59,17 +59,17 @@ describe('fillPlaybackBufferUtil', () => {
     it('fills silence when the timeline position is before any regions', () => {
         // Track 0 has one region starting at 50. Timeline starts at 0.
         const { timeline, tracks } = createMockTimeline([[[50, 100]]], 0, 100);
-        
-        const result = fillPlaybackBufferUtil(buffer, TRACK_COUNT, 0, 0, timeline, tracks, false);
+
+        const result = fillPlaybackBufferUtil(buffer, TRACK_COUNT, 0, 0, timeline.mix, tracks, false, timeline.start, {start: timeline.start, end: timeline.end});
 
         // Track 0, first 50 samples should be silence (0)
         const track0Part = buffer.subarray(0, 50);
         expect(track0Part.every(v => v === 0)).toBe(true);
-        
+
         // Track 0, next 50 samples should be region data (0.011)
         const track0Data = buffer.subarray(50, 100);
         track0Data.forEach(v => expect(v).toBeCloseTo(0.011));
-        
+
         expect(result.timelinePos).toBe(100);
     });
 
@@ -77,7 +77,7 @@ describe('fillPlaybackBufferUtil', () => {
         // Track 0 has one region from 0-50. Timeline starts at 60.
         const { timeline, tracks } = createMockTimeline([[[0, 50]]], 0, 100);
 
-        const result = fillPlaybackBufferUtil(buffer, TRACK_COUNT, 0, 0, timeline, tracks, false);
+        const result = fillPlaybackBufferUtil(buffer, TRACK_COUNT, 0, 0, timeline.mix, tracks, false, timeline.start, {start: timeline.start, end: timeline.end});
 
         // Track 0, first 50 samples should be region data (0.011)
         const track0Data = buffer.subarray(0, 50);
@@ -93,8 +93,8 @@ describe('fillPlaybackBufferUtil', () => {
     it('fills silence for gaps between regions; handles two regions on same track', () => {
         // Track 0 has regions [0-30] and [60-90]. Timeline starts at 0.
         const { timeline, tracks } = createMockTimeline([[[0, 30], [60, 90]]], 0, 100);
-        
-        const result = fillPlaybackBufferUtil(buffer, TRACK_COUNT, 0, 0, timeline, tracks, false);
+
+        const result = fillPlaybackBufferUtil(buffer, TRACK_COUNT, 0, 0, timeline.mix, tracks, false, timeline.start, {start: timeline.start, end: timeline.end});
 
         // Track 0, first 30 samples should be region data (0.011)
         const track0Part1 = buffer.subarray(0, 30);
@@ -120,8 +120,8 @@ describe('fillPlaybackBufferUtil', () => {
         // Track 0: [0-100], Track 1: [0-100]
 
         const { timeline, tracks } = createMockTimeline([[[0, TRACK_BUFFER_LEN]], [[0, TRACK_BUFFER_LEN]]], 0, 100);
-        
-        const result = fillPlaybackBufferUtil(buffer, TRACK_COUNT, 0, 0, timeline, tracks, false);
+
+        const result = fillPlaybackBufferUtil(buffer, TRACK_COUNT, 0, 0, timeline.mix, tracks, false, timeline.start, {start: timeline.start, end: timeline.end});
 
         buffer.subarray(0, 100).forEach(v => expect(v).toBeCloseTo(0.011));
         buffer.subarray(100, 200).forEach(v => expect(v).toBeCloseTo(0.021));
@@ -132,7 +132,7 @@ describe('fillPlaybackBufferUtil', () => {
 
       const { timeline, tracks } = createMockTimeline([[[0,25]],[[50,75]]],0,100);
 
-      const result = fillPlaybackBufferUtil(buffer,TRACK_COUNT,0,0,timeline, tracks,false);
+      const result = fillPlaybackBufferUtil(buffer,TRACK_COUNT,0,0,timeline.mix, tracks,false,timeline.start,{start:timeline.start,end:timeline.end});
 
       buffer.subarray(0,25).forEach(v => expect(v).toBeCloseTo(0.011));
       buffer.subarray(25,150).forEach(v => expect(v).toBe(0));
@@ -149,7 +149,7 @@ describe('fillPlaybackBufferUtil', () => {
         const writePtr = 80;
         const readPtr = 80; // This tells the util it has 100 samples of "available" space
         
-        const result = fillPlaybackBufferUtil(buffer, TRACK_COUNT, writePtr, readPtr, timeline, tracks, false);
+        const result = fillPlaybackBufferUtil(buffer, TRACK_COUNT, writePtr, readPtr, timeline.mix, tracks, false, timeline.start, {start: timeline.start, end: timeline.end});
 
         expect(result.newWritePtr).toBe(80); // Wrapped around fully
         buffer.subarray(0,100).forEach(v => expect(v).toBeCloseTo(.011))
@@ -160,7 +160,7 @@ describe('fillPlaybackBufferUtil', () => {
         // Region goes to 200, but timeline ends at 50
         const { timeline, tracks } = createMockTimeline([[[0, 200]],[[0,200]]], 0, 50);
         
-        const result = fillPlaybackBufferUtil(buffer, TRACK_COUNT, 0, 0, timeline, tracks, false);
+        const result = fillPlaybackBufferUtil(buffer, TRACK_COUNT, 0, 0, timeline.mix, tracks, false, timeline.start, {start: timeline.start, end: timeline.end});
 
         // It should only have advanced 50 samples because of timeline.end
         buffer.subarray(0,50).forEach(v => expect(v).toBeCloseTo(.011,5));
@@ -178,7 +178,7 @@ describe('fillPlaybackBufferUtil', () => {
         const writePtr = 10;
         const readPtr = 30; // 100 - 80 = 20 samples available
 
-        const result = fillPlaybackBufferUtil(buffer, TRACK_COUNT, writePtr, readPtr, timeline, tracks, true);
+        const result = fillPlaybackBufferUtil(buffer, TRACK_COUNT, writePtr, readPtr, timeline.mix, tracks, true, timeline.start, {start: timeline.start, end: timeline.end});
 
         buffer.subarray(0,10).forEach(v => expect(v).toBe(0));
         buffer.subarray(10,15).forEach(v => expect(v).toBeCloseTo(.011,5));
@@ -196,7 +196,7 @@ describe('fillPlaybackBufferUtil', () => {
     it('handles a completely empty timeline (no regions)', () => {
         const { timeline, tracks } = createMockTimeline([[]], 0, 100);
         
-        const result = fillPlaybackBufferUtil(buffer, TRACK_COUNT, 0, 0, timeline, tracks, false);
+        const result = fillPlaybackBufferUtil(buffer, TRACK_COUNT, 0, 0, timeline.mix, tracks, false, timeline.start, {start: timeline.start, end: timeline.end});
 
         expect(buffer.every(v => v === 0)).toBe(true);
         expect(result.timelinePos).toBe(100);
@@ -208,7 +208,7 @@ describe('fillPlaybackBufferUtil', () => {
         // Region only exists at index 10
         const { timeline, tracks } = createMockTimeline([[[10, 11]]], 0, 100);
         
-        fillPlaybackBufferUtil(buffer, TRACK_COUNT, 0, 0, timeline, tracks, false);
+        fillPlaybackBufferUtil(buffer, TRACK_COUNT, 0, 0, timeline.mix, tracks, false, timeline.start, {start: timeline.start, end: timeline.end});
 
         expect(buffer[9]).toBe(0);
         expect(buffer[10]).toBeCloseTo(0.011);
@@ -220,7 +220,7 @@ describe('fillPlaybackBufferUtil', () => {
         const { timeline, tracks } = createMockTimeline([[], [[0, 100]]], 0, 100);
         const twoTrackBuffer = new Float32Array(200).fill(0);
         
-        fillPlaybackBufferUtil(twoTrackBuffer, 2, 0, 0, timeline, tracks, false);
+        fillPlaybackBufferUtil(twoTrackBuffer, 2, 0, 0, timeline.mix, tracks, false, timeline.start, {start: timeline.start, end: timeline.end});
 
         // Track 0 (0-99) silence
         expect(twoTrackBuffer.subarray(0, 100).every(v => v === 0)).toBe(true);
@@ -233,7 +233,7 @@ describe('fillPlaybackBufferUtil', () => {
         // Playback starts at 500, timeline start is 500, region is 510-520
         const { timeline, tracks } = createMockTimeline([[[510, 520]]], 500, 600);
         
-        fillPlaybackBufferUtil(buffer, TRACK_COUNT, 0, 0, timeline, tracks, false);
+        fillPlaybackBufferUtil(buffer, TRACK_COUNT, 0, 0, timeline.mix, tracks, false, timeline.start, {start: timeline.start, end: timeline.end});
 
         expect(buffer.subarray(0, 10).every(v => v === 0)).toBe(true); // 500-510
         expect(buffer.subarray(10, 20).every(v => v > 0)).toBe(true);  // 510-520
@@ -247,7 +247,7 @@ describe('fillPlaybackBufferUtil', () => {
         // With looping=true, it should cycle 10 times.
         const { timeline, tracks } = createMockTimeline([[[0, 5]]], 0, 10);
         
-        fillPlaybackBufferUtil(buffer, TRACK_COUNT, 0, 0, timeline, tracks, true);
+        fillPlaybackBufferUtil(buffer, TRACK_COUNT, 0, 0, timeline.mix, tracks, true, timeline.start, {start: timeline.start, end: timeline.end});
 
         // Every 10 samples, we should see 5 samples of data and 5 samples of silence
         for (let i = 0; i < 10; i++) {
@@ -275,9 +275,9 @@ describe('fillPlaybackBufferUtil', () => {
             }
         }; 
 
-        const call = () => fillPlaybackBufferUtil(buffer, TRACK_COUNT, 0, 0, timeline, tracks, false);
-        
-        const results = fillPlaybackBufferUtil(buffer, TRACK_COUNT, 0, 0, timeline, tracks, false);
+        const call = () => fillPlaybackBufferUtil(buffer, TRACK_COUNT, 0, 0, timeline.mix, tracks, false, timeline.start, {start: timeline.start, end: timeline.end});
+
+        const results = fillPlaybackBufferUtil(buffer, TRACK_COUNT, 0, 0, timeline.mix, tracks, false, timeline.start, {start: timeline.start, end: timeline.end});
         // It should either throw a helpful error or gracefully handle it (fill silence)
         // Adjust expectation based on your actual error handling strategy
         expect(call).not.toThrow();
@@ -293,7 +293,7 @@ describe('fillPlaybackBufferUtil', () => {
         const writePtr = 0;
         const readPtr = 50;
         
-        const result = fillPlaybackBufferUtil(buffer, TRACK_COUNT, writePtr, readPtr, timeline, tracks, false);
+        const result = fillPlaybackBufferUtil(buffer, TRACK_COUNT, writePtr, readPtr, timeline.mix, tracks, false, timeline.start, {start: timeline.start, end: timeline.end});
         
         // Should only fill 30 samples
         buffer.subarray(0, 50).forEach(v => expect(v).toBeCloseTo(0.011,5));
@@ -307,7 +307,7 @@ describe('fillPlaybackBufferUtil', () => {
     it('handles region that starts exactly at timeline position', () => {
         const { timeline, tracks } = createMockTimeline([[[50, 100]]], 50, 100);
         
-        const result = fillPlaybackBufferUtil(buffer, TRACK_COUNT, 0, 0, timeline, tracks, false);
+        const result = fillPlaybackBufferUtil(buffer, TRACK_COUNT, 0, 0, timeline.mix, tracks, false, timeline.start, {start: timeline.start, end: timeline.end});
         
         // All 50 samples should be filled with data, no leading silence
         buffer.subarray(0, 50).forEach(v => expect(v).toBeCloseTo(0.011));
@@ -318,7 +318,7 @@ describe('fillPlaybackBufferUtil', () => {
     it('handles region that ends exactly at timeline.end and timeline start is greater than region start', () => {
         const { timeline, tracks } = createMockTimeline([[[0, 100]]], 25, 100);
         
-        const result = fillPlaybackBufferUtil(buffer, TRACK_COUNT, 0, 0, timeline, tracks, false);
+        const result = fillPlaybackBufferUtil(buffer, TRACK_COUNT, 0, 0, timeline.mix, tracks, false, timeline.start, {start: timeline.start, end: timeline.end});
         
         buffer.subarray(0, 75).forEach(v => expect(v).toBeCloseTo(0.011));
         buffer.subarray(75,100).forEach(v => expect(v).toBe(0));
@@ -334,7 +334,7 @@ describe('fillPlaybackBufferUtil', () => {
         );
         const threeTrackBuffer = new Float32Array(300).fill(0);
         
-        fillPlaybackBufferUtil(threeTrackBuffer, 3, 0, 0, timeline, tracks, false);
+        fillPlaybackBufferUtil(threeTrackBuffer, 3, 0, 0, timeline.mix, tracks, false, timeline.start, {start: timeline.start, end: timeline.end});
         
         // Track 0: data 0-50, silence 50-100
         threeTrackBuffer.subarray(0, 50).forEach(v => expect(v).toBeCloseTo(0.011));
@@ -356,7 +356,7 @@ describe('fillPlaybackBufferUtil', () => {
         const writePtr = 99;
         const readPtr = 99;
         
-        const result = fillPlaybackBufferUtil(buffer, TRACK_COUNT, writePtr, readPtr, timeline, tracks, false);
+        const result = fillPlaybackBufferUtil(buffer, TRACK_COUNT, writePtr, readPtr, timeline.mix, tracks, false, timeline.start, {start: timeline.start, end: timeline.end});
         
         // Should write 5 samples at end, 95 at beginning
         buffer.subarray(99, 100).forEach(v => expect(v).toBeCloseTo(0.011,5));
@@ -369,11 +369,11 @@ describe('fillPlaybackBufferUtil', () => {
         // Timeline 0-50, start at position 40, fill 30 samples with looping
         const { timeline, tracks } = createMockTimeline([[[0, 12],[12,50]]], 0, 50);
         timeline.pos.mix = 40;
-        
+
         const writePtr = 0;
         const readPtr = 30;
-        
-        const result = fillPlaybackBufferUtil(buffer, TRACK_COUNT, writePtr, readPtr, timeline, tracks, true);
+
+        const result = fillPlaybackBufferUtil(buffer, TRACK_COUNT, writePtr, readPtr, timeline.mix, tracks, true, timeline.pos.mix, {start: timeline.start, end: timeline.end});
         
         // First 10 samples: timeline 40-50
         buffer.subarray(0, 10).forEach(v => expect(v).toBeCloseTo(0.012,5));
@@ -392,10 +392,8 @@ describe('fillPlaybackBufferUtil', () => {
         timeline.mix[0][0].offset = 10;
         
         const readSpy = tracks[0].takeHandles["bounce_0_take_0"].read;
-
-        console.log('readSpy',readSpy)
         
-        fillPlaybackBufferUtil(buffer, TRACK_COUNT, 0, 0, timeline, tracks, false);
+        fillPlaybackBufferUtil(buffer, TRACK_COUNT, 0, 0, timeline.mix, tracks, false, timeline.start, {start: timeline.start, end: timeline.end});
         
         const firstCall = readSpy.mock.calls[0];
         expect(firstCall[1].at).toBe(10 * Float32Array.BYTES_PER_ELEMENT); // offset should be added to read position
@@ -404,7 +402,7 @@ describe('fillPlaybackBufferUtil', () => {
     it('stops filling when timeline position exceeds timeline.end in non-looping mode', () => {
         const { timeline, tracks } = createMockTimeline([[[0, 200]]], 0, 50);
         
-        const result = fillPlaybackBufferUtil(buffer, TRACK_COUNT, 0, 0, timeline, tracks, false);
+        const result = fillPlaybackBufferUtil(buffer, TRACK_COUNT, 0, 0, timeline.mix, tracks, false, timeline.start, {start: timeline.start, end: timeline.end});
         
         // Should stop at timeline.end (50), not continue to buffer end (100)
         buffer.subarray(0, 50).forEach(v => expect(v).toBeCloseTo(0.011));
@@ -418,29 +416,33 @@ describe('fillPlaybackBufferUtil', () => {
         
         // First call: fill 50 samples
         const firstResult = fillPlaybackBufferUtil(
-            buffer, 
-            TRACK_COUNT, 
-            0, 
-            50, 
-            timeline, 
-            tracks, 
-            false
+            buffer,
+            TRACK_COUNT,
+            0,
+            50,
+            timeline.mix,
+            tracks,
+            false,
+            timeline.start,
+            {start: timeline.start, end: timeline.end}
         );
-        
+
         buffer.subarray(0, 50).forEach(v => expect(v).toBeCloseTo(0.011));
         expect(firstResult.timelinePos).toBe(50);
         expect(firstResult.newWritePtr).toBe(50);
-        
+
         // Second call: fill remaining 50 samples
         timeline.pos.mix = firstResult.timelinePos;
         const secondResult = fillPlaybackBufferUtil(
-            buffer, 
-            TRACK_COUNT, 
-            firstResult.newWritePtr, 
-            0, 
-            timeline, 
-            tracks, 
-            false
+            buffer,
+            TRACK_COUNT,
+            firstResult.newWritePtr,
+            0,
+            timeline.mix,
+            tracks,
+            false,
+            timeline.pos.mix,
+            {start: timeline.start, end: timeline.end}
         );
         
         buffer.subarray(50, 100).forEach(v => expect(v).toBeCloseTo(0.011));
@@ -457,7 +459,7 @@ describe('fillPlaybackBufferUtil', () => {
             100
         );
         
-        fillPlaybackBufferUtil(buffer, TRACK_COUNT, 0, 0, timeline, tracks, false);
+        fillPlaybackBufferUtil(buffer, TRACK_COUNT, 0, 0, timeline.mix, tracks, false, timeline.start, {start: timeline.start, end: timeline.end});
         
         // Silence 0-10
         expect(buffer.subarray(0, 10).every(v => v === 0)).toBe(true);

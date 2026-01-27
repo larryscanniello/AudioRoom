@@ -1,7 +1,7 @@
 import type {
     Buffers,
     Pointers,
-    TrackEntry,
+    BounceEntry,
     OPFS,
     Curr,
     TimelineState,
@@ -79,7 +79,7 @@ const mipMap:MipMap = {
 }
 let looping = false;
 
-const proceed: Proceed = {
+export const proceed: Proceed = {
     record: null,
     staging: null,
     mix: null
@@ -113,7 +113,7 @@ async function removeHandles(root:any){
     }
 }
 
-
+if(typeof self !== "undefined"){ //for testing, otherwise in testing self is undefined
 self.onmessage = (e:any) => {
     if(e.data.type === "init"){
         console.log('opfs worker inited');
@@ -194,7 +194,6 @@ self.onmessage = (e:any) => {
                     mix: start,
                     staging: start,
                 },
-                length: end-start,
             });
             looping = e.data.looping;
             Atomics.store(pointers.record.read,0,0);
@@ -225,57 +224,54 @@ self.onmessage = (e:any) => {
         init_recording();
     }
     if(e.data.type === "init_playback"){
-        const init_playback = async () => {
-            if(!pointers.staging.read || !pointers.staging.write || !pointers.staging.isFull ||
-                !pointers.mix.read || !pointers.mix.write || !pointers.mix.isFull || !buffers.staging || !buffers.mix ||
-                !opfs.config.TRACK_COUNT || !opfs.bounces
-            ){
-                    console.error("Can't play back. Player not initialized.");
-                    return;
-            };
-            const start = Math.round(e.data.timelineStart * 48000);
-            const end = Math.round(e.data.timelineEnd * 48000);
-            Object.assign(timeline,{
-                staging: [e.data.timeline.staging],
-                mix: e.data.timeline.mix,
-                start,
-                end,
-                pos: {
-                    staging: start,
-                    mix: start,
-                },
-            });
-            looping = e.data.looping;
-            Atomics.store(pointers.staging.read,0,0);
-            Atomics.store(pointers.staging.write,0,0);
-            Atomics.store(pointers.staging.isFull,0,0);
-            Atomics.store(pointers.mix.read,0,0);
-            Atomics.store(pointers.mix.write,0,0);
-            Atomics.store(pointers.mix.isFull,0,0);
-            proceed.staging = "ready";
-            fillStagingPlaybackBuffer(
-                pointers.staging.read,
-                pointers.staging.write,
-                pointers.staging.isFull,
-                buffers.staging,
-                1,
-                opfs.bounces,
-                timeline,
-                looping,
-            );
-            proceed.mix = "ready";
-            fillMixPlaybackBuffer(
-                pointers.mix.read,
-                pointers.mix.write,
-                pointers.mix.isFull,
-                buffers.mix,
-                opfs.config.TRACK_COUNT,
-                opfs.bounces,
-                timeline,
-                looping,
-            );
-        }
-        init_playback();
+        if(!pointers.staging.read || !pointers.staging.write || !pointers.staging.isFull ||
+            !pointers.mix.read || !pointers.mix.write || !pointers.mix.isFull || !buffers.staging || !buffers.mix ||
+            !opfs.config.TRACK_COUNT || !opfs.bounces
+        ){
+                console.error("Can't play back. Player not initialized.");
+                return;
+        };
+        const start = Math.round(e.data.timelineStart * 48000);
+        const end = Math.round(e.data.timelineEnd * 48000);
+        Object.assign(timeline,{
+            staging: [e.data.timeline.staging],
+            mix: e.data.timeline.mix,
+            start,
+            end,
+            pos: {
+                staging: start,
+                mix: start,
+            },
+        });
+        looping = e.data.looping;
+        Atomics.store(pointers.staging.read,0,0);
+        Atomics.store(pointers.staging.write,0,0);
+        Atomics.store(pointers.staging.isFull,0,0);
+        Atomics.store(pointers.mix.read,0,0);
+        Atomics.store(pointers.mix.write,0,0);
+        Atomics.store(pointers.mix.isFull,0,0);
+        proceed.staging = "ready";
+        fillStagingPlaybackBuffer(
+            pointers.staging.read,
+            pointers.staging.write,
+            pointers.staging.isFull,
+            buffers.staging,
+            1,
+            opfs.bounces,
+            timeline,
+            looping,
+        );
+        proceed.mix = "ready";
+        fillMixPlaybackBuffer(
+            pointers.mix.read,
+            pointers.mix.write,
+            pointers.mix.isFull,
+            buffers.mix,
+            opfs.config.TRACK_COUNT,
+            opfs.bounces,
+            timeline,
+            looping,
+        );
     }
     if(e.data.type === "stop_recording"){
         curr.take++;
@@ -341,28 +337,31 @@ self.onmessage = (e:any) => {
         });
     }
 }
+}
 
 
 
-function fillMixPlaybackBuffer(
+
+export function fillMixPlaybackBuffer(
     read:Uint32Array,
     write:Uint32Array,
     isFullArr:Uint32Array,
     buffer:Float32Array,
     TRACK_COUNT:number,
-    bounces:TrackEntry[],
+    bounces:BounceEntry[],
     timeline:TimelineState,
     looping:boolean,
 ){
     if(proceed.mix!=="ready") return;
     proceed.mix = "working";
-    const writePtr = Atomics.load(read,0);
-    const readPtr = Atomics.load(write,0);
+    const writePtr = Atomics.load(write,0);
+    const readPtr = Atomics.load(read,0);
     const isFull = Atomics.load(isFullArr,0);
+    const timeOutms = (buffer.length/timeline.mix.length)*1000/48000/32;
     if(isFull){
         if((proceed as Proceed).mix!=="off"){
             proceed.mix = "ready";
-            setTimeout(()=>fillMixPlaybackBuffer(read,write,isFullArr,buffer,TRACK_COUNT,bounces,timeline,looping),25)
+            setTimeout(()=>fillMixPlaybackBuffer(read,write,isFullArr,buffer,TRACK_COUNT,bounces,timeline,looping),timeOutms)
         }
         return;
     }
@@ -371,9 +370,11 @@ function fillMixPlaybackBuffer(
         TRACK_COUNT,
         writePtr,
         readPtr,
-        timeline,
-        bounces,
+        timeline.mix,
+        bounces.slice(0,bounces.length-1),
         looping,
+        timeline.pos.mix,
+        {start:timeline.start,end:timeline.end},
     );
     timeline.pos.mix = timelinePos;
     Atomics.store(write,0,newWritePtr);
@@ -381,26 +382,28 @@ function fillMixPlaybackBuffer(
         Atomics.store(isFullArr,0,1);
     };
     if((proceed as Proceed).mix!=="off"){proceed.mix="ready";}
-    setTimeout(()=>fillMixPlaybackBuffer(read,write,isFullArr,buffer,TRACK_COUNT,bounces,timeline,looping),25);
+    setTimeout(()=>fillMixPlaybackBuffer(read,write,isFullArr,buffer,TRACK_COUNT,bounces,timeline,looping),timeOutms);
 };
 
-function fillStagingPlaybackBuffer(
+export function fillStagingPlaybackBuffer(
     read:Uint32Array,
     write:Uint32Array,
     isFullArr:Uint32Array,
     buffer:Float32Array,
     TRACK_COUNT:number,
-    bounces:TrackEntry[],
+    bounces:BounceEntry[],
     timeline:TimelineState,
     looping:boolean,
 ){
     if(proceed.staging!=="ready") return;
     proceed.staging = "working";
     const isFull = Atomics.load(isFullArr,0);
+    const timeOutms = (buffer.length/timeline.staging.length)*1000/48000/32;
+
     if(isFull){
         if((proceed as Proceed).staging!=="off"){
             proceed.staging = "ready";
-            setTimeout(()=>fillStagingPlaybackBuffer(read,write,isFullArr,buffer,TRACK_COUNT,bounces,timeline,looping),15)
+            setTimeout(()=>fillStagingPlaybackBuffer(read,write,isFullArr,buffer,TRACK_COUNT,bounces,timeline,looping),timeOutms)
         }
         return;
     };
@@ -412,9 +415,11 @@ function fillStagingPlaybackBuffer(
         TRACK_COUNT,
         writePtr,
         readPtr,
-        timeline,
-        bounces,
+        timeline.staging,
+        bounces.slice(bounces.length-1),
         looping,
+        timeline.pos.staging,
+        {start:timeline.start,end:timeline.end},
     );
 
     timeline.pos.staging = timelinePos;
@@ -422,8 +427,8 @@ function fillStagingPlaybackBuffer(
     if(newWritePtr === Atomics.load(read,0)){
         Atomics.store(isFullArr,0,1);
     };
-    if((proceed as Proceed).mix!=="off"){proceed.mix="ready";}
-    setTimeout(()=>fillMixPlaybackBuffer(read,write,isFullArr,buffer,TRACK_COUNT,bounces,timeline,looping),25);
+    if((proceed as Proceed).staging!=="off"){proceed.staging="ready";}
+    setTimeout(()=>fillStagingPlaybackBuffer(read,write,isFullArr,buffer,TRACK_COUNT,bounces,timeline,looping),timeOutms);
     
 }
 

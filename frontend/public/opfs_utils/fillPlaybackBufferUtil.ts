@@ -1,5 +1,5 @@
 import type {
-	TrackEntry,
+	BounceEntry,
 	TimelineState,
     Region,
 } from "./types";
@@ -9,29 +9,37 @@ export function fillPlaybackBufferUtil(
     TRACK_COUNT:number,
     writePtr:number,
     readPtr:number,
-    timeline: TimelineState,
-    tracks: TrackEntry[],
+    timeline: Region[][],
+    tracks: BounceEntry[],
     looping:boolean,
+    timelineStartPos:number,
+    timelineRange:{
+        start:number,
+        end:number,
+    }
 ): {newWritePtr:number,timelinePos:number} {
     const trackBufferLen = buffer.length/TRACK_COUNT
     const available = writePtr === readPtr ? trackBufferLen : (readPtr - writePtr + trackBufferLen) % (trackBufferLen);
-    let timelinePos:number = timeline.pos.mix;
     let writePtrPerTrack = writePtr;
-    for(let track=0;track<timeline.mix.length;track++){
+    let timelinePos:number = timelineStartPos;
+    for(let track=0;track<tracks.length;track++){
         let samplesToFill = available;
         writePtrPerTrack = writePtr;
-        const length = timeline.mix[track].length;
-        timelinePos = timeline.pos.mix
+        const length = timeline[track].length;
+        timelinePos = timelineStartPos
         while(samplesToFill>0){
-            const region = length > 0 ? timeline.mix[track].find((reg:Region) => reg.end > timelinePos) : null;
-            const sliceEnd = region ? Math.min(region.end, timeline.end) : timeline.end;
+            if(!looping && timelinePos>=timelineRange.end){
+                writePtrPerTrack = writeSilenceToRingBuffer(samplesToFill,writePtrPerTrack, track,buffer,TRACK_COUNT);
+                break;
+            }
+            const region = length > 0 ? timeline[track].find((reg:Region) => reg.end > timelinePos) : null;
+            const sliceEnd = region ? Math.min(region.end, timelineRange.end) : timelineRange.end;
             let sliceLength = Math.min(samplesToFill, sliceEnd - timelinePos,trackBufferLen - writePtrPerTrack);
             if (sliceLength < 0) break; 
-            if (region && timelinePos >= region.start && timelinePos < timeline.end) {
+            if (region && timelinePos >= region.start) {
                 // CASE: Fill from Take
                 if(track >= tracks.length || !(region.name in tracks[track].takeHandles)){
                     writePtrPerTrack = writeSilenceToRingBuffer(sliceLength,writePtrPerTrack,track,buffer,TRACK_COUNT)
-                    console.error('Error writing to ring buffer');
                 }else{
                     const handle = tracks[track].takeHandles[region.name];
                     writePtrPerTrack = writeToRingBuffer(
@@ -57,13 +65,12 @@ export function fillPlaybackBufferUtil(
             samplesToFill -= sliceLength;
             
             // Handle Looping
-            if (looping && timelinePos >= timeline.end){
-                timelinePos = timeline.start;
-            }else if(timelinePos >= timeline.end){
-                break;
+            if (looping && timelinePos >= timelineRange.end){
+                timelinePos = timelineRange.start;
             }
-            }
+        }
     }
+
     const newWritePtr = (writePtr+available)%trackBufferLen
     
     return {newWritePtr,timelinePos};
@@ -92,6 +99,7 @@ function writeToRingBuffer(
         writePtr = (writePtr + chunkLength) % trackBufferLen;
         samplesWritten += chunkLength;
         timelinePos += chunkLength;
+       
     }
     
     return writePtr;

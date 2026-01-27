@@ -28,7 +28,7 @@ interface Region {
 }
 
 // Entry for a track in OPFS: directory handle and list of take handles
-interface TrackEntry {
+interface BounceEntry {
 	dirHandle: any; // FileSystemDirectoryHandle (use `any` to avoid lib mismatch)
 	takeHandles: {[details: string] : any};
 }
@@ -42,7 +42,7 @@ interface OpfsConfig {
 interface OPFS {
 	root: any | null;
 	sessionDir: any | null;
-	bounces: TrackEntry[];
+	bounces: BounceEntry[];
     config: OpfsConfig;
 }
 
@@ -94,7 +94,7 @@ interface Proceed {
 export type {
     Buffers,
     Pointers,
-	TrackEntry,
+	BounceEntry,
 	OPFS,
 	Curr,
 	TimelineState,

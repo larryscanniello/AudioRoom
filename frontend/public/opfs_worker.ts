@@ -231,6 +231,7 @@ self.onmessage = (e:any) => {
                 console.error("Can't play back. Player not initialized.");
                 return;
         };
+        console.log(e.data.timeline.staging,e.data.timeline.mix);
         const start = Math.round(e.data.timelineStart * 48000);
         const end = Math.round(e.data.timelineEnd * 48000);
         Object.assign(timeline,{

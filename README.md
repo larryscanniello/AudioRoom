@@ -92,4 +92,4 @@ Name: Larry Scanniello
 
 Email: larryscanniello@gmail.com 
 
-LinkedIn: https://www.linkedin.com/in/larryscanniello
+LinkedIn: https://www.linkedin.com/in/larry-scanniello

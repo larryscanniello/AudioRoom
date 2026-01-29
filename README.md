@@ -1,4 +1,4 @@
-# 🎛️ AudioRoom (Active Development)
+# AudioRoom (Active Development)
 
 **NOTE** This branch is under construction. I am currently undergoing a major refactor.
 
@@ -6,13 +6,13 @@ A new way for musicians to collaborate over the web.
 
 AudioRoom is a browser-based digital audio workstation (DAW) that lets multiple users create, edit, and play loop-based music together while video chatting in real time. Built with Web Audio, custom DSP, and a real-time collaboration backend.
 
-### 🚀 Demo
+### Demo
 
 Live demo (previous version): [https://audio-board.vercel.app](https://audio-board.vercel.app)
 
 Video demo (previous version): [https://www.youtube.com/watch?v=oN72QALuHg8](https://www.youtube.com/watch?v=oN72QALuHg8)
 
-### ✨ Features
+### Features
 
 * Peer-to-peer video chat with WebRTC/PeerJS
 
@@ -27,7 +27,7 @@ Video demo (previous version): [https://www.youtube.com/watch?v=oN72QALuHg8](htt
 * In progress: Basic editing such as region moving, region resizing, cut and paste, undo
 
 
-### 🧠 High-Level Architecture
+### High-Level Architecture
 
 * Frontend: React/JavaScript/TypeScript
 
@@ -39,7 +39,7 @@ Video demo (previous version): [https://www.youtube.com/watch?v=oN72QALuHg8](htt
 
 The system is split into a UI thread, an audio thread, and background workers to ensure glitch-free playback, smooth UI rendering, and safe concurrent collaboration.
 
-### 🔊 Audio Engine
+### Audio Engine
  
 Audio playback and recording are designed around strict real-time constraints, with all disk I/O and buffer management off the UI thread.
 
@@ -51,7 +51,7 @@ When recording or playback happens, in the OPFS worker, there are functions that
 
 All of this processing happens on dedicated audio / worker threads, ensuring the UI thread is free to render visuals smoothly.
 
-### 📁 Codebase Overview
+### Codebase Overview
 
 To see the main UI logic: 
 
@@ -61,7 +61,7 @@ To see the workers and audio processors:
 
 /frontend/public
 
-### 🧪 Tests
+### Tests
 
 All of the tests live in:
 
@@ -69,7 +69,7 @@ All of the tests live in:
 
 I wrote integration tests that check the entire audio playback data flow. I also wrote unit tests for the timeline reducer (the code that calculates new timeline state on recording end or bounce), the utility that writes to ring buffers, and the utility that writes to OPFS.
 
-### 🛣️ Roadmap
+### Roadmap
 
 I'm working on debugging and finalizing the new audio engine and the timeline editing logic. Key features for my MVP will be:
 
@@ -79,19 +79,19 @@ I'm working on debugging and finalizing the new audio engine and the timeline ed
 
 * TURN server using AWS
 
-### 🧩 Why This Project Exists
+### Why This Project Exists
 
 I used to work as a musician in Los Angeles before moving to New Jersey. This project will help me collaborate with friends I haven't worked with in a long time.
 
-### 🔐 License
+### License
 
 This repository is public for potential employers to view and evaluate only.
 All rights reserved. No copying, modification, or commercial use permitted.
 
-### 📬 Contact
+### Contact
 
 Name: Larry Scanniello
 
 Email: larryscanniello@gmail.com 
 
-LinkedIn: https://www.linkedin.com/in/larryscanniello
+LinkedIn: https://www.linkedin.com/in/larry-scanniello

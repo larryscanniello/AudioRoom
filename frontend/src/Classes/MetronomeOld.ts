@@ -1,22 +1,35 @@
+import type {TimeSignature} from "../Types/audioengine";
+
 export default class Metronome
 {
-    constructor(tempo = 120)
+    private audioContext: AudioContext;
+    private currentBeatInBar: number = 0;
+    private beatsPerBar: number = 4;
+    private tempo: number;
+    private scheduleAheadTime: number = 0.1;
+    private nextNoteTime: number = 0.0;
+    private lookahead: number = 25;
+    private intervalID: number|null = null;
+    private isRunning: boolean = false;
+    private gainRef: React.RefObject<GainNode|null>;
+    private clickBuffer: Float32Array;
+    private barker: Float32Array;
+    private muteNextClick: boolean = false;
+
+
+    //private notesInQueue: Array<{note:number, time:number}>
+
+    constructor(tempo:number = 120,
+                timeSignature:TimeSignature = {numerator:4,denominator:4},
+                audioCtx:AudioContext,
+                gainRef:React.RefObject<GainNode|null>
+            )
     {
-        this.audioContext = null;
-        this.notesInQueue = [];         // notes that have been put into the web audio and may or may not have been played yet {note, time}
-        this.currentBeatInBar = 0;
-        this.beatsPerBar = 4;
+        this.audioContext = audioCtx;
+        this.beatsPerBar = timeSignature.numerator;
         this.tempo = tempo;
-        this.lookahead = 25;          // How frequently to call scheduling function (in milliseconds)
-        this.scheduleAheadTime = 0.1;   // How far ahead to schedule audio (sec)
-        this.nextNoteTime = 0.0;     // when the next note is due
-        this.isRunning = false;
-        this.intervalID = null;
-        this.delayCompensation = null;
-        this.gainRef = null;
-        this.clickBuffer = null;
-        this.barker = null;
-        this.muteNextClick;
+        this.gainRef = gainRef;
+        this.setupAudio()
     }
 
     async setupAudio() {

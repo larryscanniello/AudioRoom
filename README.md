@@ -1,5 +1,7 @@
 # 🎛️ AudioRoom (Active Development)
 
+**NOTE** This branch is under construction. I am currently undergoing a major refactor.
+
 A new way for musicians to collaborate over the web.
 
 AudioRoom is a browser-based digital audio workstation (DAW) that lets multiple users create, edit, and play loop-based music together while video chatting in real time. Built with Web Audio, custom DSP, and a real-time collaboration backend.

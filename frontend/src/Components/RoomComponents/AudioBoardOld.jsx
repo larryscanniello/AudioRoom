@@ -57,27 +57,21 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
 
     const MIPMAP_HALF_SIZE = MIPMAP_RESOLUTIONS.reduce((acc, curr) => acc + curr, 0);
     
-
-
-    const [stagingTimeline,setStagingTimeline] = useState([]);
-    const [mixTimeline,setMixTimeline] = useState([]);
     const [audioURL,setAudioURL] = useState(null);
     const [audio,setAudio] = useState(null);
     const [audio2,setAudio2] = useState(null);
-    const [BPM,setBPM] = useState(isDemo ? 112 : 80);
+    const [BPM,setBPM] = useState(isDemo ? 112 : 80);//
     const [mouseDragStart,setMouseDragStart] = useState(isDemo ? {trounded:2.142857142857143,t:2.142857142857143} : {trounded:0,t:0}); //time in seconds
     const [mouseDragEnd,setMouseDragEnd] = useState(isDemo ? {trounded:10.714285714285714,t:10.714285714285714}: null); //time in seconds
     const [roomResponse,setRoomResponse] = useState(null);
     const [zoomFactor,setZoomFactor] = useState(START_VIEWPORT_TIMELENGTH);
-    const [delayCompensation,setDelayCompensation] = useState(isDemo?[900]:[0]); //delayCompensation is in samples
+    const [delayCompensation,setDelayCompensation] = useState(isDemo?[900]:[0]); //delayCompensation is in samples //
     const [delayCompensation2,setDelayCompensation2] = useState(isDemo?[900]:[0]);
     const [currentlyAdjustingLatency,setCurrentlyAdjustingLatency] = useState(null);
     const [displayDelayCompensationMessage,setDisplayDelayCompensationMessage] = useState(false);
     const [metronomeOn,setMetronomeOn] = useState(true);
     const [playheadLocation,setPlayheadLocation] = useState(isDemo ? 2.142857142857143 : 0);
     const [snapToGrid,setSnapToGrid] = useState(true);
-    const [track1Vol,setTrack1Vol] = useState(1.0);
-    const [track2Vol,setTrack2Vol] = useState(1.0);
     const [track1Muted,setTrack1Muted] = useState(false);
     const [track2Muted,setTrack2Muted] = useState(false);
     const [compactMode,setCompactMode] = useState(height < 700 ? (4/7) : 1);
@@ -535,7 +529,6 @@ export default function AudioBoard({isDemo,socket,firstEnteredRoom,setFirstEnter
             const last = (flags & 0x02) !== 0;
 
             // Bytes 1-4: recordingCount (Uint32)
-            // Matches your worker's dataView.setUint32(1, ..., false)
             const recordingCount = view.getUint32(1, false); 
             
             // Bytes 5-8: packetCount (Uint32)

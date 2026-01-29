@@ -67,72 +67,22 @@ class AudioProcessor extends AudioWorkletProcessor {
   }
 
   handleMessage(data){
-    if(data.actiontype === 'init'){
-      Object.assign(this.buffers,{
-        staging: {
-          buffer: new Float32Array(data.stagingSAB,12),
-          trackCount: 1,
-        },
-        mix: {
-          buffer: new Float32Array(data.mixSAB,12),
-          trackCount: data.TRACK_COUNT,
-        },
-        record: {
-          buffer: new Float32Array(data.recordSAB,12),
-          trackCount: 1,
-        },
-      })
-      Object.assign(this.pointers,{
-        staging: {
-        read: new Uint32Array(data.stagingSAB,0),
-        write: new Uint32Array(data.stagingSAB,4),
-        isFull: new Uint32Array(data.stagingSAB,8),
-      },
-      mix: {
-        read: new Uint32Array(data.mixSAB,0),
-        write: new Uint32Array(data.mixSAB,4),
-        isFull: new Uint32Array(data.mixSAB,8),
-      },
-      record: {
-        read: new Uint32Array(data.recordSAB,0),
-        write: new Uint32Array(data.recordSAB,4),
-        isFull: new Uint32Array(data.recordSAB,8),
-      }
-      })
+    if(data.type === 'init'){
+      Object.assign(this.buffers,e.data.buffers)
+      Object.assign(this.pointers,e.data.pointers)
       Object.assign(this.readers,{
         staging: new Float32Array(this.PROCESS_FRAMES),
         mix: new Float32Array(this.PROCESS_FRAMES * this.buffers.mix.trackCount),
         record: new Float32Array(this.packetSize)
       });
     }
-    if (data.actiontype === 'start'){ 
-      Object.assign(this.state, {
-        sessionId: data.sessionId,
-        isRecording: data.isRecording,//data.isRecording,
-        isPlayback: !data.isRecording,
-        isStreaming: data.isStreaming,
-        looping: data.looping,
-        count:{
-          bounce: this.state.count.bounce,
-          take: data.isRecording ? this.state.count.take + 1 : this.state.count.take,
-        },
-        packetCount: 0,
-        recordingCount: data.recordingCount,
-      });
-      Object.assign(this.timeline,{
-        start: Math.round(data.timelineStart * sampleRate),
-        end: null,
-        pos: Math.round(data.timelineStart * sampleRate),
-      });
-      Object.assign(this.absolute,{
-        start:Math.round(sampleRate * data.startTime),
-        end: data.endTime ? Math.round(sampleRate * data.endTime) : null,
-        packetPos: 0,
-      })
+    if (data.type === 'start'){ 
+      Object.assign(this.state, data.state);
+      Object.assign(this.timeline,data.timeline);
+      Object.assign(this.absolute,data.absolute);
     };
     if (data.actiontype === 'stop'){ 
-      if (data.sessionId !== this.state.sessionId || this.state.sessionId === null) return;
-      this.absolute.end = Math.round(data.endTime * sampleRate); //record an extra half seconds for crossfades
+      this.absolute.end = data.absEndTime
       this.state.sessionId = null;
       if(this.state.isRecording){
         this.port.postMessage({

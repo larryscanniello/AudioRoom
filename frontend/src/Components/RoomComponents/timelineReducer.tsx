@@ -1,4 +1,4 @@
-import type { Region, TimelineState, Action } from '../types/timeline';
+import type { Region, TimelineState, Action } from '../../Types/timeline';
 
 export default function timelineReducer(state:TimelineState, action: Action): TimelineState {
         switch(action.type){

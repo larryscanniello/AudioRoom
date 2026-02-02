@@ -5,8 +5,8 @@ export class Mixer {
     private masterGain: GainNode;
     private metronomeGain: GainNode;
 
-    constructor(audioContext: AudioContext, numberOfChannels: number = 16) {
-        this.audioContext = audioContext;
+    constructor(numberOfChannels: number = 16) {
+        this.audioContext = new AudioContext({latencyHint:'interactive'});
         const analyser = this.audioContext.createAnalyser();
         analyser.minDecibels = -90;
         analyser.maxDecibels = 0;

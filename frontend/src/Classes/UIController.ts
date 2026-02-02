@@ -1,7 +1,0 @@
-
-
-
-class UIController{
-    private mipMaps: 
-
-}

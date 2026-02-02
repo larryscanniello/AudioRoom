@@ -78,11 +78,20 @@ class AudioProcessor extends AudioWorkletProcessor {
     }
     if (data.type === 'start'){ 
       Object.assign(this.state, data.state);
-      Object.assign(this.timeline,data.timeline);
-      Object.assign(this.absolute,data.absolute);
+      Object.assign(this.timeline,{
+        start: Math.round(sampleRate * data.timeline.start),
+        end: Math.round(sampleRate * data.timeline.end),
+        pos: Math.round(sampleRate * data.timeline.pos),
+      });
+      const absStart = Math.round((currentTime + .05) * sampleRate);
+      Object.assign(this.absolute,{
+        start: absStart,
+        end: this.timeline.end && !looping ? absStart + this.timeline.end - this.timeline.start : null,
+        packetPos: 0,
+      });
     };
-    if (data.actiontype === 'stop'){ 
-      this.absolute.end = data.absEndTime
+    if (data.type === 'stop'){ 
+      this.absolute.end = currentTime + .5;
       this.state.sessionId = null;
       if(this.state.isRecording){
         this.port.postMessage({

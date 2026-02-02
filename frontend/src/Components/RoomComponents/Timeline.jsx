@@ -856,6 +856,7 @@ export default function Timeline({
                     onMouseDown={handleMovePlayhead}
                     className="flex flex-col items-center"
                     onDragStart={(e) => e.preventDefault()}
+                    data-container-width={WAVEFORM_WINDOW_LEN}
                     >
                     <div style={{
                             width: "8px",

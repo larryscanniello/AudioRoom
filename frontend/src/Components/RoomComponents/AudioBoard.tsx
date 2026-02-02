@@ -1,7 +1,7 @@
-import { useWindowSize } from "../useWindowSize";
+/*";
 import { useRef,useState,useEffect,useReducer } from "react";
 import { useParams } from "react-router-dom";
-import Metronome from "../../Classes/Metronome"
+import Metronome from "../../Classes/Audio/Metronome"
 import { useAudioRecorder } from "./useAudioRecorder";
 import RecorderInterface from "./Timeline";
 import { Button } from "@/Components/ui/button"
@@ -27,15 +27,21 @@ import "./AudioBoard.css";
 import timelineReducer from "./timelineReducer";
 import ControlPanel from "./ControlPanel/ControlPanel";
 import WaveformWindow from "./Timeline";
-import Timeline from "./Timeline";
+import Timeline from "./Timeline";*/
 
-import { AudioEngine } from "../../Classes/AudioEngine";
-import { Mixer } from "../../Classes/Mixer";
-import { MipMap } from "../../Classes/MipMap";
-import { KeydownMangager } from "@/Classes/KeydownManager";
+import { useWindowSize } from "../useWindowSize.tsx"
 
-import type { Pointers, Buffers } from "../../Types/audioengine";
+import { AudioController } from "../../Classes/Audio/AudioController";
+import { Mixer } from "../../Classes/Audio/Mixer";
+import { MipMap } from "../../Classes/UI/MipMap";
+import { KeydownMangager } from "@/Classes/UI/KeydownManager";
+import { DAW } from "@/Classes/DAW";
+
+import type { Pointers, Buffers } from "../../Types/AudioState";
 import type { MipMapData } from "../../Types/UI";
+
+
+import { useState,useEffect, useRef } from "react";
 
 const MIX_MAX_TRACKS = 16;
 
@@ -53,8 +59,7 @@ const SAMPLE_RATE = 48000;
     
 
 
-export default function AudioBoard(audEngineRefPassedFromRoom: React.RefObject<AudioEngine|null>,
-                                    socket: React.RefObject<any>
+export default function AudioBoard(webRTCManager?: WebRTCManager, socketManager?: SocketManager
 
 ){
     const [width, height] = useWindowSize();
@@ -69,36 +74,22 @@ export default function AudioBoard(audEngineRefPassedFromRoom: React.RefObject<A
 
     const MIPMAP_HALF_SIZE = MIPMAP_RESOLUTIONS.reduce((acc, curr) => acc + curr, 0);
 
-    const audioEngineRef = useRef<AudioEngine|null>(null);
-    const mixerRef = useRef<Mixer|null>(null);
-    const fileSystemRef = useRef<Worker|null>(null);
-    const opusRef = useRef<Worker|null>(null);
-    const keyDownManager = useRef<KeydownMangager|null>(null);
-    const socketManagerRef = useRef<any>(null);
+    const AudioControllerRef = useRef<AudioController|null>(null);
+    const UIControllerRef = useRef<UIController|null>(null);
+    const [render,setRender] = useState<(number)>(performance.now());
 
     useEffect(() => {
-            //This effect runs only when component first mounts. 
-            //Inititializes audio context, metronome, demo stuff, sockets
-            if(!initializeAudioBoard && !isDemo) return;
-            
+
+            const daw = new DAW(socketManager, webRTCManager);
+            AudioControllerRef.current = daw.getAudioController();
+            UIControllerRef.current = daw.getUIController();
+
             mixerRef.current = new Mixer(new AudioContext({latencyHint:'interactive'}), 1 + MIX_MAX_TRACKS); //staging track + mix tracks
 
             const stagingSAB = new SharedArrayBuffer(SAMPLE_RATE * Float32Array.BYTES_PER_ELEMENT + 12);
             const mixSAB = new SharedArrayBuffer(SAMPLE_RATE * Float32Array.BYTES_PER_ELEMENT * MIX_MAX_TRACKS + 12);
             const recordSAB = new SharedArrayBuffer(SAMPLE_RATE * Float32Array.BYTES_PER_ELEMENT + 12); 
 
-            const audioEngineSABs = {
-                stagingSAB,
-                mixSAB, 
-                recordSAB,
-            }
-
-
-            if(!audEngineRefPassedFromRoom){
-                audioEngineRef.current = new AudioEngine(audioEngineSABs,mixerRef.current);
-            }else{
-                audioEngineRef.current = audEngineRefPassedFromRoom.current;
-            }
     
             const stagingMipMapSAB = new SharedArrayBuffer(2 * MIPMAP_HALF_SIZE + 1);
             const mixMipMapSAB = new SharedArrayBuffer(2 * MIPMAP_HALF_SIZE + 1);
@@ -139,9 +130,10 @@ export default function AudioBoard(audEngineRefPassedFromRoom: React.RefObject<A
     
     
             return ()=>{
+                UIControllerRef.current.terminate();
                 /*if(numConnectedUsersRef.current>=2){
                     socket.current.disconnect();
-                }
+                }x
                 AudioCtxRef.current?.close();
                 opusRef.current.terminate();
                 window.removeEventListener("keydown",handleKeyDown);
@@ -150,7 +142,8 @@ export default function AudioBoard(audEngineRefPassedFromRoom: React.RefObject<A
             }
     
             
-        },[initializeAudioBoard]);
+        },[]);
+
 
 
         /*to handle later
@@ -177,7 +170,7 @@ export default function AudioBoard(audEngineRefPassedFromRoom: React.RefObject<A
                     style={{height:Math.floor(172*compactMode)}}
                     >
                     <ControlPanel
-                        audioEngineRef={audioEngineRef}
+                        DAWRef={DAWRef}
                     />
     
     
@@ -214,7 +207,7 @@ export default function AudioBoard(audEngineRefPassedFromRoom: React.RefObject<A
                         >
                             <Button variant="default" size={compactMode==1?"lg":"sm"} className="hover:bg-gray-800"
                                 onClick={()=>{
-                                        audioEngineRef.current?.play()
+                                        DAWRef.current.AudioController.play();
                                         if(numConnectedUsersRef.current>=2){
                                             socket.current.emit("client_to_server_play_audio",{roomID})
                                         }  

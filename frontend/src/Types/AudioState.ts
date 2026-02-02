@@ -1,0 +1,93 @@
+interface PointerEntries {
+    read: Uint32Array,
+    write: Uint32Array,
+    isFull: Uint32Array,
+}
+
+interface Pointers {
+    staging: PointerEntries,
+    mix: PointerEntries,
+    record: PointerEntries,
+}
+
+interface Buffers {
+    staging: Float32Array,
+    mix: Float32Array,
+    record: Float32Array,
+}
+
+type TimeSignature = {
+    numerator: number,
+    denominator: number,    
+}
+
+
+export interface Region {
+    start: number;
+    end: number;
+    take: number;
+    bounce:number,
+    name: string;
+    offset: number;
+}
+
+export interface TimelineState {
+    readonly regionStack: readonly Region[];
+    readonly staging: readonly Region[];
+    readonly mix: readonly Region[][];
+    readonly redoStack: readonly Region[];
+}
+
+interface AddRegionAction {
+    type: 'add_region';
+    data: {
+        timelineStart: number;
+        timelineEnd: number;
+        takeNumber: number;
+        bounceNumber: number;
+        fileName: string;
+    };
+    delayCompensation: number[];
+    fileSystemRef: React.RefObject<Worker>;
+}
+
+interface BounceToMixAction {
+    type: 'bounce_to_mix';
+    fileSystemRef: React.RefObject<Worker>;
+}
+
+interface Absolute {
+    start: number;
+    end: number;
+    pos: number;
+}
+
+interface AudioProcessorData {
+    type: string,
+    state: {
+        isPlaying: boolean,
+        isRecording: boolean,
+        isStreaming: boolean,
+        looping: boolean,
+        count: {
+            bounce: number,
+            take: number,
+        },
+        packetCount: 0,
+    },
+    timeline: {
+        start: number,
+        end: number,
+        pos: number
+    }
+}
+
+interface StopAudioProcessorData {
+    type:string,
+}
+
+
+export type Action = AddRegionAction | BounceToMixAction;
+
+
+export type { Pointers, Buffers, TimeSignature, Absolute, AudioProcessorData, StopAudioProcessorData};

@@ -11,10 +11,13 @@ import type { StateContainer } from "../State";
 import type React from "react";
 import { fillSelectedRegion } from "./DrawCallbacks/fillSelectedRegion";
 import type { Observer } from "@/Types/Observer";
+import type { DOMHandlers } from "./DOMHandlers";
+import type { KeydownManager } from "./KeydownManager";
 
 export type MipMap = {
     staging:Int8Array;
     mix: Int8Array;
+    empty: Int8Array;
 }
 
 export class UIEngine implements Observer<UIEngine> {
@@ -22,9 +25,10 @@ export class UIEngine implements Observer<UIEngine> {
     #drawCallbacks: Map<keyof typeof DOMCommands, 
                     (ref: React.RefObject<HTMLElement>, data: StateContainer, mipMap: Int8Array) => void>
     #mipMap: MipMap;
-    #emptyInt8: Int8Array;
+    #keydownManager: KeydownManager;
+    #DOMHandlers: DOMHandlers;
 
-    constructor() {
+    constructor(keydownManager: KeydownManager, DOMHandlers: DOMHandlers, mipMap: MipMap) {
         this.#refs = new Map();
         this.#drawCallbacks = new Map()
         const stagingMipMap = new SharedArrayBuffer(2*MIPMAP_HALF_SIZE);

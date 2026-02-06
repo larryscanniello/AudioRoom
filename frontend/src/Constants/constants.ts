@@ -12,3 +12,4 @@ while(curr > MINIMUM_WAVEFORM_WINDOW_LEN){
 }
 export const MIPMAP_RESOLUTIONS = resolutions;
 export const MIN_SAMPLES_PER_PX = 10;
+export const EVENT_QUEUE_LENGTH = 100000;

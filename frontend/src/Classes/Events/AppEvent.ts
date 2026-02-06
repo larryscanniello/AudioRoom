@@ -1,5 +1,3 @@
-import type { AudioEngine } from "../Audio/AudioEngine";
-import type { UIEngine } from "../UI/UIEngine";
 import { State } from "../State"
 import type { StateContainer } from "../State";
 
@@ -13,32 +11,19 @@ export const EventTypes = {
     CHANGE_BPM: 'CHANGE_BPM',
 } as const;
 
-export interface AppEvent<T> {
-    readonly type: typeof EventTypes[keyof typeof EventTypes];
+export interface AppEvent<T extends keyof typeof EventTypes = any, P = any>{
+    readonly type: T
+    payload: P;
 
-    canExecute(state: State): boolean; //check if event can happen
+    canExecute(state: State): "process" | "queue" | "denied"; //check if event can happen
     
     mutateState(state: State): void; //mutate state
     
-    getPayload(state: State): any; //send data to the endpoint (audio worklet, canvas, etc.) required by event
-
-    execute(param: T, data?:any): void;
+    getPayload(state: State): P;
 }
 
-export interface StateChange<K extends keyof StateContainer = keyof StateContainer> extends AppEvent<void>{
-    readonly key: K;
+export interface StateChange<K extends keyof StateContainer = keyof StateContainer> extends AppEvent{
     
     toChangeTo: StateContainer[K];
 
-    setToChangeTo(newValue: StateContainer[K]): void;
-}
-
-export interface AudioEvent<S> extends AppEvent<AudioEngine> {
-    data: S;
-    execute(audioEngine: AudioEngine,data?:S): void;
-}
-
-export interface CanvasEvent<S> extends AppEvent<UIEngine> {
-    data: S;
-    execute(UIEngine: UIEngine,data?:S): void;
 }

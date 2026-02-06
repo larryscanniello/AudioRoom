@@ -7,19 +7,15 @@ import { StateContainer } from "../State";
 import { DOMCommands,DOMElements } from "@/Constants/DOMElements";
 import { setZoom } from "../Events/Canvas/setZoom"
 
-import type { GlobalContext } from "../DAW";
+import type { GlobalContext } from "../Mediator";
 
 export class UIController {
     #context: GlobalContext;
     #UIEngine: UIEngine;
-    #keydownManager: KeydownManager;
-    #DOMHandlers: DOMHandlers;
 
-    constructor(engine:UIEngine,context:GlobalContext) {
+    constructor(engine:UIEngine,context:GlobalContext,) {
         this.#context = context;
         this.#UIEngine = engine;
-        this.#keydownManager = new KeydownManager(dispatch);
-        this.#DOMHandlers = new DOMHandlers(dispatch,query);
     }
 
 public registerContext(ID: keyof typeof DOMElements, ref: React.RefObject<HTMLCanvasElement>): void {
@@ -30,7 +26,7 @@ public setZoom(newSliderVal:number){
     const widthRef = this.#getRef(DOMCommands.DRAW_TRACK_ONE_WAVEFORMS);
     const playheadRef = this.#getRef(DOMCommands.DRAW_PLAYHEAD);
     if(widthRef && playheadRef){
-        this.#dispatch(new setZoom(newSliderVal, widthRef, playheadRef))
+        this.#context.dispatch(new setZoom(newSliderVal, widthRef, playheadRef))
     }else{
         console.error("References for width or playhead were not available when setting zoom, setting zoom failed");
     }

@@ -6,24 +6,6 @@ export class Mixer {
     private metronomeGain: GainNode;
 
     constructor(numberOfChannels: number = 16) {
-        this.audioContext = new AudioContext({latencyHint:'interactive'});
-        const analyser = this.audioContext.createAnalyser();
-        analyser.minDecibels = -90;
-        analyser.maxDecibels = 0;
-
-        this.masterGain = this.audioContext.createGain();
-        this.masterGain.gain.value = 0.8; // Default master volume
-        this.masterGain.connect(this.audioContext.destination);
-
-        this.metronomeGain = this.audioContext.createGain();
-        this.metronomeGain.gain.value = 0.5;
-
-        for (let i = 0; i < numberOfChannels; i++) {
-            const gainNode = this.audioContext.createGain();
-            gainNode.gain.value = 1.0; // Default channel volume
-            gainNode.connect(this.masterGain);
-            this.channelGains.push(gainNode);
-        }
 
     }
 
@@ -70,5 +52,7 @@ export class Mixer {
         this.metronomeGain.gain.value = value;
     }   
 
-
+    public setAudioContext(audioContext: AudioContext): void {
+        this.audioContext = audioContext;
+    }
 }

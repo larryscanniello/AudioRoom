@@ -31,14 +31,12 @@ import Timeline from "./Timeline";*/
 
 import { useWindowSize } from "../useWindowSize.tsx"
 
-import { AudioController } from "../../Classes/Audio/AudioController";
-import { Mixer } from "../../Classes/Audio/Mixer";
-import { MipMap } from "../../Classes/UI/MipMap";
-import { KeydownMangager } from "@/Classes/UI/KeydownManager";
-import { DAW } from "@/Classes/DAW";
+import { AudioController } from "../../Classes/Audio/AudioController.ts";
+import { Mixer } from "../../Classes/Audio/Mixer.ts";
 
-import type { Pointers, Buffers } from "../../Types/AudioState";
-import type { MipMapData } from "../../Types/UI";
+
+import type { Pointers, Buffers } from "../../Types/AudioState.ts";
+import type { MipMapData } from "../../Types/UI.ts";
 
 
 import { useState,useEffect, useRef } from "react";
@@ -59,9 +57,7 @@ const SAMPLE_RATE = 48000;
     
 
 
-export default function AudioBoard(webRTCManager?: WebRTCManager, socketManager?: SocketManager
-
-){
+export default function AudioBoard(webRTCManager?: WebRTCManager, socketManager?: SocketManager){
     const [width, height] = useWindowSize();
     const WAVEFORM_WINDOW_LEN = Math.max(750,width-LEFT_CONTROLS_WIDTH-50);
     const MIPMAP_HIGHEST_RESOLUTION = 2**Math.ceil(Math.log2(TIMELINE_LENGTH / .2 * WAVEFORM_WINDOW_LEN));
@@ -79,6 +75,7 @@ export default function AudioBoard(webRTCManager?: WebRTCManager, socketManager?
     const [render,setRender] = useState<(number)>(performance.now());
 
     useEffect(() => {
+
 
             const daw = new DAW(socketManager, webRTCManager);
             AudioControllerRef.current = daw.getAudioController();

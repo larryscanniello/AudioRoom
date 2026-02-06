@@ -104,7 +104,7 @@ const socketManager = async (server,sessionMiddleware) => {
     })
 
     socket.on("peer-id",data=>{
-      socket.to(data.roomID).emit("call-peer",data.peerId);      
+      socket.to(data.roomID).emit("peer-id",data.peerId);      
     })
 
     socket.on("disconnect", () => {

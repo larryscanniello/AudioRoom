@@ -1,5 +1,5 @@
 
-import type { GlobalContext } from "../DAW";
+import type { GlobalContext } from "../Mediator";
 import type { AppEvent } from "../Events/AppEvent";
 
 
@@ -15,7 +15,7 @@ export class DOMHandlers {
     handleTempoMouseDown(e: MouseEvent){
         e.preventDefault();
         const startX = e.clientX;
-        const startBPM = this.#query("bpm");
+        const startBPM = this.#context.query("bpm");
 
         const handleMouseMove = (e: MouseEvent) => {
             const deltaX = (startX - e.clientX)/2;

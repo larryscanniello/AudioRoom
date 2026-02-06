@@ -1,74 +1,89 @@
-import type { RefObject } from "react";
-import type { MusicState } from "../MusicState";
-import type { UIManager } from "./UIManager";
-import { Orchestrator } from "../DAW";
-import { CommunicationManager } from "../CommunicationManager";
+import { io, Socket } from "socket.io-client"
+import { Play } from "../Events/Audio/Play";
 
-export class SocketManager {
-    private orchestrator: Orchestrator;
-    private socket: any;
-    private roomID: string;
-    #communicationManager: CommunicationManager;
+import type { Observer } from "@/Types/Observer";
+import type { GlobalContext } from "../Mediator";
+import type { AppEvent, EventTypes } from "../Events/AppEvent";
+import { Stop } from "../Events/Audio/Stop";
+import type { EventQueue } from "../EventQueue";
 
-    constructor(orchestrator: Orchestrator, communicationManager: CommunicationManager, socket: any, roomID: string) {
-        this.orchestrator = orchestrator;
-        this.#communicationManager = communicationManager;
-        this.socket = socket;
-        this.roomID = roomID;
-        this.initializeListeners();
-    }
 
-    // External Emitters called by Orchestrator
-    public emitBPMChange(bpm: number) {
-        this.socket.emit("send_bpm_client_to_server", { roomID: this.roomID, bpm });
-    }
+export class SocketManager implements Observer {
+    #socket: Socket;
+    #context!: GlobalContext;
+    #eventQueue!: EventQueue;
+    #isConnectedToDAW: boolean = false;
+    #processEvent!: (event: AppEvent) => void;
 
-    public emitPlay() {
-        this.socket.emit("client_to_server_play_audio", { roomID: this.roomID });
-    }
-
-    public emitStop() {
-        this.socket.emit("stop_audio_client_to_server", this.roomID);
-    }
-
-    public emitStartRecording() {
-        this.socket.emit("start_recording_client_to_server", this.roomID);
-    }
-    
-    public emitSelection(start: any, end: any, snapToGrid: boolean) {
-        this.socket.emit("send_play_window_to_server", {
-            mouseDragStart: start,
-            mouseDragEnd: end,
-            snapToGrid,
-            roomID: this.roomID
+    constructor(){
+        this.#socket = io(import.meta.env.VITE_BACKEND_URL, {
+              withCredentials: true,
         });
     }
 
-    private initializeListeners() {
-        this.socket.on("server_to_client_play_audio", () => {
-            this.orchestrator.onNetPlay();
-            this.#communicationManager.sendMessage("PartnerAction", "Partner's audio played.");
-        });
-
-        this.socket.on("stop_audio_server_to_client", () => {
-            this.orchestrator.onNetStop();
-            this.#communicationManager.sendMessage("PartnerAction", "Partner's audio stopped.");
-        });
-
-        this.socket.on("send_bpm_server_to_client", (bpm: number) => {
-            this.orchestrator.onNetBPMChange(bpm);
-            this.#communicationManager.sendMessage("PartnerAction", `Partner changed BPM to ${bpm}.`);
-        });
-
-        this.socket.on("send_play_window_to_clients", (data: any) => {
-             // Logic to update state via Orchestrator
-             // this.orchestrator.updateState({ ... });
-        });
-
-        // ... Add remaining listeners from AudioBoardOld ...
+    getSocket() {
+        return this.#socket;
     }
 
-    public handlePartnerAction(action: string): void {
-        this.#communicationManager.sendMessage("PartnerAction", `Partner's ${action} happened.`);
+    on(name:string, callback: (...args: any[]) => void){
+        this.#socket.on(name, callback);
     }
+
+    update(event: AppEvent) {
+        if(!this.#isConnectedToDAW){
+            console.error("Not connected to DAW.");
+            return;
+        }
+        this.#socket.emit(event.type, event.payload);
+    }
+
+    initDAWConnection(context: GlobalContext, eventQueue: EventQueue, processEvent: (event: AppEvent) => void) {
+        this.#context = context;
+        this.#eventQueue = eventQueue;
+        this.#processEvent = processEvent;
+        this.#initializeListeners();
+        this.#initializeValidators();
+        this.#isConnectedToDAW = true;
+    }
+
+    #initializeListeners() {
+        this.#socket.on("play", () => {
+            this.#context.dispatch(new Play())
+            this.#context.commMessage("Partner played audio.","white");
+        });
+
+        this.#socket.on("stop", () => {
+            this.#context.dispatch(new Stop())
+            this.#context.commMessage("Partner stopped audio.","white");
+        });
+
+        this.#socket.on("set_bpm", (bpm: number) => {
+            this.#context.dispatch(new SetBPM(bpm))
+            this.#context.commMessage(`Partner changed BPM to ${bpm}.`, "white");
+        });
+
+        this.#socket.on("region_Selection", (data: any) => {
+            this.#context.dispatch(new RegionSelection(data))
+            this.#context.commMessage("Partner selected a region.","white");
+        });
+
+    }
+
+    #initializeValidators() {
+        this.#socket.on("validate", (id: number,status:"accepted" | "denied" | "aborted") => {
+            if(!this.#processEvent){
+                console.error("Process event function is not set inside SocketManager.");
+            }
+            if(!this.#eventQueue){
+                console.error("Event queue is not set inside SocketManager.");
+            }
+            this.#eventQueue.updateStatus(id, status);
+            this.#eventQueue.processQueue(this.#processEvent);
+        })
+    }
+
+    terminate(){
+        this.#socket.disconnect();
+    }
+
 }

@@ -6,12 +6,7 @@ import type { StateContainer } from "@/Classes/State";
 
 export class BPMchange implements StateChange<'bpm'> {
     readonly type = EventTypes.CHANGE_BPM;
-    readonly key = 'bpm' as const;
     toChangeTo: number = 0;
-
-    setToChangeTo(newValue: number): void {
-        this.toChangeTo = newValue;
-    }
 
     constructor(toChangeTo: number) {
         this.toChangeTo = toChangeTo;
@@ -27,14 +22,13 @@ export class BPMchange implements StateChange<'bpm'> {
         return true;
     }
 
-    execute(state: State): void {
+    mutateState(state: State): void {
         state.update('bpm', this.toChangeTo);
     }
 
     getPayload(state: State): StateContainer {
         return state.getSnapshot();
     }
-
 
 
 }

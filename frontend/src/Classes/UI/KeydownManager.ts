@@ -2,7 +2,7 @@ import { Skipback } from "../Events/Audio/Skipback";
 import { Play } from "../Events/Audio/Play"
 import { Record } from "../Events/Audio/Record"
 
-import type { GlobalContext } from "../DAW"
+import type { GlobalContext } from "../Mediator"
 
 export class KeydownManager {
     #context: GlobalContext;

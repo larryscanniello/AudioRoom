@@ -4,15 +4,15 @@ import { Play } from "../Events/Audio/Play"
 import { Record } from "../Events/Audio/Record"
 import { Stop } from "../Events/Audio/Stop"
 
-import type { GlobalContext } from "../DAW"
+import type { GlobalContext } from "../Mediator"
 
 export class AudioController{
     #engine: AudioEngine;
     #context: GlobalContext;
 
-    constructor(engine: AudioEngine,context: GlobalContext) {
-        this.#context = context;
+    constructor(engine: AudioEngine,context:GlobalContext) {
         this.#engine = engine
+        this.#context = context;
     }
 
     public getAudioStream(): void {
@@ -32,8 +32,6 @@ export class AudioController{
     public stop() {
         const stopEvent = new Stop();
         this.#context.dispatch(stopEvent);
-    }
-
-    
+    }  
 
 }

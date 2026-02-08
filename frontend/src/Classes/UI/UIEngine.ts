@@ -11,8 +11,11 @@ import type { StateContainer } from "../State";
 import type React from "react";
 import { fillSelectedRegion } from "./DrawCallbacks/fillSelectedRegion";
 import type { Observer } from "@/Types/Observer";
-import type { DOMHandlers } from "./DOMHandlers";
+import type { DOMHandlers } from "./DOMHandlers/DOMHandlers";
 import type { KeydownManager } from "./KeydownManager";
+
+//Reminder: Implement init for mipmaps
+
 
 export type MipMap = {
     staging:Int8Array;
@@ -28,7 +31,7 @@ export class UIEngine implements Observer<UIEngine> {
     #keydownManager: KeydownManager;
     #DOMHandlers: DOMHandlers;
 
-    constructor(keydownManager: KeydownManager, DOMHandlers: DOMHandlers, mipMap: MipMap) {
+    constructor(mipMap: MipMap) {
         this.#refs = new Map();
         this.#drawCallbacks = new Map()
         const stagingMipMap = new SharedArrayBuffer(2*MIPMAP_HALF_SIZE);
@@ -49,7 +52,7 @@ export class UIEngine implements Observer<UIEngine> {
         event.execute(this);
     }
 
-    public registerContext(ID: keyof typeof DOMElements, ref: React.RefObject<HTMLCanvasElement>) {
+    public registerRef(ID: keyof typeof DOMElements, ref: React.RefObject<HTMLElement>) {
         switch(ID){
             case DOMElements.CANVAS_CONTAINER:
                 this.#refs.set(DOMCommands.DRAW_CANVAS_CONTAINER, ref);

@@ -1,15 +1,33 @@
 
-import type { GlobalContext } from "../Mediator";
-import type { AppEvent } from "../Events/AppEvent";
+import type { GlobalContext } from "../../Mediator";
+import type { AppEvent } from "../../Events/AppEvent";
+import { DOMElements } from "@/Constants/DOMElements";
+import { HandleTimelineMouseDown } from "./HandleTimelineMouseDown";
 
 
 export class DOMHandlers {
     #context: GlobalContext;
-    #handleKeyDown: (e: KeyboardEvent) => void;
+    #handleTimelineMouseDown: HandleTimelineMouseDown;
+    #handlePlayheadMouseDown: HandlePlayheadMouseDown;
+    #refs: Map<keyof typeof DOMElements, React.RefObject<HTMLElement>>;
 
     constructor(context: GlobalContext) {
         this.#context = context
-        this.#handleKeyDown =
+        this.#refs = new Map();
+        this.#handleTimelineMouseDown = new HandleTimelineMouseDown(context);
+    }
+
+    public registerRef(ID: keyof typeof DOMElements, ref: React.RefObject<HTMLElement>) {
+        this.#refs.set(ID, ref);
+    }
+
+    timelineMouseDown(e: React.MouseEvent<HTMLCanvasElement>) {
+        const ref = this.#refs.get(DOMElements.CANVAS_CONTAINER);
+        if(!ref){
+            console.error("Reference for canvas container was not found when handling timeline mouse down");
+            return;
+        }
+        this.#handleTimelineMouseDown.timelineMouseDown(e,ref);
     }
 
     handleTempoMouseDown(e: MouseEvent){

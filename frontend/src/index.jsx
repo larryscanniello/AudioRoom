@@ -3,7 +3,7 @@ import {createBrowserRouter, RouterProvider} from 'react-router-dom';
 import Layout from './Components/Layout';
 import Landing from './Components/Landing';
 import Home from './Components/Home';
-import Room from './Components/RoomComponents/Room';
+import Room from './Components/Room/Room';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import AuthProvider from './Components/AuthProvider';
 

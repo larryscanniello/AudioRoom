@@ -7,5 +7,5 @@ export interface AudioEngine extends Observer{
     record: (data: any) => void;
     stop: (data: any) => void;
     getMetronomeClickSound: () => Float32Array; 
-    getAudioStream: () => MediaStream;
+
 }

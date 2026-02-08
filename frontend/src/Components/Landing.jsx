@@ -1,4 +1,3 @@
-import AudioBoard from "./RoomComponents/AudioBoard.jsx"
 import { Circle,Pointer,Play,Wifi } from "lucide-react"
 import { FcGoogle } from "react-icons/fc";
 import { useNavigate } from "react-router-dom";
@@ -17,9 +16,9 @@ export default function Landing() {
           <h4 className="mt-4 text-2xl">Video chat + shared recorder for music and audio</h4>
         </div>
         <div className="p-4"> 
-          <AudioBoard isDemo={true} firstEnteredRoom={false} setFirstEnteredRoom={()=>{}}
+          {/*<AudioBoard isDemo={true} firstEnteredRoom={false} setFirstEnteredRoom={()=>{}}
             setVideoAudio={()=>{}} initializeAudioBoard={true} audioSourceRef={null}
-            />
+            />*/}
         </div>
         
         <div className="w-full flex flex-col items-center">

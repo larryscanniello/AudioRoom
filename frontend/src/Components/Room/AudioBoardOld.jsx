@@ -24,7 +24,7 @@ import demoelectric from "/audio/audioboarddemoelectric.mp3"
 import { useWindowSize } from "../useWindowSize";
 import "./AudioBoard.css";
 import timelineReducer from "./timelineReducer";
-import ControlPanel from "./ControlPanel/ControlPanel";
+import ControlPanel from "./AudioBoard/TrackList/TrackList";
 import WaveformWindow from "./Timeline";
 import Timeline from "./Timeline";
 

@@ -1,58 +1,58 @@
+import type { GlobalContext } from "../Mediator";
+
+type masterGainParams = {
+    stagingMasterVolumeParam: AudioParam,
+    mixMasterVolumeParam: AudioParam,
+}
 
 export class Mixer {
-    private audioContext: AudioContext;
-    private channelGains: GainNode[] = [];
-    private masterGain: GainNode;
-    private metronomeGain: GainNode;
+    #audioContext: AudioContext;
+    #mixMasterVolume: {param: AudioParam, muted: boolean};
+    #stagingMasterVolume: {param: AudioParam, muted: boolean};
+    #mixTracksGainNodes: GainNode[];
+    #context: GlobalContext;
 
-    constructor(numberOfChannels: number = 16) {
-
+    constructor(numberOfMixChannels: number = 16,
+                audioContext: AudioContext,
+                masterGainParams: masterGainParams,
+                context: GlobalContext) {
+        this.#audioContext = audioContext;
+        this.#stagingMasterVolume = { latent: 1.0, param: masterGainParams.stagingMasterVolumeParam, muted: false};
+        this.#mixMasterVolume = { latent: 1.0, param: masterGainParams.mixMasterVolumeParam, muted: false};
+        this.#mixTracksGainNodes = new Array(numberOfMixChannels).fill(null).map(() => this.#audioContext.createGain());
     }
 
-    public getAudioContext(): AudioContext {
-        return this.audioContext;
+    setStagingMasterVolume(volume: number) {
+       if(!this.#stagingMasterVolume.muted){
+            this.#stagingMasterVolume.param.value = volume; //this changes actual audio gain
+       }
+       this.#context.dispatch(new StagingMasterVolChange(volume)); //this updates state for UI
     }
 
-    public getChannelGain(channelIndex: number): GainNode | null {
-        if (channelIndex < 0 || channelIndex >= this.channelGains.length) {
-            console.warn(`Channel index ${channelIndex} is out of bounds.`);
-            return null;
+    setMixMasterVolume(volume: number) {
+        if(!this.#mixMasterVolume.muted){
+            this.#mixMasterVolume.param.value = volume;
         }
-        return this.channelGains[channelIndex];
+        this.#context.dispatch(new MixMasterVolChange(volume));
     }
 
-    public getMasterGain(): GainNode {
-        return this.masterGain;
+    muteStagingToggle() {
+        const muted = !this.#stagingMasterVolume.muted;
+        this.#stagingMasterVolume.muted = muted;
+        this.#stagingMasterVolume.param.value = muted ? 0 : this.#context.query("stagingMasterVolume");
     }
 
-    public getMetronomeGain(): GainNode {
-        return this.metronomeGain;
+    muteMixToggle() {
+        const muted = !this.#mixMasterVolume.muted;
+        this.#mixMasterVolume.muted = muted;
+        this.#mixMasterVolume.param.value = muted ? 0 : this.#context.query("mixMasterVolume");
     }
 
-    public muteChannel(channelIndex: number): void {
-        this.setChannelGain(channelIndex, 0);
+    isStagingTrackMuted(): boolean {
+        return this.#stagingMasterVolume.muted;
     }
 
-    public unmuteChannel(channelIndex: number): void {
-        this.setChannelGain(channelIndex, this.getChannelGain(channelIndex)?.gain.defaultValue || 1.0);
-    }
-
-    public setChannelGain(channelIndex: number, value: number): void {
-        const gainNode = this.getChannelGain(channelIndex);
-        if (gainNode) {
-            gainNode.gain.value = value;
-        }
-    }
-
-    public setMasterGain(value: number): void {
-        this.masterGain.gain.value = value;
-    }
-
-    public setMetronomeGain(value: number): void {
-        this.metronomeGain.gain.value = value;
-    }   
-
-    public setAudioContext(audioContext: AudioContext): void {
-        this.audioContext = audioContext;
+    isMixTrackMuted(): boolean {
+        return this.#mixMasterVolume.muted;
     }
 }

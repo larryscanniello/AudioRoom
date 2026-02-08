@@ -12,14 +12,14 @@ import type { AudioController } from "@/Classes/Audio/AudioController";
 import type { UIController } from "@/Classes/UI/UIController";
 import type { PeerJSManager } from "@/Classes/WebRTC/PeerJSManager.ts";
 import RemoteVolumeSlider from "./VideoBox/VideoChatControls/RemoteVolumeSlider.tsx";
-import AudioBoard from "./AudioBoard.tsx";
+import AudioBoard from "./AudioBoard/AudioBoard.tsx";
 
 export default function Room() {
     const [width,height] = useWindowSize();
     const [validRoom, setValidRoom] = useState<boolean>(false);
     const [errorMessage, setErrorMessage] = useState<string>("");
     const [roomJoined, setRoomJoined] = useState<boolean>(false);
-    const [dawInternalState, setDawInternalState] = useState<number>(0);
+    const [_dawInternalState, setDawInternalState] = useState<number>(0);
     const [micsMuted, setMicsMuted] = useState<{local: boolean, remote: boolean}>({local: false, remote: false});
     const [remoteVolume, setRemoteVolume] = useState<number>(100);
 

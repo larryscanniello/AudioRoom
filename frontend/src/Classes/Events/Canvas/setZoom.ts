@@ -11,23 +11,19 @@ import type { StateContainer } from "@/Classes/State";
 export class setZoom implements CanvasEvent<number> {
     readonly type = EventTypes.SET_ZOOM;
     data: number;
-    widthRef: React.RefObject<HTMLElement>;
-    playheadRef: React.RefObject<HTMLElement>;
+    containerWidth: number;
+    playheadPosSeconds: number
     newState!: StateContainer;
 
-    constructor(newSliderVal: number, widthRef: React.RefObject<HTMLElement>,playheadRef: React.RefObject<HTMLElement>) {
+    constructor(newSliderVal: number, containerWidth: number, playheadPosSeconds: number) {
         this.data = newSliderVal;
-        this.widthRef = widthRef;
-        this.playheadRef = playheadRef;
+        this.containerWidth = containerWidth;
+        this.playheadPosSeconds = playheadPosSeconds;
     }
     
     canExecute(_state: State): boolean {
         if(this.data<MIN_SAMPLES_PER_PX) return false;
-        if(!(this.widthRef.current instanceof HTMLCanvasElement)){
-            console.error("Reference is not a CanvasHTMLElement");
-            return false;
-        }
-        const WIDTH = this.widthRef.current.clientWidth;
+        const WIDTH = this.containerWidth;
         const maxSamplesPerPx = TIMELINE_LENGTH_IN_SECONDS * SAMPLE_RATE / WIDTH;
         if(this.data > maxSamplesPerPx) return false;
         return true;
@@ -38,7 +34,8 @@ export class setZoom implements CanvasEvent<number> {
             Slider vals are integers between 0 and 1000. 
             Samples per px are values between 10 and a max that depends on window size
             We map between values exponentially. If n is a slider val,
-            then the samplesPerPx is 10 * b ** n
+            then the samplesPerPx is 10 * b ** n, where b is chosen such that when n is 1000, 
+            samplesPerPx is the max value.
         */
         const WIDTH = this.widthRef.current.clientWidth;
         const maxSamplesPerPx = TIMELINE_LENGTH_IN_SECONDS * SAMPLE_RATE / WIDTH;

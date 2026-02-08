@@ -1,4 +1,4 @@
-import AudioBoard from "./AudioBoard"
+import AudioBoard from "./AudioBoard/AudioBoard"
 import { useEffect,useContext,useState, useRef,useCallback } from "react";
 import { useParams } from "react-router-dom";
 import io from "socket.io-client"

@@ -1,55 +1,75 @@
-import { MIPMAP_HALF_SIZE, MIX_MAX_TRACKS, SAMPLE_RATE } from "@/Constants/constants";
 import { AudioController } from "../Audio/AudioController";
-import { AudioEngine } from "../Audio/AudioEngine"
+import type { AudioEngine } from "../Audio/AudioEngine"
 import { Mixer } from "../Audio/Mixer";
-
+import { CONSTANTS } from "@/Constants/constants";
 import { SocketManager } from "../Sockets/SocketManager";
 import { MediaProvider } from "../MediaProvider";
-import { WebRTCManager } from "../WebRTC/PeerJSManager";
+import { PeerJSManager } from "../WebRTC/PeerJSManager";
 import { WorkletAudioEngine } from "../Audio/WorkletAudioEngine";
 import { Mediator, type GlobalContext } from "../Mediator";
-import { UIEngine, type MipMap, type MipMap } from "../UI/UIEngine";
+import { UIEngine } from "../UI/UIEngine";
 import { UIController } from "../UI/UIController";
 import { KeydownManager } from "../UI/KeydownManager";
-import { DOMHandlers } from "../UI/DOMHandlers";
+import { DOMHandlers } from "../UI/DOMHandlers/DOMHandlers";
+import { MIXER_PARAMS } from "@/Constants/MixerParams";
+import { State } from "../State";
+import type { MipMap } from "../UI/UIEngine";
 
 type Config = {
     audEngineType: "worklet" | "C++" | "inmemory",
-    mixer: boolean,
     standaloneMode: boolean,
     socketManager: boolean,
     webRTCManager: "peerjs" | false,
     roomID?: string,
+    opfsFilePath?: string,
+    workletFilePath?: string,
+    numberOfMixTracks: number,
 }
+
+type BuildResult = {
+    audioController: AudioController,
+    uiController: UIController,
+    webRTCManager?: PeerJSManager,
+} 
 
 export class SessionBuilder{
     #config: Config = {
         audEngineType: "worklet",
-        mixer: false,
         standaloneMode: true,
         socketManager: false,
         webRTCManager: false,
         roomID: undefined,
+        opfsFilePath: undefined,
+        workletFilePath: undefined,
+        numberOfMixTracks: 16,
     };
-    #stateSetter: ((state: number) => void) | null = null;
+    #stateSetter: React.Dispatch<React.SetStateAction<number>> | null = null;
 
     constructor(roomID?:string){
         this.#config.standaloneMode = roomID ? false : true;
         this.#config.roomID = roomID;
     }
 
-    withReact(stateSetter: (state: number) => void){
+    withReact(stateSetter: React.Dispatch<React.SetStateAction<number>>){
         this.#stateSetter = stateSetter;
         return this;
     }
 
-    withAudEngine(type: "worklet" | "C++" | "inmemory"){
+    withAudEngine(type: "worklet" | "C++" | "inmemory", filePaths?: {opfsFilePath: string, workletFilePath: string}){
         this.#config.audEngineType = type;
+        if(type === "worklet" && filePaths){
+            this.#config.audEngineType = "worklet";
+            this.#config.opfsFilePath = filePaths.opfsFilePath;
+            this.#config.workletFilePath = filePaths.workletFilePath;
+        }
         return this;
     }
 
-    withMixer(){
-        this.#config.mixer = true;
+    withMixTracks(numberOfMixTracks: number){
+        if(numberOfMixTracks < 1){
+            throw new Error(`Number of mix tracks must be at least 1, received ${numberOfMixTracks}`);
+        }
+        this.#config.numberOfMixTracks = numberOfMixTracks;
         return this;
     }
 
@@ -65,9 +85,9 @@ export class SessionBuilder{
     }
 
     #allocateBuffersandPointers() {
-        const stagingSAB = new SharedArrayBuffer(SAMPLE_RATE * Float32Array.BYTES_PER_ELEMENT + 12);
-        const mixSAB = new SharedArrayBuffer(SAMPLE_RATE * Float32Array.BYTES_PER_ELEMENT * MIX_MAX_TRACKS + 12);
-        const recordSAB = new SharedArrayBuffer(SAMPLE_RATE * Float32Array.BYTES_PER_ELEMENT + 12);
+        const stagingSAB = new SharedArrayBuffer(CONSTANTS.SAMPLE_RATE * Float32Array.BYTES_PER_ELEMENT + 12);
+        const mixSAB = new SharedArrayBuffer(CONSTANTS.SAMPLE_RATE * Float32Array.BYTES_PER_ELEMENT * this.#config.numberOfMixTracks + 12);
+        const recordSAB = new SharedArrayBuffer(CONSTANTS.SAMPLE_RATE * Float32Array.BYTES_PER_ELEMENT + 12);
 
         const buffers = {
             staging: new Float32Array(stagingSAB,12),
@@ -96,8 +116,8 @@ export class SessionBuilder{
     }
 
     #allocateMipMap():MipMap {
-        const stagingMipMap = new SharedArrayBuffer(2*MIPMAP_HALF_SIZE);
-        const mixMipMap = new SharedArrayBuffer(2*MIPMAP_HALF_SIZE);
+        const stagingMipMap = new SharedArrayBuffer(2*CONSTANTS.MIPMAP_HALF_SIZE);
+        const mixMipMap = new SharedArrayBuffer(2*CONSTANTS.MIPMAP_HALF_SIZE);
         return { 
             staging: new Int8Array(stagingMipMap), 
             mix: new Int8Array(mixMipMap),
@@ -105,50 +125,67 @@ export class SessionBuilder{
         };
     }
 
-    #getAudioEngine(){
+    async #getAudioController(globalContext: GlobalContext, mediaProvider: MediaProvider){
         const audioContext = new AudioContext({latencyHint: "interactive"});
         let audioEngine: AudioEngine;
         let processorNode = undefined; 
         let memory = undefined;
         let mixer = undefined;
-        if(this.#config.mixer){
-            mixer = new Mixer();
-        }
         if(true /*temporary*/ || this.#config.audEngineType === "worklet"){
+            if(!this.#config.workletFilePath){
+                throw new Error("Worklet file path must be provided for worklet audio engine");
+            }
+            await audioContext.audioWorklet.addModule(this.#config.workletFilePath);
             processorNode = new AudioWorkletNode(audioContext,'AudioProcessor');
+            const stagingMasterVolumeParam = processorNode.parameters.get(MIXER_PARAMS.STAGING_MASTER_VOLUME);
+            const mixMasterVolumeParam = processorNode.parameters.get(MIXER_PARAMS.MIX_MASTER_VOLUME);
+            if(!stagingMasterVolumeParam || !mixMasterVolumeParam){
+                throw new Error("Master volume parameters not found in audio worklet processor");
+            }
+            const volumeParams = {stagingMasterVolumeParam, mixMasterVolumeParam};
+            mixer = new Mixer(this.#config.numberOfMixTracks, audioContext,volumeParams,globalContext);
+            if(!this.#config.opfsFilePath){
+                throw new Error("OPFS file path must be provided for worklet audio engine");
+            }
+            const opfsWorker = new Worker(this.#config.opfsFilePath,{type: "module"});
             memory = this.#allocateBuffersandPointers();
             const source = null;
-            const hardware = {audioContext, processorNode, source, memory};
-            audioEngine = new WorkletAudioEngine({hardware,mediaProvider: this.#mediaProvider,mixer});
+            const hardware = {audioContext, processorNode, source, memory, opfsWorker};
+            audioEngine = new WorkletAudioEngine({hardware,mixer,mediaProvider});
         }
-        return audioEngine
+        const audioController = new AudioController(audioEngine, globalContext,mixer);
+        return {audioController, audioEngine};
     }
 
-    #getUIEngine(context:GlobalContext){
+    #getUIController(context:GlobalContext){
         const keydownManager = new KeydownManager(context);
         const domHandlers = new DOMHandlers(context);
         const mipMap = this.#allocateMipMap();
-        return new UIEngine(keydownManager, domHandlers, mipMap);
+        const uiEngine = new UIEngine(mipMap);
+        const uiController = new UIController(uiEngine, context, keydownManager, domHandlers);
+        return {uiEngine, uiController};
     }
 
-
-    build(): {audioController: AudioController, uiController: UIController, webRTCManager?: WebRTCManager} {
-        const mediator = new Mediator();
+    async build(): Promise<BuildResult|null>{
+        const state = new State();
+        if(this.#stateSetter){
+            state.setRender(this.#stateSetter);
+        }
+        const mediator = new Mediator(state);
+        const globalContext = mediator.getGlobalContext();
         const mediaProvider = new MediaProvider(new AudioContext({latencyHint: "interactive"}), this.#config.standaloneMode);
         const socketManager = this.#config.socketManager ? new SocketManager() : undefined;
-        const webRTCManager = this.#config.webRTCManager ? new WebRTCManager(mediaProvider,socketManager!.getSocket()) : undefined;
-        const globalContext = mediator.getGlobalContext();
-        const audioEngine = this.#getAudioEngine();
-        const audioController = new AudioController(audioEngine, globalContext);
-        const uiEngine = this.#getUIEngine(globalContext);
-        const uiController = new UIController(UIEngine, globalContext);
+        const webRTCManager = this.#config.webRTCManager && socketManager ? new PeerJSManager(mediaProvider,globalContext,socketManager.getSocket()) : undefined;
+        const {audioController,audioEngine} = await this.#getAudioController(globalContext,mediaProvider)
+        
+        const {uiEngine, uiController} = this.#getUIController(globalContext);
         mediator.attach(audioEngine);
-        mediator.attach(UIEngine);
-        if(this.#socketManager){
-            mediator.attach(this.#socketManager);
+        mediator.attach(uiEngine);
+        if(socketManager){
+            mediator.attach(socketManager);
         }
-        if(this.#webRTCManager){
-            mediator.attach(this.#webRTCManager);
+        if(webRTCManager){
+            mediator.attach(webRTCManager);
         }
         return {audioController, uiController,webRTCManager};
     }

@@ -1,4 +1,5 @@
 import type { TimelineState } from "../Types/AudioState"; // Assuming type exists based on AudioEngine
+import timelineReducer from "./UI/timelineReducer";
 
 
 export interface StateContainer {
@@ -27,6 +28,10 @@ export interface StateContainer {
     connectedUsers: number;
     roomID: string | null;
     commMessage: {text: string; color: string};
+    stagingMasterVolume: number;
+    mixMasterVolume: number;
+    stagingMuted: boolean;
+    mixMuted: boolean;
 }
 
 
@@ -58,6 +63,10 @@ export class State {
             connectedUsers: 0,
             roomID: null,
             commMessage: {text:"",color:""},
+            stagingMasterVolume: 1.0,
+            mixMasterVolume: 1.0,
+            stagingMuted: false,
+            mixMuted: false,
         };;
     #render: React.Dispatch<React.SetStateAction<number>> | null = null;
 
@@ -65,7 +74,8 @@ export class State {
         this.#reactState = new Set([
             "bpm","isLooping","isStreaming","metronomeOn",
             "snapToGrid","timeline","delayCompensation",
-            "commMessage",
+            "commMessage","stagingMasterVolume","mixMasterVolume",
+            "stagingMuted","mixMuted","timeline",
         ]);
     }
 
@@ -94,5 +104,10 @@ export class State {
 
     public commMessage(message:string,color:string){
         this.update("commMessage", {text: message, color: color});
+    }
+
+    public timelineUpdate(action: "add_region" | "bounce" ) {
+        const timeline = this.query("timeline");
+        this.update("timeline", timelineReducer(timeline, action));
     }
 }

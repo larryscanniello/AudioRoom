@@ -19,8 +19,8 @@ export class Mediator implements Subject {
 
     #observers: Observer[] = [];
 
-    constructor() {
-        this.#state = new State();
+    constructor(state: State = new State()){ {
+        this.#state = state;
         this.#globalContext = {
             dispatch: this.#dispatch.bind(this),
             commMessage: this.#state.commMessage.bind(this.#state),

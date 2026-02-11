@@ -1,40 +1,31 @@
 
 import { Play } from "../Events/Audio/Play"
-import { Record } from "../Events/Audio/Record"
-import { Stop } from "../Events/Audio/Stop"
 
 import type { StateContainer } from "../State";
 import type { GlobalContext } from "../Mediator"
 import type { AudioEngine } from "./AudioEngine";
 import type { Mixer } from "./Mixer";
-import type React from "react";
-
 
 
 export class AudioController{
-    #engine: AudioEngine;
     #context: GlobalContext;
-    #gainNodes: {local: GainNode | null, remote: GainNode | null} = {local:null, remote:null};
     #mixer: Mixer;
 
-    constructor(engine: AudioEngine,context:GlobalContext,mixer:Mixer) {
-        this.#engine = engine
+    constructor(_engine: AudioEngine,context:GlobalContext,mixer:Mixer) {
         this.#context = context;
         this.#mixer = mixer;
     }
 
-    public getAudioStream(): void {
-        this.#engine.getAudioStream();
-    }
-
     public play() {
-        const playEvent = new Play();
-        this.#context.dispatch(playEvent)
+        this.#context.dispatch(Play.dispatchEvent);
     }
-
+/*
     public record() {
-        const recordEvent = new Record();
-        this.#context.dispatch(recordEvent);
+        const record = {
+            type: EventTypes.START_RECORDING,
+            data: null,
+            getClass:()=>{return Record}}
+        this.#context.dispatch(record);
     }
 
     public stop() {
@@ -56,7 +47,7 @@ export class AudioController{
         const toggleLoopEvent = new ToggleLoop();
         this.#context.dispatch(toggleLoopEvent);
     }
-
+*/
     public changeStagingVolume(volume: number) {
         this.#mixer.setStagingMasterVolume(volume);
     }
@@ -85,8 +76,5 @@ export class AudioController{
         return this.#context.query(query);
     }
 
-    public onBPMMouseDown(e: React.MouseEvent<HTMLButtonElement>) {
-
-    }
 
 }

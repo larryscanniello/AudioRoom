@@ -73,7 +73,7 @@ interface AudioProcessorData {
             bounce: number,
             take: number,
         },
-        packetCount: 0,
+        packetCount: number,
     },
     timeline: {
         start: number,

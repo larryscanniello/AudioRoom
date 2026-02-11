@@ -1,10 +1,11 @@
 import type { Observer } from "@/Types/Observer";
 import { MediaProvider } from "../MediaProvider";
 import type { GlobalContext } from "../Mediator";
-import type { AppEvent, EventTypes } from "../Events/AppEvent";
+import type { AppEvent, EventTypes } from "../Events/EventNamespace";
 import { DataConnection, Peer } from "Peerjs"
 import { Socket } from "socket.io-client";
 import { PeerID } from "../Events/Sockets/SocketEvent";
+import { join } from "path";
 
 type GainContainer = {
     local: GainNode | null,
@@ -26,12 +27,26 @@ export class PeerJSManager implements Observer{
         this.#socketManager = socketManager;
     }
 
+    getRemoteStream(): MediaStream | null {
+        return this.#mediaProvider.getRemoteStream();
+    }
+
+    getLocalStream(): MediaStream | null{
+        return this.#mediaProvider.getAVStream();
+    }
+
     getLocalChatGain(): GainNode | null {
         return this.#chatGains.local;
     }
 
     getRemoteChatGain(): GainNode | null {
         return this.#chatGains.remote;
+    }
+
+    joinSocketRoom(roomID: string){
+      const joinRoomEvent = JoinSocketRoom.dispatchEvent;
+      joinRoomEvent.data = {roomId: roomID};
+        this.#context.dispatch(joinRoomEvent)
     }
 
     initializePeer(){

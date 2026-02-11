@@ -12,10 +12,7 @@ export class HandlePlayheadMouseDown{
         this.#context = context;
     }
 
-    playheadMouseDown = (e:React.MouseEvent,
-                        waveformContainerRef:React.RefObject<HTMLCanvasElement>,
-                        playheadRef:React.RefObject<HTMLDivElement>,
-                    ) => {
+    playheadMouseDown = (waveformContainerRef:React.RefObject<HTMLCanvasElement>) => {
        /*const rect = waveformContainerRef.current.getBoundingClientRect()
         if(e.clientY-rect.y < 30) return;*/
         const width = waveformContainerRef.current.width;

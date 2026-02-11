@@ -15,19 +15,20 @@ export class MediaProvider {
         this.#remoteStream = stream;
     }
 
+    getRemoteStream(): MediaStream | null {
+        return this.#remoteStream;
+    }
+
     getAudioStream(): MediaStream {
         if(!this.#audioStream){
-            throw new Error("Audio Stream has not been loaded yet");
+            throw new Error("Audio Stream has not been loaded yet in MediaProvider");
         }
         return this.#audioStream;
     }
 
-    getAVStream(): MediaStream {
+    getAVStream(): MediaStream | null {
         if(this.#standaloneMode){
-            throw new Error("AV Stream is not available in standalone mode");
-        }
-        if(!this.#AVStream){
-            throw new Error("AV Stream has not been loaded yet");
+            throw new Error("AV Stream is not available in standalone mode ");
         }
         return this.#AVStream;
     }

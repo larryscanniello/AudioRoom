@@ -1,5 +1,5 @@
 import type { State } from "@/Classes/State";
-import type { AppEvent } from "../AppEvent";
+import type { AppEvent } from "../EventNamespace";
 
 
 export abstract class SocketEvent implements AppEvent{

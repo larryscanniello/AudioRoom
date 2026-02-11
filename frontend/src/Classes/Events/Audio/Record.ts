@@ -1,28 +1,42 @@
-import { EventTypes } from "../AppEvent";
-import { State } from "@/Classes/State";
-
-import type { AudioEvent } from "../AppEvent";
+import { EventTypes } from "../EventNamespace";
+import type { State } from "@/Classes/State";
 import type { AudioEngine } from "@/Classes/Audio/AudioEngine";
+import { executeSocketUtil, stateTransactionUtil } from "../genericEventFunctions";
+
 import type { AudioProcessorData } from "@/Types/AudioState";
+import type { UIEngine } from "@/Classes/UI/UIEngine";
+import type { SocketManager } from "@/Classes/Sockets/SocketManager";
+import type { EventNamespace } from "../EventNamespace";
+import { CONSTANTS } from "@/Constants/constants";
 
-export class Record implements AudioEvent<AudioProcessorData> {
-    readonly type = EventTypes.START_RECORDING;
-    data!: AudioProcessorData;
-    
-    canExecute(state: State): boolean {
-        if(state.query('isPlaying')||state.query('isRecording')){
-            return false;
-        }
-        return true;
-    }
+export const Record: EventNamespace = {
+    sharedState: true,
 
-    mutateState(state: State): void {
-        state.update('isRecording', true);
-    }
+    transactionData: {
+        transactionQueries: [
+            { key: 'isPlaying', comparitor: '===', target: false },
+            { key: 'isRecording', comparitor: '===', target: false },
+        ],
+        mutations: [
+            { key: 'isRecording', value: true },
+            { key: 'take', value: "++" },
+        ]
+    },
 
-    getPayload(state: State) {
+    getDispatchEvent: ({ data, emit }) => { return {
+            type: EventTypes.START_RECORDING,
+            data,
+            emit,
+            getEventNamespace: () => { return Record; }
+        }},
+
+    stateTransaction(state: State): boolean {
+        return stateTransactionUtil(state, this.transactionData, this.sharedState);
+    },
+
+    getLocalPayload(state: State): AudioProcessorData {
         const mouseDragEnd = state.query('mouseDragEnd');
-        return { type: this.type,
+        const data = { type: EventTypes.START_RECORDING,
             state: {
                 isPlaying: state.query('isPlaying'),
                 isRecording: state.query('isRecording'),
@@ -36,17 +50,22 @@ export class Record implements AudioEvent<AudioProcessorData> {
             },
             timeline: {
                 start: state.query('playheadLocation'),
-                end: mouseDragEnd ? mouseDragEnd.t : null,
+                end: mouseDragEnd ? mouseDragEnd.t : CONSTANTS.TIMELINE_LENGTH_IN_SECONDS,
                 pos: state.query('playheadLocation')
             }
-        }
-    }
+        };
+        return data;
+    },
 
-    execute(audioEngine: AudioEngine): void {
-        if(!this.data){
-            console.error("Record event data is not set");
-            return;
-        }
-        audioEngine.record(this.data);
-    }
-}
+    executeAudio(audioEngine: AudioEngine, data: AudioProcessorData): void {
+        audioEngine.record(data);
+    },
+
+    executeUI(engine: UIEngine, data: AudioProcessorData): void {
+        engine.startPlayhead(data.timeline);
+    },
+
+    executeSocket(socketManager: SocketManager, _data: any): void {
+        executeSocketUtil(socketManager, this.transactionData);
+    },
+};

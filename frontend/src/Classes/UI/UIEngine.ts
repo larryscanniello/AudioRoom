@@ -1,18 +1,18 @@
 import { DOMElements,DOMCommands } from "../../Constants/DOMElements"
 import { drawMeasureTicks } from "./DrawCallbacks/measureTicks";
-import { MIPMAP_HALF_SIZE } from "@/Constants/constants";
 import { renderStagingWaveforms } from "./DrawCallbacks/renderStagingWaveforms";
 import { drawCanvasContainer } from "./DrawCallbacks/canvasContainer"
 import { renderMixWaveforms } from "./DrawCallbacks/renderMixWaveforms";
 import { setPlayhead } from "./DrawCallbacks/setPlayhead"
 
-import type { CanvasEvent } from "../Events/AppEvent";
 import type { StateContainer } from "../State";
 import type React from "react";
 import { fillSelectedRegion } from "./DrawCallbacks/fillSelectedRegion";
 import type { Observer } from "@/Types/Observer";
-import type { DOMHandlers } from "./DOMHandlers/DOMHandlers";
-import type { KeydownManager } from "./KeydownManager";
+import type { GlobalContext } from "../Mediator";
+import { MediaProvider } from "../MediaProvider";
+import { CONSTANTS } from "@/Constants/constants";
+import { PlayheadManager } from "./PlayheadManager";
 
 //Reminder: Implement init for mipmaps
 
@@ -23,25 +23,23 @@ export type MipMap = {
     empty: Int8Array;
 }
 
-export class UIEngine implements Observer<UIEngine> {
+export class UIEngine implements Observer{
     #refs: Map<keyof typeof DOMCommands, React.RefObject<HTMLElement>>;
     #drawCallbacks: Map<keyof typeof DOMCommands, 
                     (ref: React.RefObject<HTMLElement>, data: StateContainer, mipMap: Int8Array) => void>
     #mipMap: MipMap;
-    #keydownManager: KeydownManager;
-    #DOMHandlers: DOMHandlers;
+    #mediaProvider: MediaProvider;
+    #playheadManager: PlayheadManager;
+    #context: GlobalContext;
 
-    constructor(mipMap: MipMap) {
+    constructor(mipMap: MipMap,mediaProvider: MediaProvider,context: GlobalContext) {
+        this.#mipMap = mipMap;
+        this.#mediaProvider = mediaProvider;
+        this.#context = context;
         this.#refs = new Map();
         this.#drawCallbacks = new Map()
-        const stagingMipMap = new SharedArrayBuffer(2*MIPMAP_HALF_SIZE);
-        const mixMipMap = new SharedArrayBuffer(2*MIPMAP_HALF_SIZE);
-        this.#mipMap = { 
-            staging: new Int8Array(stagingMipMap), 
-            mix: new Int8Array(mixMipMap),
-        };
-        this.#emptyInt8 = new Int8Array(0);
         this.getCallbackObj();
+        this.#playheadManager = new PlayheadManager(this.#context, this.#mediaProvider.getAudioContext());
     }
 
     public getRef(ID: keyof typeof DOMCommands): React.RefObject<HTMLElement>|undefined{
@@ -90,6 +88,25 @@ export class UIEngine implements Observer<UIEngine> {
             }
         }
     }
+
+    public startPlayhead(timeline: {start: number, end: number}){
+        const playheadRef = this.#refs.get(DOMCommands.DRAW_PLAYHEAD);
+        const waveformRef = this.#refs.get(DOMCommands.DRAW_TRACK_ONE_WAVEFORMS);
+        if(!playheadRef || !playheadRef.current || !waveformRef || !waveformRef.current){
+            console.error("Playhead or waveform ref not found when starting playhead loop");
+            return;
+        }
+        const audioCtx = this.#mediaProvider.getAudioContext();
+        this.#playheadManager.playheadData = {isMoving:true, startTime: audioCtx.currentTime};
+        this.#playheadManager.playheadLoop(playheadRef, waveformRef,timeline);
+        
+    }
+
+    stopPlayhead(){
+        this.#playheadManager.stop();
+    }
+
+    
 
     private getCallbackObj():
     {[key in keyof typeof DOMCommands]: 

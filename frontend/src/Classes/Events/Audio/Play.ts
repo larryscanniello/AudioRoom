@@ -1,29 +1,43 @@
-import { EventTypes } from "../AppEvent";
-import { State } from "@/Classes/State";
-import { AudioEngine } from "@/Classes/Audio/AudioEngine";
+import { EventTypes } from "../EventNamespace";
+import type { State } from "@/Classes/State";
+import { CONSTANTS } from "@/Constants/constants";
+import type { AudioEngine } from "@/Classes/Audio/AudioEngine";
+import { executeSocketUtil, stateTransactionUtil } from "../genericEventFunctions";
 
-import type { AudioEvent } from "../AppEvent";
 import type { AudioProcessorData } from "@/Types/AudioState";
-import { TIMELINE_LENGTH } from "@/Constants/constants";
+import type { UIEngine } from "@/Classes/UI/UIEngine";
+import type { SocketManager } from "@/Classes/Sockets/SocketManager";
+import type { EventNamespace } from "../EventNamespace";
 
-export class Play implements AudioEvent<AudioProcessorData> {
-    readonly type = EventTypes.START_PLAYBACK;
-    data!: AudioProcessorData;
+export const Play:EventNamespace = {
+    sharedState: true,
 
-    canExecute(state: State): boolean {
-        if(state.query('isPlaying')||state.query('isRecording')){
-            return false;
-        }
-        return true;
-    }
+    transactionData: {
+        transactionQueries: [
+            {key: 'isPlaying', comparitor: '===', target: false},
+            {key: 'isRecording', comparitor: '===', target: false},
+            {key: 'playheadLocation', comparitor: '<', target: CONSTANTS.TIMELINE_LENGTH_IN_SECONDS},
+        ],
+        mutations: [
+            {key: 'isPlaying', value: true},
+        ]
+    },
 
-    mutateState(state: State): void {
-        state.update('isPlaying', true);
-    }
+    getDispatchEvent: ({data,emit}) => { 
+        return { 
+            type: EventTypes.START_PLAYBACK,
+            data,
+            emit,
+            getEventNamespace:()=>{return Play}
+        }},
+    
+    stateTransaction(state: State): boolean {
+        return stateTransactionUtil(state, this.transactionData, this.sharedState);
+    },
 
-    getPayload(state: State): AudioProcessorData {
+    getLocalPayload(state: State): AudioProcessorData {
         const mouseDragEnd = state.query('mouseDragEnd');
-        this.data = { type: this.type,
+        const data = { type: EventTypes.START_PLAYBACK,
             state: {
                 isPlaying: state.query('isPlaying'),
                 isRecording: state.query('isRecording'),
@@ -37,18 +51,23 @@ export class Play implements AudioEvent<AudioProcessorData> {
             },
             timeline: {
                 start: state.query('playheadLocation'),
-                end: mouseDragEnd ? mouseDragEnd.t : TIMELINE_LENGTH,
+                end: mouseDragEnd ? mouseDragEnd.t : CONSTANTS.TIMELINE_LENGTH_IN_SECONDS,
                 pos: state.query('playheadLocation')
             }
         }
-        return this.data;
-    }
+        return data;
+    },
 
-    execute(audioEngine: AudioEngine): void {
-        if(!this.data){
-            console.error("Play event data is not set");
-            return;
-        };
-        audioEngine.play(this.data);
-    }
-}
+    executeAudio(audioEngine: AudioEngine,data:AudioProcessorData): void {
+        audioEngine.play(data);
+    },
+
+    executeUI(engine: UIEngine,data:AudioProcessorData): void {
+        engine.startPlayhead(data.timeline);
+    },
+
+    executeSocket(socketManager: SocketManager, _data:any): void {
+        executeSocketUtil(socketManager, this.transactionData);
+    },
+};
+

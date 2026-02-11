@@ -1,8 +1,8 @@
 
 import type { GlobalContext } from "../../Mediator";
-import type { AppEvent } from "../../Events/AppEvent";
 import { DOMElements } from "@/Constants/DOMElements";
 import { HandleTimelineMouseDown } from "./HandleTimelineMouseDown";
+import { HandlePlayheadMouseDown } from "./HandlePlayheadMouseDown";
 
 
 export class DOMHandlers {
@@ -15,6 +15,7 @@ export class DOMHandlers {
         this.#context = context
         this.#refs = new Map();
         this.#handleTimelineMouseDown = new HandleTimelineMouseDown(context);
+        this.#handlePlayheadMouseDown = new HandlePlayheadMouseDown(context);
     }
 
     public registerRef(ID: keyof typeof DOMElements, ref: React.RefObject<HTMLElement>) {
@@ -28,6 +29,15 @@ export class DOMHandlers {
             return;
         }
         this.#handleTimelineMouseDown.timelineMouseDown(e,ref);
+    }
+
+    playheadMouseDown(e: React.MouseEvent<HTMLDivElement>) {
+        const ref = this.#refs.get(DOMElements.PLAYHEAD);
+        if(!ref){
+            console.error("Reference for playhead was not found when handling playhead mouse down");
+            return;
+        }
+        this.#handlePlayheadMouseDown.playheadMouseDown(e,ref);
     }
 
     handleTempoMouseDown(e: MouseEvent){

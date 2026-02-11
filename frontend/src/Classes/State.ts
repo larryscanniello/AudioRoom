@@ -6,7 +6,7 @@ export interface StateContainer {
     bpm: number;
     isStreaming: boolean;
     isLooping: boolean;
-    metronomeOn: boolean;
+    isMetronomeOn: boolean;
     viewport: {
         startTime: number;
         samplesPerPx: number;
@@ -25,7 +25,7 @@ export interface StateContainer {
     playheadLocation: number;
     mouseDragStart: { t: number; trounded: number };
     mouseDragEnd: { t: number; trounded: number } | null;
-    connectedUsers: number;
+    numConnectedUsers: number;
     roomID: string | null;
     commMessage: {text: string; color: string};
     stagingMasterVolume: number;
@@ -34,6 +34,21 @@ export interface StateContainer {
     mixMuted: boolean;
 }
 
+export type TransactionQuery<K extends keyof StateContainer> = {
+    key: K;
+    comparitor: "<" | ">" | "===" | "<=" | ">=";
+    target: StateContainer[K];
+}
+    
+export type Mutation<K extends keyof StateContainer> = {
+    key: K;
+    value: StateContainer[K] | "++" | "toggle"; // "++" indicates an increment operation for number types
+}
+
+export type TransactionData = {
+    transactionQueries: TransactionQuery<keyof StateContainer>[];
+    mutations: Mutation<keyof StateContainer>[];
+}
 
 export class State {
     #reactState: Set<string>;
@@ -41,7 +56,7 @@ export class State {
             bpm: 100,
             isLooping: true,
             isStreaming: false,
-            metronomeOn: true,
+            isMetronomeOn: true,
             viewport: {
                 startTime: 0,
                 samplesPerPx: 1000,
@@ -60,7 +75,7 @@ export class State {
             playheadLocation: 0,
             mouseDragStart: { t: 0, trounded: 0 },
             mouseDragEnd: null,
-            connectedUsers: 0,
+            numConnectedUsers: 0,
             roomID: null,
             commMessage: {text:"",color:""},
             stagingMasterVolume: 1.0,
@@ -83,8 +98,55 @@ export class State {
         return this.#state[key];
     }
 
-    public update<K extends keyof StateContainer>(key: K, value: StateContainer[K]): void {
-        this.#state[key] = value;
+    #comparitor<K extends keyof StateContainer>(q:TransactionQuery<K>): boolean {
+            const {key, comparitor, target} = q;
+            const currentValue = this.query(key);
+            if(comparitor === "==="){
+                return currentValue === target;
+            }
+            if(typeof currentValue !== "number" || typeof target !== "number"){
+                    console.error(`Comparitor ${comparitor} is only valid for number types. 
+                        Current value type: ${typeof currentValue}, target type: ${typeof target}`);
+                    return false;   
+            }
+            switch(comparitor){
+                case "<":
+                    return currentValue < target;
+                case ">":
+                    return currentValue > target;
+                case "<=":
+                    return currentValue <= target;
+                case ">=":
+                    return currentValue >= target;
+            }
+    }
+
+    transaction(transaction: TransactionData): boolean {
+            let canExecute = true;
+            for(let tQuery of transaction.transactionQueries){
+                canExecute = canExecute && this.#comparitor(tQuery);
+            }
+            if(canExecute){
+                for(let mutation of transaction.mutations){
+                    this.update(mutation.key, mutation.value);
+                }
+                return true;
+            }else{
+                return false;
+            }
+        }
+    
+    public update<K extends keyof StateContainer>(key: K, value: StateContainer[K]|"++"): void {
+        let newvalue = value;
+        if(newvalue === "++"){ // Handle increment mutation
+            const currentVal = this.query(key);
+            if(typeof currentVal === "number"){
+                newvalue = currentVal + 1 as StateContainer[K];
+            }else{
+                throw new Error(`Cannot apply "++" mutation to non-number type. Current value type: ${typeof currentVal}`);
+            }
+        }
+        this.#state[key] = newvalue;
         if(this.#reactState.has(key)) {
             if(!this.#render) { 
                 console.warn("Render function not set.");

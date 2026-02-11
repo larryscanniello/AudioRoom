@@ -2,20 +2,18 @@ import { io, Socket } from "socket.io-client"
 import { Play } from "../Events/Audio/Play";
 
 import type { Observer } from "@/Types/Observer";
-import type { GlobalContext } from "../Mediator";
-import type { AppEvent, EventTypes } from "../Events/AppEvent";
+import type { DispatchEvent, GlobalContext } from "../Mediator";
+import { EventTypes } from "../Events/EventNamespace";
+import type { Mutation, StateContainer } from "@/Classes/State";
 import { Stop } from "../Events/Audio/Stop";
-import type { EventQueue } from "../EventQueue";
-
 
 export class SocketManager implements Observer {
     #socket: Socket;
-    #context!: GlobalContext;
-    #eventQueue!: EventQueue;
+    #context: GlobalContext;
     #isConnectedToDAW: boolean = false;
-    #processEvent!: (event: AppEvent) => void;
 
-    constructor(){
+    constructor(context: GlobalContext){
+        this.#context = context;
         this.#socket = io(import.meta.env.VITE_BACKEND_URL, {
               withCredentials: true,
         });
@@ -29,57 +27,82 @@ export class SocketManager implements Observer {
         this.#socket.on(name, callback);
     }
 
-    update(event: AppEvent) {
-        if(!this.#isConnectedToDAW){
-            console.error("Not connected to DAW.");
-            return;
-        }
-        this.#socket.emit(event.type, event.payload);
+    emit(socketKey: string, data: any) {
+        this.#socket.emit(socketKey, data);
     }
 
-    initDAWConnection(context: GlobalContext, eventQueue: EventQueue, processEvent: (event: AppEvent) => void) {
-        this.#context = context;
-        this.#eventQueue = eventQueue;
-        this.#processEvent = processEvent;
+    update(event: DispatchEvent): void {
+        if(!this.#isConnectedToDAW){
+            throw new Error("Cannot process socket event before connection to DAW is initialized.");
+        }
+        const eventClass = event.getEventNamespace();
+        eventClass.executeSocket(this, eventClass.transactionData);
+    }
+
+    joinRoom(roomId: string){
+        this.#socket.emit(EventTypes.JOIN_SOCKET_ROOM, {roomId});
+    }
+
+    initDAWConnection() {
         this.#initializeListeners();
-        this.#initializeValidators();
         this.#isConnectedToDAW = true;
     }
 
     #initializeListeners() {
-        this.#socket.on("play", () => {
-            this.#context.dispatch(new Play())
+        this.#socket.on("sync_state", ({mutations}:{mutations:Mutation<keyof StateContainer>[]}) => {
+            #handleStateSync(mutations);
+            
+        });
+
+        this.#socket.on(EventTypes.START_PLAYBACK, () => {
+            this.#context.dispatch(Play.getDispatchEvent());
             this.#context.commMessage("Partner played audio.","white");
-        });
-
-        this.#socket.on("stop", () => {
-            this.#context.dispatch(new Stop())
-            this.#context.commMessage("Partner stopped audio.","white");
-        });
-
-        this.#socket.on("set_bpm", (bpm: number) => {
-            this.#context.dispatch(new SetBPM(bpm))
-            this.#context.commMessage(`Partner changed BPM to ${bpm}.`, "white");
-        });
-
-        this.#socket.on("region_Selection", (data: any) => {
-            this.#context.dispatch(new RegionSelection(data))
-            this.#context.commMessage("Partner selected a region.","white");
         });
 
     }
 
-    #initializeValidators() {
-        this.#socket.on("validate", (id: number,status:"accepted" | "denied" | "aborted") => {
-            if(!this.#processEvent){
-                console.error("Process event function is not set inside SocketManager.");
+    #handleStateSync(mutations: Mutation<keyof StateContainer>[]) {
+        for(let mutation of mutations){
+            const currStateVal = this.#context.query(mutation.key);
+            if(currStateVal !== mutation.value){
+                this.#handleStateSyncMutation(mutation);
             }
-            if(!this.#eventQueue){
-                console.error("Event queue is not set inside SocketManager.");
-            }
-            this.#eventQueue.updateStatus(id, status);
-            this.#eventQueue.processQueue(this.#processEvent);
-        })
+        }
+        
+    }
+
+    #handleStateSyncMutation(mutation: Mutation<keyof StateContainer>) {
+        switch(mutation.key){
+            case "isPlaying":
+                if(mutation.value === false){
+                    this.#context.dispatch(Stop.getDispatchEvent());
+                    this.#context.commMessage("Partner stopped audio.","white");
+                }else{
+                    this.#context.dispatch(Play.getDispatchEvent());
+                    this.#context.commMessage("Partner played audio.","white");
+                }
+                break;
+            case "isRecording":
+                if(mutation.value === false){
+                    this.#context.dispatch(Stop.getDispatchEvent()); 
+                    this.#context.commMessage("Partner stopped recording.","white");
+                }else{
+                    this.#context.dispatch(PartnerRecording.getDispatchEvent()); 
+                    this.#context.commMessage("Partner started recording.","white");
+                }
+                break;
+            case "playheadLocation":
+                this.#context.dispatch(SetPlayheadLocation.getDispatchEvent(mutation.value));
+                break;
+            case "numConnectedUsers":
+                this.#context.dispatch(SetNumConnectedUsers.getDispatchEvent(mutation.value));
+                break;
+            case "mouseDragEnd":
+                this.#context.dispatch(RegionSelection.getDispatchEvent(mutation.value));
+                break;
+        }
+                
+                
     }
 
     terminate(){

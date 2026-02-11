@@ -7,42 +7,39 @@ import type { SocketManager } from "@/Classes/Sockets/SocketManager";
 import type { EventNamespace } from "../EventNamespace";
 import type { AudioEngine } from "@/Classes/Audio/AudioEngine";
 
-export const Skipback: EventNamespace = {
+export const Metronome: EventNamespace = {
     sharedState: true,
 
     transactionData: {
         transactionQueries: [
-            { key: 'isRecording', comparitor: '===', target: false },
-            { key: 'isPlaying', comparitor: '===', target: false },
+            { key: 'isMetronomeOn', comparitor: '===', target: false },
         ],
         mutations: [
-            { key: 'playheadLocation', value: 0 },
-            { key: 'mouseDragStart', value: { t: 0, trounded: 0 } },
-            { key: 'mouseDragEnd', value: null },
+            { key: 'isMetronomeOn', value: 'toggle' },
         ]
     },
 
     getDispatchEvent: ({ data, emit }) => { return {
-            type: EventTypes.SKIPBACK,
+            type: EventTypes.TOGGLE_METRONOME,
             data,
             emit,
-            getEventNamespace: () => { return Skipback; }
+            getEventNamespace: () => { return Metronome; }
         }},
 
     stateTransaction(state: State): boolean {
         return stateTransactionUtil(state, this.transactionData, this.sharedState);
     },
 
-    getLocalPayload(_state: State) {
-        return { type: EventTypes.SKIPBACK };
+    getLocalPayload(state: State) {
+        return { type: EventTypes.TOGGLE_METRONOME, isMetronomeOn: state.query('isMetronomeOn') };
     },
 
-    executeAudio(_engine: AudioEngine, _data:any ): void {
-        // No audio engine action required for Skipback
+    executeAudio(_audioEngine: AudioEngine, _data: any): void {
+        //add later
     },
 
-    executeUI(_engine: UIEngine, _data:any): void {
-        // No specific UI action required for Skipback, as the playhead position will be updated through state changes
+    executeUI(_engine: UIEngine, _data: any): void {
+        // No specific UI action required for toggling the metronome
     },
 
     executeSocket(socketManager: SocketManager, _data: any): void {

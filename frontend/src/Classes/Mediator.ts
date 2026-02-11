@@ -1,51 +1,55 @@
 import { State } from "./State";
-import { EventQueue } from "./EventQueue";
-import { EVENT_QUEUE_LENGTH } from "@/Constants/constants";
 
 import type { StateContainer } from "./State"
-import { type AppEvent,EventTypes } from "./Events/AppEvent";
+import { type EventParams } from "./Events/EventNamespace";
 import type { Observer, Subject } from "../Types/Observer";
 
 export type GlobalContext = {
-    dispatch: (event: AppEvent) => void,
+    dispatch: (event: DispatchEvent) => void,
     commMessage: (message: string, color: "white" | "red" | "green") => void,
     query: <K extends keyof StateContainer>(key: K) => StateContainer[K];
 }
 
+export type DispatchEvent = {
+    [K in keyof EventParams]: {
+        type: K;
+        data: EventParams[K];
+        getEventNamespace: () => any; 
+    }
+}[keyof EventParams];
+
 export class Mediator implements Subject {
     #state: State;
     #globalContext: GlobalContext;
-    #eventQueue: EventQueue;
 
     #observers: Observer[] = [];
 
-    constructor(state: State = new State()){ {
+    constructor(state: State = new State()) {
         this.#state = state;
         this.#globalContext = {
             dispatch: this.#dispatch.bind(this),
             commMessage: this.#state.commMessage.bind(this.#state),
             query: this.#state.query.bind(this.#state),
         }
-        this.#eventQueue = new EventQueue(EVENT_QUEUE_LENGTH);
     }
 
     public getGlobalContext(): GlobalContext {
         return this.#globalContext;
     }
 
-    #dispatch(event: AppEvent): void {
-        const action = event.canExecute(this.#state);
-        if(action === "process"){this.#processEvent(event);}
-        else if(action === "queue"){this.#eventQueue.enqueue(event);}
+    #dispatch(event: DispatchEvent): void {
+        const namespace = event.getEventNamespace();
+        const successfulTransaction = namespace.stateTransaction(this.#state, namespace.transactionData, namespace.sharedState);
+        if(successfulTransaction){this.#processEvent(event);}
     }
 
-    #processEvent(event: AppEvent){
-        event.mutateState(this.#state);
-        this.notify(event.type, event.getPayload(this.#state));
+    #processEvent(event: DispatchEvent): void {
+        const namespace = event.getEventNamespace();
+        this.notify(event, namespace.getLocalPayload(this.#state));
     }
 
-    notify(type: keyof typeof EventTypes, data?: any): void {
-        this.#observers.forEach(observer => observer.update(type, data));
+    notify(event: DispatchEvent, data: any): void {
+        this.#observers.forEach(observer => observer.update(event, data));
     }
 
     attach(observer: Observer): void {

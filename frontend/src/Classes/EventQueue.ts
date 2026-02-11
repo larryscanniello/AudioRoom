@@ -1,8 +1,16 @@
 
-import type { AppEvent } from "./Events/AppEvent";
+import type { DispatchEvent } from "./Mediator";
+
+/*
+    When there is more than one person in a session, sometimes events need to be validated by the backend.
+    This queue holds events that have been sent to the backend but not yet accepted or denied
+    It is implemented as a circular buffer of keys (a Uint32Array), and a map, where each key
+    corresponds to an event in the queue. The map holds the event, the time it was enqueued,
+    and its status.
+*/
 
 type QueueMember = {
-    event: AppEvent;
+    event: DispatchEvent;
     time: number,
     status: "pending" | "accepted" | "denied" | "aborted";
 }
@@ -19,20 +27,20 @@ export class EventQueue {
         this.#map = new Map<number, QueueMember>();
     }
 
-    enqueue(event: AppEvent) {
+    enqueue(event: DispatchEvent) {
         if(this.#isFull) {
             throw new Error("Queue is full");
         }
-        event.setID(this.#back);
-        this.#map.set(event.id, {event, time: performance.now(), status: "pending"});
-        this.#keys[this.#back] = event.id;
+        event.queueNum = this.#back;
+        this.#map.set(this.#back, {event, time: performance.now(), status: "pending"});
+        this.#keys[this.#back] = event.queueNum;
         this.#back = (this.#back + 1) % this.#keys.length;
         if((this.#back + 1) % this.#keys.length === this.#front) {
             this.#isFull = true;
         }
     }
 
-    dequeue(): AppEvent | undefined {
+    dequeue(): DispatchEvent | undefined {
         if(this.#front === this.#back) {
             return undefined;
         }
@@ -67,19 +75,19 @@ export class EventQueue {
         return this.#map.get(eventId);
     }
 
-    processQueue(processEvent: (event: AppEvent) => void) {
-    let curr = this.peek();
-    while (curr) {
-        const isStale = performance.now() - curr.time > 2000;
-        const isResolved = curr.status !== "pending";
+    processQueue(processEvent: (event: DispatchEvent) => void) {
+        let curr = this.peek();
+        while (curr) {
+            const isStale = performance.now() - curr.time > 2000;
+            const isResolved = curr.status !== "pending";
 
-        if (isResolved || isStale) {
-            processEvent(curr.event); 
-            this.dequeue();   
-            curr = this.peek();
-        } else {
-            break; 
+            if (isResolved || isStale) {
+                processEvent(curr.event); 
+                this.dequeue();   
+                curr = this.peek();
+            } else {
+                break; 
+            }
         }
     }
-}
 }

@@ -1,12 +1,8 @@
-import { EventTypes, type AppEvent } from "../Events/AppEvent";
-import { type Observer } from "@/Types/Observer";
 import { UIEngine } from "./UIEngine";
 import { KeydownManager } from "./KeydownManager";
 import { DOMHandlers } from "./DOMHandlers/DOMHandlers"
-import { StateContainer } from "../State";
 import { DOMCommands,DOMElements } from "@/Constants/DOMElements";
-import { setZoom } from "../Events/Canvas/setZoom"
-import { StateContainer } from "../State";
+import { calculateZoom } from "./calculateZoom";
 
 import type { GlobalContext } from "../Mediator";
 
@@ -30,14 +26,13 @@ public registerRef(ID: keyof typeof DOMElements, ref: React.RefObject<HTMLElemen
 
 public setZoom(newSliderVal:number){
     const widthRef = this.#getRef(DOMCommands.DRAW_TRACK_ONE_WAVEFORMS);
-    const playheadRef = this.#getRef(DOMCommands.DRAW_PLAYHEAD);
-    const width = widthRef?.current.clientWidth;
-    const playheadPosSeconds = this.#context.query("playheadLocation");
-    if(widthRef && playheadRef){
-        this.#context.dispatch(new setZoom(newSliderVal));
-    }else{
-        console.error("References for width or playhead were not available when setting zoom, setting zoom failed");
+    if(!widthRef || !widthRef.current){
+        console.error("Width reference was not available when setting zoom, setting zoom failed");
+        return;
     }
+    const width = widthRef.current.clientWidth;
+    const newZoom = calculateZoom(this.#context.query.bind(this.#context),newSliderVal,width);
+    
 }
 
 public handlePlayheadMouseDown(e: React.MouseEvent<HTMLDivElement>) {

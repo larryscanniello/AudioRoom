@@ -55,7 +55,7 @@ export class HandleTimelineMouseDown {
         this.#isDragging = true;
         
         // Dispatch start of interaction
-        this.#context.dispatch({ type: "timeline_mousedown", payload: coords });
+        this.#context.dispatch(new MouseDragStart());
 
         window.addEventListener('mousemove', this.#handleCanvasMouseMove);
         window.addEventListener('mouseup', this.#handleCanvasMouseUp);

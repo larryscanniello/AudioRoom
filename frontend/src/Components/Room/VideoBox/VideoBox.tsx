@@ -1,5 +1,5 @@
 import { PeerJSManager } from "@/Classes/WebRTC/PeerJSManager";
-import { JoinRoomButton } from "./JoinRoomButton";
+import { useEffect, useRef } from "react";
 
 interface VideoProps {
   webRTCManager: PeerJSManager | null;
@@ -8,9 +8,34 @@ interface VideoProps {
 }
 
 export default function VideoBox({webRTCManager,height,roomJoined}: VideoProps) {
+
+  const localStreamRef = useRef<HTMLVideoElement>(null);
+  const remoteStreamRef = useRef<HTMLVideoElement>(null);
+
+  if(!webRTCManager){
+    return <div></div>
+  }
+
+  const localStream = webRTCManager.getLocalStream();
+  const remoteStream = webRTCManager.getRemoteStream(); 
+
+  useEffect(() => {
+      if (localStreamRef.current && localStream) {
+        localStreamRef.current.srcObject = localStream;
+      }
+      if (remoteStreamRef.current && remoteStream) {
+        remoteStreamRef.current.srcObject = remoteStream;
+      }
+  }, [localStream, remoteStream]);
+  
+  if (!localStream && !remoteStream) {
+    return <div>No streams available</div>;
+  }
+
     return <div>
-    {remoteStreamRef.current && (
+    {remoteStream && (
               <video
+                ref={remoteStreamRef}
                 autoPlay
                 playsInline
                 className="bg-black"
@@ -21,7 +46,7 @@ export default function VideoBox({webRTCManager,height,roomJoined}: VideoProps) 
                 }}
               />
             )}
-            {(!remoteStreamRef.current && !showJoinRoom) && <div className="bg-white border-1 border-gray-700 text-black absolute px-4 py-1 rounded-2xl">Waiting for partner to join room</div>}
+            {(!remoteStream && !roomJoined) && <div className="bg-white border-1 border-gray-700 text-black absolute px-4 py-1 rounded-2xl">Waiting for partner to join room</div>}
             <video
               ref={localStreamRef}
               autoPlay

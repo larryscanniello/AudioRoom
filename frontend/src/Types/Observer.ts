@@ -1,8 +1,7 @@
-import { EventTypes } from "@/Classes/Events/AppEvent";
-import type { AppEvent } from "@/Classes/Events/AppEvent";
+import type { DispatchEvent } from "@/Classes/Mediator";
 
 interface Observer {
-    update(event: AppEvent,data?:any): void;
+    update(event: DispatchEvent,data:any): void;
 }
 
 interface Subject {
@@ -10,7 +9,7 @@ interface Subject {
 
     detach(observer: Observer): void;
 
-    notify(event: keyof typeof EventTypes,data: any): void;
+    notify(event: DispatchEvent, data: any): void;
 }
 
 

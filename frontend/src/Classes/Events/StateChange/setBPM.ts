@@ -1,7 +1,7 @@
 
 import type { State } from "@/Classes/State";
-import { EventTypes } from "../AppEvent"
-import type { StateChange } from "../AppEvent";
+import { EventTypes } from "../EventNamespace"
+import type { StateChange } from "../EventNamespace";
 import type { StateContainer } from "@/Classes/State";
 
 export class BPMchange implements StateChange<'bpm'> {

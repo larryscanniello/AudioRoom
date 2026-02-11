@@ -174,7 +174,10 @@ export class SessionBuilder{
         const mediator = new Mediator(state);
         const globalContext = mediator.getGlobalContext();
         const mediaProvider = new MediaProvider(new AudioContext({latencyHint: "interactive"}), this.#config.standaloneMode);
-        const socketManager = this.#config.socketManager ? new SocketManager() : undefined;
+        const socketManager = this.#config.socketManager ? new SocketManager(globalContext) : undefined;
+        if(socketManager){ //later I want to enable just video chat alone, but for now, this will do
+            socketManager.initDAWConnection();
+        }
         const webRTCManager = this.#config.webRTCManager && socketManager ? new PeerJSManager(mediaProvider,globalContext,socketManager.getSocket()) : undefined;
         const {audioController,audioEngine} = await this.#getAudioController(globalContext,mediaProvider)
         

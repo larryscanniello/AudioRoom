@@ -15,7 +15,7 @@ import RemoteVolumeSlider from "./VideoBox/VideoChatControls/RemoteVolumeSlider.
 import AudioBoard from "./AudioBoard/AudioBoard.tsx";
 
 export default function Room() {
-    const [width,height] = useWindowSize();
+    const [_width,height] = useWindowSize();
     const [validRoom, setValidRoom] = useState<boolean>(false);
     const [errorMessage, setErrorMessage] = useState<string>("");
     const [roomJoined, setRoomJoined] = useState<boolean>(false);
@@ -57,15 +57,24 @@ export default function Room() {
           setSharedFile(data);
         });*/
     
-        const {audioController,uiController,webRTCManager} = new SessionBuilder(roomID)
+        const builderResult = await new SessionBuilder(roomID)
           .withReact(setDawInternalState)
           .withAudEngine("worklet")
-          .withMixer()
+          .withMixTracks(16)
           .withPeerJSWebRTC()
           .build();
 
+        if(!builderResult){
+          throw new Error("Session builder failed, returned null");
+        }
+
+        const {audioController,uiController,webRTCManager} = builderResult;
+
         audioControllerRef.current = audioController;
         uiControllerRef.current = uiController;
+        if(!webRTCManager){
+          throw new Error("Session builder failed to create WebRTC manager");
+        }
         webRTCManagerRef.current = webRTCManager;
         webRTCManagerRef.current?.loadStream()
           .then((localGain)=>{
@@ -78,20 +87,13 @@ export default function Room() {
             throw new Error("Error loading local media stream:",err);
           });
       }
-      
-
-    
       init();
-      
-    
-      /* ------------------ Cleanup ------------------ */
+
       return () => {
 
         webRTCManagerRef.current?.terminate();
       };
     }, [roomID]);
-
-    
 
 
     return <div className="flex flex-col h-screen">
@@ -108,7 +110,7 @@ export default function Room() {
                             setRemoteVolume={setRemoteVolume} 
                             gainNodesRef={gainNodesRef} 
                             micsMuted={micsMuted} />
-        <AudioBoard/> 
+        <AudioBoard audioControllerRef={audioControllerRef} uiControllerRef={uiControllerRef}/> 
         </div> 
         
         : <div className="flex flex-col items-center">

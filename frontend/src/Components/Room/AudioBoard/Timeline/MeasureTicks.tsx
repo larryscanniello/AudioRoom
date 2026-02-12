@@ -1,5 +1,5 @@
 import { DOMElements } from "@/Constants/DOMElements";
-import { useEffect, useRef } from "react";
+import {  useRef } from "react";
 
 type MeasureTicksProps = {
     timelinePxLen:number,
@@ -10,13 +10,10 @@ type MeasureTicksProps = {
 export default function MeasureTicks({timelinePxLen,compactMode,uiControllerRef}:MeasureTicksProps){
     const measureTickRef = useRef<HTMLCanvasElement>(null);
 
-     useEffect(()=>{
-        if(uiControllerRef.current && measureTickRef.current){
-            uiControllerRef.current.registerRef(DOMElements.MEASURE_TICK_CONTAINER,measureTickRef);
-        }else{
-            console.error("MeasureTicks: Failed to register measure tick ref, either uiControllerRef or measureTickRef was not available");
-        }
-     },[])
+
+    if(uiControllerRef.current){
+        uiControllerRef.current.registerRef(DOMElements.MEASURE_TICK_CONTAINER,measureTickRef);   
+    }
 
 
     return <canvas className="row-start-1 col-start-2"

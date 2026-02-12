@@ -1,7 +1,6 @@
-import { Trash2, Undo, Redo, KeyboardMusic, ArrowDownToLine, CassetteTape } from "lucide-react";
 import { Slider } from "@/Components/ui/slider";
 import { CONSTANTS } from "@/Constants/constants.ts";
-import type { AudioController } from "@/Classes/Audio/AudioController";
+import type { AudioController } from "@/Core/Audio/AudioController";
 import type React from "react";
 
 type MixTrackHeaderProps = {
@@ -33,18 +32,7 @@ export default function MixTrackHeader({ audioControllerRef, compactMode }: MixT
     const isMixMuted = audioController ? audioController.isMixTrackMuted() : false;
 
     return <div style={{ width: `${CONSTANTS.LEFT_CONTROLS_WIDTH}`, height: Math.floor(58 * compactMode) }} className="border-b border-black flex flex-row items-center">
-        <button>
-            <Undo className="scale-75" />
-        </button>
-        <button>
-            <Redo className="scale-75" />
-        </button>
-        <button>
-            <Trash2 className="scale-75" />
-        </button>
-        <button>
-            <KeyboardMusic className="scale-75" />
-        </button>
+        
         <button className={"border-1 border-black text-white text-xs w-8 h-5 ml-1 pr-1 pl-1 rounded-sm " 
             + (isMixMuted ? "bg-amber-600" : "")}
             onClick={handleMuteToggle}
@@ -56,12 +44,6 @@ export default function MixTrackHeader({ audioControllerRef, compactMode }: MixT
             onValueChange={(value: number[]) => handleVolSlider(value)} 
         >
         </Slider>
-        <button className="mr-3 relative w-8 h-5"
-            onClick={() => { }}
-        >
-            <ArrowDownToLine className="absolute scale-75 -top-2.5 -left-1" />
-            <CassetteTape className="absolute scale-75 top-1.5 -left-1" />
-        </button>
     </div>;
 }
 

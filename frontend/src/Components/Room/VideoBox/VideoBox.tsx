@@ -1,4 +1,4 @@
-import { PeerJSManager } from "@/Classes/WebRTC/PeerJSManager";
+import { PeerJSManager } from "@/Core/WebRTC/PeerJSManager";
 import { useEffect, useRef } from "react";
 
 interface VideoProps {

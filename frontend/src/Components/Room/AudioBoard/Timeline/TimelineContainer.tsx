@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react"
+import { useRef } from "react"
 
 
 type TimelineContainerProps = {
@@ -12,13 +12,11 @@ export default function TimelineContainer({timelinePxLen,compactMode,uiControlle
     
     const timelineContainerRef = useRef<HTMLCanvasElement>(null);
     
-    useEffect(()=>{
-        if(uiControllerRef.current && timelineContainerRef.current){
-            uiControllerRef.current.registerRef("timelineContainer",timelineContainerRef);
-        }else{
-            console.error("TimelineContainer: Failed to register timeline container ref, either uiControllerRef or timelineContainerRef was not available");
-        }
-    },[])
+
+
+    if(uiControllerRef.current && timelineContainerRef.current){
+        uiControllerRef.current.registerRef("timelineContainer",timelineContainerRef);
+    }
 
     const onMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
         if(uiControllerRef.current){

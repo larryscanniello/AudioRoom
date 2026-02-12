@@ -1,16 +1,16 @@
 import { useWindowSize } from "../useWindowSize.tsx";
 import { useEffect,useRef,useState } from "react";
 import { useParams } from "react-router-dom"
-import { SessionBuilder } from "@/Classes/Builders/SessionBuilder";
+import { SessionBuilder } from "@/Core/Builders/SessionBuilder.ts";
 
 import VideoBox from "./VideoBox/VideoBox.tsx";
 import JoinRoomButton from "./VideoBox/JoinRoomButton.tsx";
 import ToggleMicButton from "./VideoBox/VideoChatControls/ToggleLocalMicButton.tsx";
 import ToggleRemoteMicButton from "./VideoBox/VideoChatControls/ToggleRemoteMicButton.tsx";
 
-import type { AudioController } from "@/Classes/Audio/AudioController";
-import type { UIController } from "@/Classes/UI/UIController";
-import type { PeerJSManager } from "@/Classes/WebRTC/PeerJSManager.ts";
+import type { AudioController } from "@/Core/Audio/AudioController.ts";
+import type { UIController } from "@/Core/UI/UIController.ts";
+import type { PeerJSManager } from "@/Core/WebRTC/PeerJSManager.ts";
 import RemoteVolumeSlider from "./VideoBox/VideoChatControls/RemoteVolumeSlider.tsx";
 import AudioBoard from "./AudioBoard/AudioBoard.tsx";
 
@@ -56,10 +56,15 @@ export default function Room() {
         socketManagerRef.current.on("file_transfer", (data:any) => {
           setSharedFile(data);
         });*/
+
+        const filepaths = {
+          opfsFilePath: "/opfs_worker.ts",
+          workletFilePath: "/AudioProcessor.js",
+        }
     
         const builderResult = await new SessionBuilder(roomID)
           .withReact(setDawInternalState)
-          .withAudEngine("worklet")
+          .withAudEngine("worklet", filepaths)
           .withMixTracks(16)
           .withPeerJSWebRTC()
           .build();
@@ -75,6 +80,7 @@ export default function Room() {
         if(!webRTCManager){
           throw new Error("Session builder failed to create WebRTC manager");
         }
+
         webRTCManagerRef.current = webRTCManager;
         webRTCManagerRef.current?.loadStream()
           .then((localGain)=>{
@@ -95,6 +101,7 @@ export default function Room() {
       };
     }, [roomID]);
 
+    console.log('uiControllerRef',uiControllerRef.current);
 
     return <div className="flex flex-col h-screen">
         {validRoom ? <div>
@@ -110,7 +117,7 @@ export default function Room() {
                             setRemoteVolume={setRemoteVolume} 
                             gainNodesRef={gainNodesRef} 
                             micsMuted={micsMuted} />
-        <AudioBoard audioControllerRef={audioControllerRef} uiControllerRef={uiControllerRef}/> 
+        <AudioBoard audioControllerRef={audioControllerRef} uiControllerRef={uiControllerRef} webRTCManagerRef={webRTCManagerRef}/> 
         </div> 
         
         : <div className="flex flex-col items-center">

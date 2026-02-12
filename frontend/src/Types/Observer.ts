@@ -1,4 +1,4 @@
-import type { DispatchEvent } from "@/Classes/Mediator";
+import type { DispatchEvent } from "@/Core/Mediator";
 
 interface Observer {
     update(event: DispatchEvent,data:any): void;

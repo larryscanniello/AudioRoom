@@ -1,6 +1,6 @@
 import { CONSTANTS } from "@/Constants/constants";
 import type { Region } from "@/Types/AudioState";
-import { useRef, useEffect } from "react"; 
+import { useRef } from "react"; 
 
 type StagingTrackProps = {
     timelinePxLen: number;
@@ -78,12 +78,11 @@ export default function StagingTrack({timelinePxLen,compactMode,uiControllerRef}
         });
     }
     
-    const timeline = uiControllerRef.current?.query("timeline");
+    const timeline = uiControllerRef.current ? uiControllerRef.current.query("timeline") : {staging: []};
 
-    // Update regions whenever the timeline changes; useEffect w/ no dep ensures setRegions is called after render
-    useEffect(() => {
+    if(uiControllerRef.current){
         setRegions();
-    });
+    }
 
     return <div><canvas 
             ref={stagingWaveformsRef}

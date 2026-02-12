@@ -1,6 +1,6 @@
 import { Button } from "@/Components/ui/button";
 import { PiMetronomeDuotone } from "react-icons/pi";
-import type { AudioController } from "@/Classes/Audio/AudioController";
+import type { AudioController } from "@/Core/Audio/AudioController";
 
 type MetronomeProps = {
     audioControllerRef: React.RefObject<AudioController|null>;

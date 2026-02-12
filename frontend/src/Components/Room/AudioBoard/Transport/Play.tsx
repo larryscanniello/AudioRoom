@@ -1,6 +1,6 @@
 import { Button } from "@/Components/ui/button";
 import { Play as PlayIcon } from "lucide-react";
-import type { AudioController } from "@/Classes/Audio/AudioController";
+import type { AudioController } from "@/Core/Audio/AudioController";
 
 type PlayProps = {
     audioControllerRef:React.RefObject<AudioController|null>,

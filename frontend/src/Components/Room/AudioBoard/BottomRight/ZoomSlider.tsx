@@ -1,4 +1,4 @@
-import { UIController } from "@/Classes/UI/UIController";
+import { UIController } from "@/Core/UI/UIController";
 import { Slider } from "@/Components/ui/slider";
 import { CONSTANTS } from "@/Constants/constants";
 import { FaMagnifyingGlass } from "react-icons/fa6";
@@ -23,7 +23,7 @@ export default function ZoomSlider({uiControllerRef, compactMode, timelinePxLen}
     if(uiControllerRef.current){
         samplesPerPx = uiControllerRef.current.query("viewport").samplesPerPx;
     }else{
-        throw new Error("UIController reference was not available when trying to get viewport, cannot determine slider value");
+        samplesPerPx = 100;
     }
 
     /*

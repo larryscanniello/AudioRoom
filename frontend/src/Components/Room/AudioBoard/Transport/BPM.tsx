@@ -1,5 +1,5 @@
 import { Button } from "@/Components/ui/button";
-import type { AudioController } from "@/Classes/Audio/AudioController";
+import type { AudioController } from "@/Core/Audio/AudioController";
 
 type BPMProps = {
     audioControllerRef: React.RefObject<AudioController|null>;

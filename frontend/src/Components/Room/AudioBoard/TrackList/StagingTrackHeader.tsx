@@ -1,7 +1,7 @@
 import { Trash2, Undo, Redo, KeyboardMusic, ArrowDownToLine, CassetteTape} from "lucide-react";
 import { Slider } from "@/Components/ui/slider"
 import { CONSTANTS } from "@/Constants/constants.ts";
-import type { AudioController } from "@/Classes/Audio/AudioController";
+import type { AudioController } from "@/Core/Audio/AudioController";
 import type React from "react";
 
 type StagingTrackHeaderProps = {

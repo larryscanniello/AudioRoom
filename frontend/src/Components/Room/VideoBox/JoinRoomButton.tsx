@@ -1,8 +1,8 @@
-import type { PeerJSManager } from "@/Classes/WebRTC/PeerJSManager";
+import type { PeerJSManager } from "@/Core/WebRTC/PeerJSManager";
 import { useParams } from "react-router-dom";
 
 type JoinRoomButtonProps = {
-    webRTCManager?: PeerJSManager;
+    webRTCManager: PeerJSManager|null;
     setRoomJoined: (show: boolean) => void;
 }
 
@@ -17,6 +17,9 @@ export default function JoinRoomButton({webRTCManager, setRoomJoined}: JoinRoomB
             throw new Error("WebRTC manager not initialized in JoinRoomButton");
         }
         webRTCManager.initializePeer();
+        if(!roomID){
+            throw new Error("No room ID found in URL params");
+        }
         webRTCManager.joinSocketRoom(roomID);
         setRoomJoined(true);
     }

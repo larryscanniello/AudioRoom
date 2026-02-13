@@ -1,6 +1,7 @@
 import { CONSTANTS } from "@/Constants/constants";
 import type { Region } from "@/Types/AudioState";
 import { useRef } from "react"; 
+import { DOMElements } from "@/Constants/DOMElements";
 
 type StagingTrackProps = {
     timelinePxLen: number;
@@ -80,7 +81,8 @@ export default function StagingTrack({timelinePxLen,compactMode,uiControllerRef}
     
     const timeline = uiControllerRef.current ? uiControllerRef.current.query("timeline") : {staging: []};
 
-    if(uiControllerRef.current){
+    if(uiControllerRef.current && stagingWaveformsRef.current){
+        uiControllerRef.current.registerRef(DOMElements.TRACK_ONE, stagingWaveformsRef);
         setRegions();
     }
 
@@ -88,7 +90,7 @@ export default function StagingTrack({timelinePxLen,compactMode,uiControllerRef}
             ref={stagingWaveformsRef}
             width={timelinePxLen}
             height={Math.floor(58*compactMode)}
-            style={{width:`${timelinePxLen}px`,imageRendering:"pixelated",height:Math.floor(58*compactMode)}} 
+            style={{width:`${timelinePxLen}px`,imageRendering:"pixelated",height:`${Math.floor(58*compactMode)}px`}} 
             className={`row-start-2 col-start-3`}
             onMouseDown={handleCanvasMouseDown}
             >

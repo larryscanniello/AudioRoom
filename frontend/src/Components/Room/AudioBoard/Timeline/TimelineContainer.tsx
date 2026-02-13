@@ -1,5 +1,5 @@
 import { useRef } from "react"
-
+import { DOMElements } from "@/Constants/DOMElements";
 
 type TimelineContainerProps = {
     timelinePxLen:number,
@@ -13,9 +13,8 @@ export default function TimelineContainer({timelinePxLen,compactMode,uiControlle
     const timelineContainerRef = useRef<HTMLCanvasElement>(null);
     
 
-
-    if(uiControllerRef.current && timelineContainerRef.current){
-        uiControllerRef.current.registerRef("timelineContainer",timelineContainerRef);
+    if(uiControllerRef.current){
+        uiControllerRef.current.registerRef(DOMElements.CANVAS_CONTAINER,timelineContainerRef);
     }
 
     const onMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -30,7 +29,7 @@ export default function TimelineContainer({timelinePxLen,compactMode,uiControlle
                 ref={timelineContainerRef}
                 width={timelinePxLen}
                 height={Math.floor(115*compactMode)}
-                style={{width:`${timelinePxLen}px`,height:Math.floor(115*compactMode),imageRendering:"pixelated"}}
+                style={{width:`${timelinePxLen}px`,height:`${Math.floor(115*compactMode)}px`,imageRendering:"pixelated"}}
                 className="row-start-2 col-start-2"
                 onMouseDown={onMouseDown}
             />

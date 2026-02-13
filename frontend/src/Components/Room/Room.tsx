@@ -57,7 +57,18 @@ export default function Room() {
           setSharedFile(data);
         });*/
 
-        const filepaths = {
+       
+      }
+      init();
+
+      return () => {
+
+        webRTCManagerRef.current?.terminate();
+      };
+    }, []);
+
+    async function initDAW(){
+       const filepaths = {
           opfsFilePath: "/opfs_worker.ts",
           workletFilePath: "/AudioProcessor.js",
         }
@@ -76,10 +87,17 @@ export default function Room() {
         const {audioController,uiController,webRTCManager} = builderResult;
 
         audioControllerRef.current = audioController;
+        console.log('uiController from builderResult', uiController);
         uiControllerRef.current = uiController;
         if(!webRTCManager){
           throw new Error("Session builder failed to create WebRTC manager");
         }
+
+        webRTCManager.initializePeer();
+        if(!roomID){
+          throw new Error("No room ID found in URL params");
+        }
+        webRTCManager.joinSocketRoom(roomID);
 
         webRTCManagerRef.current = webRTCManager;
         webRTCManagerRef.current?.loadStream()
@@ -92,14 +110,15 @@ export default function Room() {
           .catch((err)=>{
             throw new Error("Error loading local media stream:",err);
           });
+    }
+
+    useEffect(()=>{
+      if(uiControllerRef.current){
+        uiControllerRef.current.drawAllCanvases();
       }
-      init();
+    },[roomJoined])
 
-      return () => {
-
-        webRTCManagerRef.current?.terminate();
-      };
-    }, [roomID]);
+    
 
     console.log('uiControllerRef',uiControllerRef.current);
 
@@ -110,14 +129,15 @@ export default function Room() {
         height={height}
         roomJoined={roomJoined}
           />
-        <JoinRoomButton webRTCManager={webRTCManagerRef.current} setRoomJoined={setRoomJoined}/>
-        <ToggleMicButton gainNodesRef={gainNodesRef} micsMuted={micsMuted} setMicsMuted={setMicsMuted} />
+        {!roomJoined && <JoinRoomButton setRoomJoined={setRoomJoined} initDAW={initDAW} roomJoined={roomJoined}/>}
+        {roomJoined && <div><ToggleMicButton gainNodesRef={gainNodesRef} micsMuted={micsMuted} setMicsMuted={setMicsMuted} />
         <ToggleRemoteMicButton gainNodesRef={gainNodesRef} micsMuted={micsMuted} setMicsMuted={setMicsMuted} />
         <RemoteVolumeSlider remoteVolume={remoteVolume} 
                             setRemoteVolume={setRemoteVolume} 
                             gainNodesRef={gainNodesRef} 
                             micsMuted={micsMuted} />
-        <AudioBoard audioControllerRef={audioControllerRef} uiControllerRef={uiControllerRef} webRTCManagerRef={webRTCManagerRef}/> 
+        </div>}
+        {roomJoined && <AudioBoard audioControllerRef={audioControllerRef} uiControllerRef={uiControllerRef} webRTCManagerRef={webRTCManagerRef}/>} 
         </div> 
         
         : <div className="flex flex-col items-center">

@@ -2,7 +2,7 @@ import { CONSTANTS } from "@/Constants/constants";
 
 import { type StateContainer } from "@/Core/State";
 
-export function renderStagingWaveforms(ref: React.RefObject<HTMLElement>, data: StateContainer, mipMap: Int8Array){
+export function renderStagingWaveforms(ref: React.RefObject<HTMLElement|null>, data: StateContainer, mipMap: Int8Array){
 
     if(!(ref.current instanceof HTMLCanvasElement)){
         console.error("Reference in renderStagingWaveforms is not a HTMLCanvasElement");

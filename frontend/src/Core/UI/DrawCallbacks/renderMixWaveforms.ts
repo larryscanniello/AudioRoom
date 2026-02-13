@@ -1,7 +1,7 @@
 import { CONSTANTS } from "@/Constants/constants";
 import type { StateContainer } from "@/Core/State";
 
-export function renderMixWaveforms(ref: React.RefObject<HTMLElement>, data: StateContainer, mipMap: Int8Array){
+export function renderMixWaveforms(ref: React.RefObject<HTMLElement|null>, data: StateContainer, mipMap: Int8Array){
         if(!(ref.current instanceof HTMLCanvasElement)){
             console.error("Reference in renderMixWaveforms is not a HTMLCanvasElement");
             return

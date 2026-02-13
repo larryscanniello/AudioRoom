@@ -12,12 +12,16 @@ export class PlayheadManager {
         this.#audioCtx = audioCtx;
      }
 
-    playheadLoop(playheadRef:React.RefObject<HTMLElement>,
-                    waveformRef:React.RefObject<HTMLElement>, 
+    playheadLoop(playheadRef:React.RefObject<HTMLElement|null>,
+                    waveformRef:React.RefObject<HTMLElement|null>, 
                     timeline: {start: number, end: number}){
         {
             const { isMoving, startTime } = this.playheadData;
 
+            if(!playheadRef.current || !waveformRef.current){
+                console.error("Playhead or waveform ref not found during playhead loop");
+                return;
+            }
             const rect = waveformRef.current.getBoundingClientRect();
             const width = rect.width;
             const viewport = this.#context.query("viewport");

@@ -1,6 +1,10 @@
 import { type StateContainer } from "@/Core/State";
 
-export function setPlayhead(ref: React.RefObject<HTMLElement>,data: StateContainer,_mipMap: Int8Array){
+export function setPlayhead(ref: React.RefObject<HTMLElement|null>,data: StateContainer,_mipMap: Int8Array){
+        if(!ref.current){
+            console.error("Reference in setPlayhead is not available");
+            return;
+        }
         const {viewport,playheadTimeSeconds} = data;
         const containerWidth = ref.current.dataset.containerWidth;
         if(!containerWidth){

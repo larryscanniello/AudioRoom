@@ -22,7 +22,7 @@ export class UIController {
         this.#DOMHandlers = DOMHandlers;
     }
 
-public registerRef(ID: keyof typeof DOMElements, ref: React.RefObject<HTMLElement>): void {
+public registerRef(ID: keyof typeof DOMElements, ref: React.RefObject<HTMLElement|null>): void {
     this.#UIEngine.registerRef(ID, ref);
     this.#DOMHandlers.registerRef(ID, ref);
 }
@@ -46,7 +46,7 @@ public timelineMouseDown(e: React.MouseEvent<HTMLCanvasElement>) {
     this.#DOMHandlers.timelineMouseDown(e);
 }
 
-#getRef(ID: keyof typeof DOMCommands): React.RefObject<HTMLElement> | undefined {
+#getRef(ID: keyof typeof DOMCommands): React.RefObject<HTMLElement | null> | undefined{
     return this.#UIEngine.getRef(ID);
 }
 

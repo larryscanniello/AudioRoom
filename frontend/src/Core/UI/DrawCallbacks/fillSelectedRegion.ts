@@ -1,11 +1,12 @@
 import { type StateContainer } from "@/Core/State";
 
-export function fillSelectedRegion(ref: React.RefObject<HTMLElement>, data:StateContainer,_mipMap: Int8Array){
+export function fillSelectedRegion(ref: React.RefObject<HTMLElement|null>, data:StateContainer,_mipMap: Int8Array){
         const {viewport, mouseDragStart, mouseDragEnd} = data;
         if(!(ref.current instanceof HTMLCanvasElement)){
             console.error("Reference in fillSelectedRegion is not a HTMLCanvasElement");
             return
         };
+        return
         const canvasCtx = ref.current.getContext("2d")!;
         const WIDTH = canvasCtx.canvas.width;
         const HEIGHT = canvasCtx.canvas.height;

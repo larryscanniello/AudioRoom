@@ -1,5 +1,6 @@
 import { UIController } from "@/Core/UI/UIController";
 import { useRef } from "react";
+import { DOMElements } from "@/Constants/DOMElements";
 
 type PlayheadProps = {
     compactMode: number;
@@ -21,6 +22,10 @@ export default function Playhead({compactMode,windowLen,UIControllerRef}: Playhe
         }else{
             console.error("UIController reference was not available when trying to move playhead, playhead may not move correctly");
         }
+    }
+
+    if(UIControllerRef.current && playheadRef && playheadRef.current){
+        UIControllerRef.current.registerRef(DOMElements.PLAYHEAD, playheadRef);
     }
 
 

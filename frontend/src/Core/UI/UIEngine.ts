@@ -23,34 +23,36 @@ export type MipMap = {
 }
 
 export class UIEngine implements Observer{
-    #refs: Map<keyof typeof DOMCommands, React.RefObject<HTMLElement>>;
-    #drawCallbacks: Map<keyof typeof DOMCommands, 
-                    (ref: React.RefObject<HTMLElement>, data: StateContainer, mipMap: Int8Array) => void>
+    #refs: Map<keyof typeof DOMCommands, React.RefObject<HTMLElement|null>>;
     #mipMap: MipMap;
     #mediaProvider: MediaProvider;
     #playheadManager: PlayheadManager;
     #context: GlobalContext;
+    #callbackObj: {[key in keyof typeof DOMCommands]: 
+        (ref: React.RefObject<HTMLElement|null>, 
+        data: StateContainer, 
+        mipMap: Int8Array) => void};
 
     constructor(mipMap: MipMap,mediaProvider: MediaProvider,context: GlobalContext) {
         this.#mipMap = mipMap;
         this.#mediaProvider = mediaProvider;
         this.#context = context;
         this.#refs = new Map();
-        this.#drawCallbacks = new Map()
-        this.getCallbackObj();
+        this.#callbackObj =this.#getCallbackObj();
         this.#playheadManager = new PlayheadManager(this.#context, this.#mediaProvider.getAudioContext());
     }
 
-    public getRef(ID: keyof typeof DOMCommands): React.RefObject<HTMLElement>|undefined{
+    public getRef(ID: keyof typeof DOMCommands): React.RefObject<HTMLElement|null>|undefined{
         return this.#refs.get(ID);
     }
 
     public update(event:DispatchEvent,data:any):void{
+        console.log(event);
         const namespace = event.getEventNamespace();
         namespace.executeUI(this, data);
     }
 
-    public registerRef(ID: keyof typeof DOMElements, ref: React.RefObject<HTMLElement>) {
+    public registerRef(ID: keyof typeof DOMElements, ref: React.RefObject<HTMLElement|null>) {
         switch(ID){
             case DOMElements.CANVAS_CONTAINER:
                 this.#refs.set(DOMCommands.DRAW_CANVAS_CONTAINER, ref);
@@ -74,13 +76,17 @@ export class UIEngine implements Observer{
     }
 
     public draw(commands: (keyof typeof DOMCommands)[], data: StateContainer) {
+        console.log('reached Draw');
         for(let command of commands){
             const ref = this.#refs.get(command);
+            console.log('got ref for command', command, ref);
             if(ref && ref.current){
-                const callback = this.#drawCallbacks.get(command)
+                console.log(`Drawing command: ${command}`);
+                const callback = this.#callbackObj[command];
                 const mipMap = command === DOMCommands.DRAW_TRACK_ONE_WAVEFORMS ? this.#mipMap.staging : 
                                 command === DOMCommands.DRAW_TRACK_TWO_WAVEFORMS ? this.#mipMap.mix : this.#mipMap.empty;
                 if(callback){
+                    console.log('about to call callback',callback);
                     callback(ref, data, mipMap);                
                 }else{
                     console.error(`No callback found for command: ${command}`);
@@ -98,6 +104,10 @@ export class UIEngine implements Observer{
         }
         const audioCtx = this.#mediaProvider.getAudioContext();
         this.#playheadManager.playheadData = {isMoving:true, startTime: audioCtx.currentTime};
+        if(!playheadRef ||!playheadRef.current || !waveformRef.current){
+            console.error("Playhead or waveform ref not found when starting playhead loop");
+            return;
+        }
         this.#playheadManager.playheadLoop(playheadRef, waveformRef,timeline);
         
     }
@@ -108,28 +118,28 @@ export class UIEngine implements Observer{
 
     
 
-    private getCallbackObj():
+    #getCallbackObj():
     {[key in keyof typeof DOMCommands]: 
-        (ref: React.RefObject<HTMLElement>, 
+        (ref: React.RefObject<HTMLElement|null>, 
         data: StateContainer, 
         mipMap: Int8Array) => void}{
         return {
             [DOMCommands.DRAW_CANVAS_CONTAINER]:
-                (ref: React.RefObject<HTMLElement>, data: StateContainer, mipMap: Int8Array) => {drawCanvasContainer(ref, data, mipMap)},
+                (ref: React.RefObject<HTMLElement|null>, data: StateContainer, mipMap: Int8Array) => {drawCanvasContainer(ref, data, mipMap)},
             [DOMCommands.DRAW_MEASURE_TICK_CONTAINER]: 
-                (ref: React.RefObject<HTMLElement>, data: StateContainer, mipMap: Int8Array) => {drawMeasureTicks(ref, data, mipMap)},
+                (ref: React.RefObject<HTMLElement|null>, data: StateContainer, mipMap: Int8Array) => {drawMeasureTicks(ref, data, mipMap)},
             [DOMCommands.DRAW_TRACK_ONE_WAVEFORMS]:
-                (ref: React.RefObject<HTMLElement>, data: StateContainer, mipMap: Int8Array) => {renderStagingWaveforms(ref,data,mipMap)},
+                (ref: React.RefObject<HTMLElement|null>, data: StateContainer, mipMap: Int8Array) => {renderStagingWaveforms(ref,data,mipMap)},
             [DOMCommands.DRAW_TRACK_TWO_WAVEFORMS]:
-                (ref: React.RefObject<HTMLElement>, data: StateContainer, mipMap: Int8Array) => {renderMixWaveforms(ref,data,mipMap)},
+                (ref: React.RefObject<HTMLElement|null>, data: StateContainer, mipMap: Int8Array) => {renderMixWaveforms(ref,data,mipMap)},
             [DOMCommands.FILL_SELECTED_REGION_MEASURE_TICKS]:
-                (ref: React.RefObject<HTMLElement>, data: StateContainer, mipMap: Int8Array) => {fillSelectedRegion(ref,data,mipMap)},
+                (ref: React.RefObject<HTMLElement|null>, data: StateContainer, mipMap: Int8Array) => {fillSelectedRegion(ref,data,mipMap)},
             [DOMCommands.FILL_SELECTED_REGION_TRACK_ONE]:
-                (ref: React.RefObject<HTMLElement>, data: StateContainer, mipMap: Int8Array) => {fillSelectedRegion(ref,data,mipMap)},
+                (ref: React.RefObject<HTMLElement|null>, data: StateContainer, mipMap: Int8Array) => {fillSelectedRegion(ref,data,mipMap)},
             [DOMCommands.FILL_SELECTED_REGION_TRACK_TWO]:
-                (ref: React.RefObject<HTMLElement>, data: StateContainer, mipMap: Int8Array) => {fillSelectedRegion(ref,data,mipMap)},
+                (ref: React.RefObject<HTMLElement|null>, data: StateContainer, mipMap: Int8Array) => {fillSelectedRegion(ref,data,mipMap)},
             [DOMCommands.DRAW_PLAYHEAD]:
-                (ref: React.RefObject<HTMLElement>, data: StateContainer, mipMap: Int8Array) => {setPlayhead(ref,data,mipMap)}
+                (ref: React.RefObject<HTMLElement|null>, data: StateContainer, mipMap: Int8Array) => {setPlayhead(ref,data,mipMap)}
         }
     }
 

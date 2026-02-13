@@ -41,8 +41,9 @@ export class WorkletAudioEngine implements AudioEngine{
         this.#metronome = new Metronome();
     }
 
-    public update(event:DispatchEvent): void {
-        event.execute(this);
+    public update(event:DispatchEvent,data:any): void {
+        const namespace = event.getEventNamespace();
+        namespace.executeAudio(this,data);
     }
 
     public play(data: AudioProcessorData) {

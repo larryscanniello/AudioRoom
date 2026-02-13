@@ -9,7 +9,7 @@ export class DOMHandlers {
     #handleTimelineMouseDown: HandleTimelineMouseDown;
     #handlePlayheadMouseDown: HandlePlayheadMouseDown;
     #handleBPMBoxMouseDown: HandleBPMBoxMouseDown;
-    #refs: Map<keyof typeof DOMElements, React.RefObject<HTMLElement>>;
+    #refs: Map<keyof typeof DOMElements, React.RefObject<HTMLElement|null>>;
 
     constructor(context: GlobalContext) {
         this.#refs = new Map();
@@ -18,13 +18,13 @@ export class DOMHandlers {
         this.#handleBPMBoxMouseDown = new HandleBPMBoxMouseDown(context);    
     }
 
-    public registerRef(ID: keyof typeof DOMElements, ref: React.RefObject<HTMLElement>) {
+    public registerRef(ID: keyof typeof DOMElements, ref: React.RefObject<HTMLElement|null>) {
         this.#refs.set(ID, ref);
     }
 
     timelineMouseDown(e: React.MouseEvent<HTMLCanvasElement>) {
         const ref = this.#refs.get(DOMElements.CANVAS_CONTAINER);
-        if(!ref){
+        if(!ref || !ref.current){
             console.error("Reference for canvas container was not found when handling timeline mouse down");
             return;
         }

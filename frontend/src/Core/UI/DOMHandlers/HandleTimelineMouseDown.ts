@@ -34,7 +34,7 @@ export class HandleTimelineMouseDown {
         return { t, trounded };
     }
     
-    timelineMouseDown = (e: React.MouseEvent<HTMLCanvasElement>, ref: React.RefObject<HTMLElement>) => {
+    timelineMouseDown = (e: React.MouseEvent<HTMLCanvasElement>, ref: React.RefObject<HTMLElement|null>) => {
         if (this.#context.query("isPlaying")) return;
         if (!ref.current) return;
 

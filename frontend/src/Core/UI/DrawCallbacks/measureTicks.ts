@@ -1,7 +1,7 @@
 import { type StateContainer } from "@/Core/State";  
 import { CONSTANTS } from "@/Constants/constants";
    
-export function drawMeasureTicks(ref: React.RefObject<HTMLElement>, data: StateContainer, _mipMap: Int8Array){
+export function drawMeasureTicks(ref: React.RefObject<HTMLElement|null>, data: StateContainer, _mipMap: Int8Array){
         const {bpm, timeSignature, viewport} = data;
         if(!(ref.current instanceof HTMLCanvasElement)){
             console.error("Reference in drawMeasureTicks is not a HTMLCanvasElement");

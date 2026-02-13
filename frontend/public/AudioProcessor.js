@@ -1,17 +1,17 @@
 import {readTo} from "./audioProcessorUtils/readTo.js"
-import {MIXER_PARAMS} from "./Constants/MixerParams.js";
 
 class AudioProcessor extends AudioWorkletProcessor {
 
+  
   static get parameterDescriptors() {
     return [{
-      name: MIXER_PARAMS.STAGING_MASTER_VOLUME,
+      name: "MIX_MASTER_VOLUME",
       defaultValue: 1.0,
       minValue: 0,
       maxValue: 1.0,
       automationRate: "k-rate" // "k-rate" updates once per 128 samples (efficient for mixers)
     },{
-      name: MIXER_PARAMS.MIX_MASTER_VOLUME,
+      name: "STAGING_MASTER_VOLUME",
       defaultValue: 1.0,
       minValue: 0,
       maxValue: 1.0,

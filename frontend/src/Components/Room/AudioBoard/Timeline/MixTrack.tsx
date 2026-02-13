@@ -1,6 +1,7 @@
 import { CONSTANTS } from "@/Constants/constants";
 import type { Region } from "@/Types/AudioState";
-import { useRef, useEffect } from "react"; 
+import { useRef, useEffect } from "react";
+import { DOMElements } from "@/Constants/DOMElements";
 
 type MixTrackProps = {
     timelinePxLen: number;
@@ -91,6 +92,10 @@ export default function MixTrack({timelinePxLen, compactMode, uiControllerRef}: 
     useEffect(() => {
         setRegions();
     });
+
+    if(uiControllerRef.current){
+        uiControllerRef.current.registerRef(DOMElements.TRACK_TWO, mixWaveformsRef);
+    };
 
     return (
         <div>

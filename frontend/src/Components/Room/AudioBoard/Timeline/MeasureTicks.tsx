@@ -16,8 +16,8 @@ export default function MeasureTicks({timelinePxLen,compactMode,uiControllerRef}
     }
 
 
-    return <canvas className="row-start-1 col-start-2"
-                    style={{width:`${timelinePxLen}px`,height:Math.floor(35*compactMode)}}
+    return <canvas className="row-start-1 col-start-2 z-99 pointer-events-none"
+                    style={{width:`${timelinePxLen}px`,height:`${Math.floor(35*compactMode)}px`}}
                     width={timelinePxLen}
                     height={Math.floor(35*compactMode)}
                     ref={measureTickRef}

@@ -12,12 +12,8 @@ export default function VideoBox({webRTCManager,height,roomJoined}: VideoProps) 
   const localStreamRef = useRef<HTMLVideoElement>(null);
   const remoteStreamRef = useRef<HTMLVideoElement>(null);
 
-  if(!webRTCManager){
-    return <div></div>
-  }
-
-  const localStream = webRTCManager.getLocalStream();
-  const remoteStream = webRTCManager.getRemoteStream(); 
+  const localStream = webRTCManager?.getLocalStream();
+  const remoteStream = webRTCManager?.getRemoteStream(); 
 
   useEffect(() => {
       if (localStreamRef.current && localStream) {
@@ -27,6 +23,10 @@ export default function VideoBox({webRTCManager,height,roomJoined}: VideoProps) 
         remoteStreamRef.current.srcObject = remoteStream;
       }
   }, [localStream, remoteStream]);
+  
+  if(!webRTCManager){
+    return <div></div>
+  }
   
   if (!localStream && !remoteStream) {
     return <div>No streams available</div>;

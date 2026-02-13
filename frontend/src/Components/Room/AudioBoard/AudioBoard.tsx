@@ -51,7 +51,10 @@ export default function AudioBoard({uiControllerRef,audioControllerRef}:AudioBoa
         }else{
             setCompactMode(1);
         }
-    },[height])
+        if(uiControllerRef.current){
+            uiControllerRef.current.drawAllCanvases();
+        }
+    },[height,width])
     
 
     if(uiControllerRef.current){

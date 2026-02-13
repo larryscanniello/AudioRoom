@@ -138,7 +138,14 @@ export class SessionBuilder{
             if (audioContext.state === 'suspended') {
                 await audioContext.resume();
             }
-            await audioContext.audioWorklet.addModule(this.#config.workletFilePath);
+            if(!this.#config.workletFilePath){
+                throw new Error("Worklet file path must be provided for worklet audio engine");
+            }
+            try {
+                await audioContext.audioWorklet.addModule(this.#config.workletFilePath);
+            } catch (e) {
+                throw new Error(`Failed to load worklet at '${this.#config.workletFilePath}'. \n1. Check Console for "Diagnostic pre-fetch" errors.\n2. If the file is valid JS, check inside 'AudioProcessor.js' for syntax errors.\nOriginal Error: ${e}`);
+            }
             processorNode = new AudioWorkletNode(audioContext,'AudioProcessor');
             const stagingMasterVolumeParam = processorNode.parameters.get(MIXER_PARAMS.STAGING_MASTER_VOLUME);
             const mixMasterVolumeParam = processorNode.parameters.get(MIXER_PARAMS.MIX_MASTER_VOLUME);

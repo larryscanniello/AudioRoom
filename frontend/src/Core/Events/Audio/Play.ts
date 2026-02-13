@@ -8,32 +8,31 @@ import type { AudioProcessorData } from "@/Types/AudioState";
 import type { UIEngine } from "@/Core/UI/UIEngine";
 import type { SocketManager } from "@/Core/Sockets/SocketManager";
 import type { EventNamespace } from "../EventNamespace";
-
+import type { TransactionData } from "@/Core/State";
 
 export const Play:EventNamespace<typeof EventTypes.START_PLAYBACK> = {
     sharedState: true,
 
-    transactionData: {
-        transactionQueries: [
-            {key: 'isPlaying', comparitor: '===', target: false},
-            {key: 'isRecording', comparitor: '===', target: false},
-            {key: 'playheadTimeSeconds', comparitor: '<', target: CONSTANTS.TIMELINE_LENGTH_IN_SECONDS},
-        ],
-        mutations: [
-            {key: 'isPlaying', value: true},
-        ]
-    },
 
     getDispatchEvent: ({emit}) => { 
         return { 
             type: EventTypes.START_PLAYBACK,
-            param: null,
             emit,
+            transactionData: {
+                transactionQueries: [
+                    {key: 'isPlaying', comparitor: '===', target: false},
+                    {key: 'isRecording', comparitor: '===', target: false},
+                    {key: 'playheadTimeSeconds', comparitor: '<', target: CONSTANTS.TIMELINE_LENGTH_IN_SECONDS},
+                ],
+                mutations: [
+                    {key: 'isPlaying', value: true},
+                ]
+            },
             getEventNamespace:()=>{return Play}
         }},
     
-    stateTransaction(state: State): boolean {
-        return stateTransactionUtil(state, this.transactionData, this.sharedState);
+    stateTransaction(state: State, transactionData: TransactionData): boolean {
+        return stateTransactionUtil(state, transactionData, this.sharedState);
     },
 
     getLocalPayload(state: State): AudioProcessorData {
@@ -67,8 +66,8 @@ export const Play:EventNamespace<typeof EventTypes.START_PLAYBACK> = {
         engine.startPlayhead(data.timeline);
     },
 
-    executeSocket(socketManager: SocketManager, _data:any): void {
-        executeSocketUtil(socketManager, this.transactionData);
+    executeSocket(socketManager: SocketManager, transactionData: TransactionData): void {
+        executeSocketUtil(socketManager, transactionData);
     },
 };
 

@@ -14,6 +14,23 @@ export default function MixTrack({timelinePxLen, compactMode, uiControllerRef}: 
     const mixWaveformsRef = useRef<HTMLCanvasElement>(null);
     const mixRegionsRef = useRef<HTMLDivElement>(null);
 
+    useEffect(()=>{
+        if(mixWaveformsRef.current && uiControllerRef.current){
+            console.log("Adding wheel event listener to mix waveforms");
+            mixWaveformsRef.current.addEventListener("wheel",uiControllerRef.current.scroll.bind(uiControllerRef.current));
+        }else{
+            console.error("Failed to add wheel event listener to mix waveforms because reference was not found");
+        }
+        return () => {
+            if(mixWaveformsRef.current && uiControllerRef.current){
+                console.log("Removing wheel event listener from mix waveforms");
+                mixWaveformsRef.current.removeEventListener("wheel",uiControllerRef.current.scroll.bind(uiControllerRef.current));
+            }else{
+                console.error("Failed to remove wheel event listener from mix waveforms because reference was not found");
+            }
+        }
+    },[]);
+
     const handleCanvasMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
         if(uiControllerRef.current){
             uiControllerRef.current.timelineMouseDown(e, mixWaveformsRef);
@@ -87,14 +104,10 @@ export default function MixTrack({timelinePxLen, compactMode, uiControllerRef}: 
     }
 
     const timeline = uiControllerRef.current?.query("timeline");
-
-    // Update regions whenever render occurs, intentionally no deps map to StagingTrack logic
-    useEffect(() => {
-        setRegions();
-    });
-
+    
     if(uiControllerRef.current){
         uiControllerRef.current.registerRef(DOMElements.TRACK_TWO, mixWaveformsRef);
+        setRegions();
     };
 
     return (

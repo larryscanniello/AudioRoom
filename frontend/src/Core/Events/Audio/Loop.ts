@@ -6,29 +6,28 @@ import type { UIEngine } from "@/Core/UI/UIEngine";
 import type { SocketManager } from "@/Core/Sockets/SocketManager";
 import type { EventNamespace } from "../EventNamespace";
 import type { AudioEngine } from "@/Core/Audio/AudioEngine";
+import type { TransactionData } from "@/Core/State";
 
 export const Loop: EventNamespace<typeof EventTypes.TOGGLE_LOOPING> = {
     sharedState: true,
 
-    transactionData: {
-        transactionQueries: [
-            { key: 'isRecording', comparitor: '===', target: false },
-            { key: 'isPlaying', comparitor: '===', target: false },
-        ],
-        mutations: [
-            { key: 'isLooping', value: 'toggle' },
-        ]
-    },
-
     getDispatchEvent: ({ emit }) => { return {
             type: EventTypes.TOGGLE_LOOPING,
-            param:null,
             emit,
+            transactionData: {
+                transactionQueries: [
+                    { key: 'isRecording', comparitor: '===', target: false },
+                    { key: 'isPlaying', comparitor: '===', target: false },
+                ],
+                mutations: [
+                    { key: 'isLooping', value: 'toggle' },
+                ]
+            },
             getEventNamespace: () => { return Loop; }
         }},
 
-    stateTransaction(state: State): boolean {
-        return stateTransactionUtil(state, this.transactionData, this.sharedState);
+    stateTransaction(state: State, transactionData: TransactionData): boolean {
+        return stateTransactionUtil(state, transactionData, this.sharedState);
     },
 
     getLocalPayload(state: State) {
@@ -43,7 +42,7 @@ export const Loop: EventNamespace<typeof EventTypes.TOGGLE_LOOPING> = {
         //No specific UI action required for toggling looping, as the playhead behavior will be updated through state changes
     },
 
-    executeSocket(socketManager: SocketManager, _data: any): void {
-        executeSocketUtil(socketManager, this.transactionData);
+    executeSocket(socketManager: SocketManager, transactionData: TransactionData): void {
+        executeSocketUtil(socketManager, transactionData);
     },
 };

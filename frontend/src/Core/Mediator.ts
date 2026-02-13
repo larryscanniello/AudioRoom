@@ -3,6 +3,7 @@ import { State } from "./State";
 import type { StateContainer } from "./State"
 import { type EventParams } from "./Events/EventNamespace";
 import type { Observer, Subject } from "../Types/Observer";
+import type { TransactionData } from "./State";
 
 export type GlobalContext = {
     dispatch: (event: DispatchEvent) => void,
@@ -13,7 +14,7 @@ export type GlobalContext = {
 export type DispatchEvent = {
     [K in keyof EventParams]: {
         type: K;
-        param: EventParams[K];
+        transactionData: TransactionData;
         getEventNamespace: () => any; 
     }
 }[keyof EventParams];
@@ -38,8 +39,9 @@ export class Mediator implements Subject {
     }
 
     #dispatch(event: DispatchEvent): void {
+        console.log("Dispatching event: ", event.type, " with transaction data: ", event.transactionData);
         const namespace = event.getEventNamespace();
-        const successfulTransaction = namespace.stateTransaction(this.#state, namespace.transactionData, namespace.sharedState);
+        const successfulTransaction = namespace.stateTransaction(this.#state, event.transactionData, namespace.sharedState);
         if(successfulTransaction){this.#processEvent(event);}
     }
 

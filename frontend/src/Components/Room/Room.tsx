@@ -25,6 +25,7 @@ export default function Room() {
 
 
     const gainNodesRef = useRef<{local: GainNode | null, remote: GainNode | null}>({local:null, remote:null});
+    const builderRef = useRef<SessionBuilder|null>(null);
     const audioControllerRef = useRef<AudioController|null>(null);
     const uiControllerRef = useRef<UIController|null>(null);
     const webRTCManagerRef = useRef<PeerJSManager|null>(null);
@@ -51,12 +52,51 @@ export default function Room() {
         setValidRoom(true);
         console.log(`Joining room ${roomID}`);
     
-      
+        
         /*
         socketManagerRef.current.on("file_transfer", (data:any) => {
           setSharedFile(data);
         });*/
 
+        builderRef.current = await new SessionBuilder(roomID)
+          .withReact(setDawInternalState)
+          .withAudEngine("worklet", {
+            opfsFilePath: "/opfs_worker.ts",
+            workletFilePath: "/AudioProcessor.js",
+          })
+          .withMixTracks(16)
+          .withSockets()
+          .withPeerJSWebRTC()
+          .buildRTC();
+
+        webRTCManagerRef.current = builderRef.current.getWebRTCManager();
+        console.log('WebRTC manager from builder:', webRTCManagerRef.current);
+
+        if(!webRTCManagerRef.current){
+          throw new Error("Session builder failed to create WebRTC manager");
+        }
+
+        webRTCManagerRef.current.initializePeer();
+        if(!roomID){
+          throw new Error("No room ID found in URL params");
+        }
+        webRTCManagerRef.current.joinSocketRoom(roomID);
+
+        await webRTCManagerRef.current.loadStream()
+          .then((localGain)=>{
+            gainNodesRef.current.local = localGain;
+            if(micsMuted.local && gainNodesRef.current.local){
+              gainNodesRef.current.local.gain.value = 0.0;
+            }
+          })
+          .catch((err)=>{
+            throw new Error("Error loading local media stream:",err);
+          });
+
+        //rerender so that components that depend on webRTCManager (ex: VideoBox) will update with the new stream info
+        setDawInternalState(performance.now());
+
+        console.log("WebRTC manager after initialization:", webRTCManagerRef.current);
        
       }
       init();
@@ -68,48 +108,19 @@ export default function Room() {
     }, []);
 
     async function initDAW(){
-       const filepaths = {
-          opfsFilePath: "/opfs_worker.ts",
-          workletFilePath: "/AudioProcessor.js",
-        }
     
-        const builderResult = await new SessionBuilder(roomID)
-          .withReact(setDawInternalState)
-          .withAudEngine("worklet", filepaths)
-          .withMixTracks(16)
-          .withPeerJSWebRTC()
-          .build();
+        const builderResult = await builderRef.current?.build();
 
         if(!builderResult){
           throw new Error("Session builder failed, returned null");
         }
 
-        const {audioController,uiController,webRTCManager} = builderResult;
+        const {audioController,uiController} = builderResult;
 
         audioControllerRef.current = audioController;
-        console.log('uiController from builderResult', uiController);
+
         uiControllerRef.current = uiController;
-        if(!webRTCManager){
-          throw new Error("Session builder failed to create WebRTC manager");
-        }
-
-        webRTCManager.initializePeer();
-        if(!roomID){
-          throw new Error("No room ID found in URL params");
-        }
-        webRTCManager.joinSocketRoom(roomID);
-
-        webRTCManagerRef.current = webRTCManager;
-        webRTCManagerRef.current?.loadStream()
-          .then((localGain)=>{
-            gainNodesRef.current.local = localGain;
-            if(micsMuted.local && gainNodesRef.current.local){
-              gainNodesRef.current.local.gain.value = 0.0;
-            }
-          })
-          .catch((err)=>{
-            throw new Error("Error loading local media stream:",err);
-          });
+        
     }
 
     useEffect(()=>{
@@ -120,31 +131,34 @@ export default function Room() {
 
     
 
-    console.log('uiControllerRef',uiControllerRef.current);
+    console.log('validRoom:', validRoom);
 
-    return <div className="flex flex-col h-screen">
-        {validRoom ? <div>
+    return <div>
+        {validRoom ? <div className="flex flex-col h-screen">
+         <div className="flex w-full justify-center">
+        <div className="relative flex justify-center">
         <VideoBox 
-        webRTCManager={webRTCManagerRef.current}
+        webRTCManagerRef={webRTCManagerRef}
         height={height}
         roomJoined={roomJoined}
           />
         {!roomJoined && <JoinRoomButton setRoomJoined={setRoomJoined} initDAW={initDAW} roomJoined={roomJoined}/>}
-        {roomJoined && <div><ToggleMicButton gainNodesRef={gainNodesRef} micsMuted={micsMuted} setMicsMuted={setMicsMuted} />
+        {roomJoined && <div className="absolute bottom-2 left-2 flex items-center gap-4 bg-black/40 p-4 rounded-2xl border border-white/10 backdrop-blur-md"
+        ><ToggleMicButton gainNodesRef={gainNodesRef} micsMuted={micsMuted} setMicsMuted={setMicsMuted} />
         <ToggleRemoteMicButton gainNodesRef={gainNodesRef} micsMuted={micsMuted} setMicsMuted={setMicsMuted} />
         <RemoteVolumeSlider remoteVolume={remoteVolume} 
                             setRemoteVolume={setRemoteVolume} 
                             gainNodesRef={gainNodesRef} 
                             micsMuted={micsMuted} />
         </div>}
+        </div>
+        </div>
         {roomJoined && <AudioBoard audioControllerRef={audioControllerRef} uiControllerRef={uiControllerRef} webRTCManagerRef={webRTCManagerRef}/>} 
-        </div> 
-        
+        </div>
         : <div className="flex flex-col items-center">
             <div className="text-4xl pt-40">{errorMessage}</div>
           </div>
         }
-    
 
     </div>
 }

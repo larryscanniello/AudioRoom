@@ -6,31 +6,30 @@ import type { UIEngine } from "@/Core/UI/UIEngine";
 import type { SocketManager } from "@/Core/Sockets/SocketManager";
 import type { EventNamespace } from "../EventNamespace";
 import type { AudioEngine } from "@/Core/Audio/AudioEngine";
+import type { TransactionData } from "@/Core/State";
 
 export const Skipback: EventNamespace<typeof EventTypes.SKIPBACK> = {
     sharedState: true,
 
-    transactionData: {
-        transactionQueries: [
-            { key: 'isRecording', comparitor: '===', target: false },
-            { key: 'isPlaying', comparitor: '===', target: false },
-        ],
-        mutations: [
-            { key: 'playheadTimeSeconds', value: 0 },
-            { key: 'mouseDragStart', value: { t: 0, trounded: 0 } },
-            { key: 'mouseDragEnd', value: null },
-        ]
-    },
-
     getDispatchEvent: ({ emit }) => { return {
             type: EventTypes.SKIPBACK,
-            param: null,
             emit,
+            transactionData: {
+                transactionQueries: [
+                    { key: 'isRecording', comparitor: '===', target: false },
+                    { key: 'isPlaying', comparitor: '===', target: false },
+                ],
+                mutations: [
+                    { key: 'playheadTimeSeconds', value: 0 },
+                    { key: 'mouseDragStart', value: { t: 0, trounded: 0 } },
+                    { key: 'mouseDragEnd', value: null },
+                ]
+            },
             getEventNamespace: () => { return Skipback; }
         }},
 
-    stateTransaction(state: State): boolean {
-        return stateTransactionUtil(state, this.transactionData, this.sharedState);
+    stateTransaction(state: State, transactionData: TransactionData): boolean {
+        return stateTransactionUtil(state, transactionData, this.sharedState);
     },
 
     getLocalPayload(_state: State) {
@@ -45,7 +44,7 @@ export const Skipback: EventNamespace<typeof EventTypes.SKIPBACK> = {
         // No specific UI action required for Skipback, as the playhead position will be updated through state changes
     },
 
-    executeSocket(socketManager: SocketManager, _data: any): void {
-        executeSocketUtil(socketManager, this.transactionData);
+    executeSocket(socketManager: SocketManager, transactionData: TransactionData): void {
+        executeSocketUtil(socketManager, transactionData);
     },
 };

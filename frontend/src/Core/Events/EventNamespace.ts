@@ -31,7 +31,7 @@ export type EventParams = {
     [EventTypes.TOGGLE_METRONOME]: null,
     [EventTypes.SCROLL]: number
     [EventTypes.ZOOM]: {startTime: number, samplesPerPx: number},
-    [EventTypes.MOVE_PLAYHEAD]: number,
+    [EventTypes.MOVE_PLAYHEAD]: {startTime: number, samplesPerPx: number},
     [EventTypes.EMIT_PEER_ID]: {peerID: string},
     [EventTypes.DRAW_ALL_CANVASES]: null,
 };
@@ -42,16 +42,7 @@ export type EventParams = {
     EventNamespace type. 
 */
 export type EventNamespace<K extends keyof EventParams> = {
-    /*
-        This is an object with an array of queries and array of mutations.
-        If the queries all succeed, then the mutations will be applied.
-        For 2+ people, I use an optimistic approach with distributed state.
-        First, the event is applied locally.
-        then the event will be sent to the server for validation. If the server approves the event,
-        then the event will be applied on all clients. If the server denies the event, 
-        then the server will send a new state snapshot that will override the current state snapshot.
-    */
-    transactionData: TransactionData;
+
 
     //Simple bool to track if event alters shared state. Some, like zoom, are not shared state
     sharedState: boolean;
@@ -72,7 +63,7 @@ export type EventNamespace<K extends keyof EventParams> = {
         is provided. Unfortunately, this is necessary because typescript makes it hard 
         to work with static properties (can't just make an abstract class)
     */
-    stateTransaction(state: State, stateUpdateParam: EventParams[K]): boolean;
+    stateTransaction(state: State, transactionData: TransactionData): boolean;
     
     /*
         Retrieve any data needed that audio engine or ui engine will need from state
@@ -85,5 +76,5 @@ export type EventNamespace<K extends keyof EventParams> = {
     //Perform needed action in ui engine (ex: play needs to tell ui engine to start playhead animation)
     executeUI(engine: UIEngine, data: any): void;
     // Perform needed action over socket; will almost always be the same and use generic function
-    executeSocket(socketManager: SocketManager, eventType: string, data: any): void;
+    executeSocket(socketManager: SocketManager, transactionData: TransactionData, data: any): void;
 }

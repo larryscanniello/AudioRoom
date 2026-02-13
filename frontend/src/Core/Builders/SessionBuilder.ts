@@ -19,7 +19,7 @@ type Config = {
     audEngineType: "worklet" | "C++" | "inmemory",
     standaloneMode: boolean,
     socketManager: boolean,
-    webRTCManager: "peerjs" | false,
+    webRTCManager: boolean,
     roomID?: string,
     opfsFilePath?: string,
     workletFilePath?: string,
@@ -29,7 +29,7 @@ type Config = {
 type BuildResult = {
     audioController: AudioController,
     uiController: UIController,
-    webRTCManager?: PeerJSManager,
+    webRTCManager?: PeerJSManager | null,
 } 
 
 export class SessionBuilder{
@@ -44,6 +44,10 @@ export class SessionBuilder{
         numberOfMixTracks: 16,
     };
     #stateSetter: React.Dispatch<React.SetStateAction<number>> | null = null;
+    #webRTCManager: PeerJSManager | null = null;
+    #mediator: Mediator | null = null;
+    #mediaProvider: MediaProvider | null = null;
+    #socketManager: SocketManager | null = null;
 
     constructor(roomID?:string){
         this.#config.standaloneMode = roomID ? false : true;
@@ -79,8 +83,10 @@ export class SessionBuilder{
     }
 
     withPeerJSWebRTC(){
-        this.#config.socketManager = true;
-        this.#config.webRTCManager = "peerjs";
+        if(!this.#config.socketManager){
+            throw new Error("Cannot use WebRTC without SocketManager, please provide a SocketManager before setting WebRTC manager");
+        }
+        this.#config.webRTCManager = true;
         return this;
     }
 
@@ -176,32 +182,53 @@ export class SessionBuilder{
         return {uiEngine, uiController};
     }
 
-    async build(): Promise<BuildResult|null>{
+    getWebRTCManager(){
+        if(!this.#webRTCManager){
+            throw new Error("WebRTC manager not initialized yet");
+        }
+        return this.#webRTCManager;
+     };
+
+    async buildRTC(){
         const state = new State();
         if(this.#stateSetter){
             state.setRender(this.#stateSetter);
         }
-        const mediator = new Mediator(state);
-        const globalContext = mediator.getGlobalContext();
-        const mediaProvider = new MediaProvider(new AudioContext({latencyHint: "interactive"}), this.#config.standaloneMode);
-        const socketManager = this.#config.socketManager ? new SocketManager(globalContext) : undefined;
-        if(socketManager){ //later I want to enable just video chat alone, but for now, this will do
-            socketManager.initDAWConnection();
+        this.#mediator = new Mediator(state);
+        const globalContext = this.#mediator.getGlobalContext();
+        this.#mediaProvider = new MediaProvider(new AudioContext({latencyHint: "interactive"}), this.#config.standaloneMode);
+        this.#socketManager = this.#config.socketManager ? new SocketManager(globalContext) : null;
+        if(this.#socketManager){ //later I want to enable just video chat alone, but for now, this will do
+            this.#socketManager.initDAWConnection();
         }
-        const webRTCManager = this.#config.webRTCManager && socketManager ? new PeerJSManager(mediaProvider,globalContext,socketManager.getSocket()) : undefined;
-        const {audioController,audioEngine} = await this.#getAudioController(globalContext,mediaProvider)
+        this.#webRTCManager = this.#config.webRTCManager && this.#socketManager ? new PeerJSManager(this.#mediaProvider,globalContext,this.#socketManager.getSocket()) : null;
+        return this
+    }
+
+    async build(): Promise<BuildResult|null>{
+        if(!this.#mediator){
+            throw new Error("Mediator not initialized, call buildRTC() before build()");
+        }
+        if(!this.#webRTCManager){
+            throw new Error("WebRTC manager not initialized, call buildRTC() before build()");
+        }
+        if(!this.#mediaProvider){
+            throw new Error("Media provider not initialized, call buildRTC() before build()");
+        }
+        const globalContext = this.#mediator.getGlobalContext();
+        const {audioController,audioEngine} = await this.#getAudioController(globalContext,this.#mediaProvider);
         
-        const {uiEngine, uiController} = this.#getUIController(globalContext,mediaProvider);
-        mediator.attach(audioEngine);
-        mediator.attach(uiEngine);
-        if(socketManager){
-            mediator.attach(socketManager);
+        const {uiEngine, uiController} = this.#getUIController(globalContext,this.#mediaProvider);
+        this.#mediator.attach(audioEngine);
+        this.#mediator.attach(uiEngine);
+        if(this.#socketManager){
+            this.#mediator.attach(this.#socketManager);
         }
-        if(webRTCManager){
-            mediator.attach(webRTCManager);
+        if(this.#webRTCManager){
+            this.#mediator.attach(this.#webRTCManager);
         }
         console.log("Session built with config:", this.#config);
-        return {audioController, uiController,webRTCManager};
+        return {audioController, uiController,webRTCManager: this.#webRTCManager};
     }
 
 }

@@ -35,8 +35,8 @@ export class SocketManager implements Observer {
         if(!this.#isConnectedToDAW){
             throw new Error("Cannot process socket event before connection to DAW is initialized.");
         }
-        const eventClass = event.getEventNamespace();
-        eventClass.executeSocket(this, eventClass.transactionData);
+        const namespace = event.getEventNamespace();
+        namespace.executeSocket(this, event.transactionData, null);
     }
 
     joinRoom(roomId: string){

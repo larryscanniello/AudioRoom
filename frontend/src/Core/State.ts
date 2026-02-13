@@ -45,6 +45,15 @@ export type Mutation<K extends keyof StateContainer> = {
     value: StateContainer[K] | "++" | "toggle"; // "++" indicates an increment operation for number types
 }
 
+/*
+    This is an object with an array of queries and array of mutations.
+    If the queries all succeed, then the mutations will be applied.
+    For 2+ people, I use an optimistic approach with distributed state.
+    First, the event is applied locally.
+    then the event will be sent to the server for validation. If the server approves the event,
+    then the event will be applied on all clients. If the server denies the event, 
+    then the server will send a new state snapshot that will override the current state snapshot.
+*/
 export type TransactionData = {
     transactionQueries: TransactionQuery<keyof StateContainer>[];
     mutations: Mutation<keyof StateContainer>[];
@@ -123,11 +132,13 @@ export class State {
 
     transaction(transaction: TransactionData): boolean {
             let canExecute = true;
+            console.log("TRANSACTION",transaction);
             for(let tQuery of transaction.transactionQueries){
                 canExecute = canExecute && this.#comparitor(tQuery);
             }
             if(canExecute){
                 for(let mutation of transaction.mutations){
+                    console.log("MUTATION", mutation,"VAL",mutation.value);
                     this.update(mutation.key, mutation.value);
                 }
                 return true;
@@ -146,6 +157,7 @@ export class State {
                 throw new Error(`Cannot apply "++" mutation to non-number type. Current value type: ${typeof currentVal}`);
             }
         }
+        console.log("Updating state key:", key, "with value:", newvalue);
         this.#state[key] = newvalue;
         if(this.#reactState.has(key)) {
             if(!this.#render) { 

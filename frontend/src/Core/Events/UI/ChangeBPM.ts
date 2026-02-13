@@ -8,30 +8,24 @@ import type { EventNamespace } from "../EventNamespace";
 export const ChangeBPM: EventNamespace<typeof EventTypes.CHANGE_BPM> = {
     sharedState: true,
 
-    transactionData: {
-        transactionQueries: [],
-        mutations: [],
-    },
-
     getDispatchEvent: ({ param, emit }) => {
         return {
             type: EventTypes.CHANGE_BPM,
-            param,
             emit,
+            transactionData: {
+                transactionQueries: [
+                    { key: 'isPlaying', comparitor: '===', target: false },
+                    { key: 'isRecording', comparitor: '===', target: false },
+                ],
+                mutations: [
+                    { key: 'bpm', value: param }
+                ],
+            },
             getEventNamespace: () => { return ChangeBPM; }
         };
     },
 
-    stateTransaction(state: State, stateUpdateParam: number): boolean {
-        const transactionData: TransactionData = {
-            transactionQueries: [
-                { key: 'isPlaying', comparitor: '===', target: false },
-                { key: 'isRecording', comparitor: '===', target: false },
-            ],
-            mutations: [
-                { key: 'bpm', value: stateUpdateParam }
-            ],
-        };
+    stateTransaction(state: State, transactionData: TransactionData): boolean {
         return stateTransactionUtil(state, transactionData, this.sharedState);
     },
 
@@ -47,7 +41,7 @@ export const ChangeBPM: EventNamespace<typeof EventTypes.CHANGE_BPM> = {
         // No specific UI engine action needed; handled by react state rerender
     },
 
-    executeSocket(socketManager: any, _data: any): void {
-        executeSocketUtil(socketManager, this.transactionData);
+    executeSocket(socketManager: any, transactionData: TransactionData): void {
+        executeSocketUtil(socketManager, transactionData);
     },
 };

@@ -9,30 +9,24 @@ import type { EventNamespace } from "../EventNamespace";
 export const MovePlayhead: EventNamespace<typeof EventTypes.MOVE_PLAYHEAD> = {
     sharedState: true,
 
-    transactionData: {
-        transactionQueries: [],
-        mutations: [],
-    },
-
     getDispatchEvent: ({ param, emit }) => {
         return {
             type: EventTypes.MOVE_PLAYHEAD,
-            param,
             emit,
+            transactionData: {
+                transactionQueries: [
+                    { key: 'isPlaying', comparitor: '===', target: false },
+                    { key: 'isRecording', comparitor: '===', target: false },
+                ],
+                mutations: [
+                    { key: 'playheadTimeSeconds', value: param }
+                ],
+            },
             getEventNamespace: () => { return MovePlayhead; }
         };
     },
 
-    stateTransaction(state: State, stateUpdate: number): boolean {
-        const transactionData: TransactionData = {
-            transactionQueries: [
-                { key: 'isPlaying', comparitor: '===', target: false },
-                { key: 'isRecording', comparitor: '===', target: false },
-            ],
-            mutations: [
-                { key: 'playheadTimeSeconds', value: stateUpdate }
-            ],
-        };
+    stateTransaction(state: State, transactionData: TransactionData): boolean {
         return stateTransactionUtil(state, transactionData, this.sharedState);
     },
 
@@ -48,7 +42,7 @@ export const MovePlayhead: EventNamespace<typeof EventTypes.MOVE_PLAYHEAD> = {
         engine.draw([DOMCommands.DRAW_PLAYHEAD], data);
     },
 
-    executeSocket(socketManager: any, _data: any): void {
-        executeSocketUtil(socketManager, this.transactionData);
+    executeSocket(socketManager: any, transactionData: TransactionData): void {
+        executeSocketUtil(socketManager, transactionData);
     },
 };

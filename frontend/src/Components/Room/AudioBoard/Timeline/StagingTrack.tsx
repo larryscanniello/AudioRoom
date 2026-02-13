@@ -1,6 +1,6 @@
 import { CONSTANTS } from "@/Constants/constants";
 import type { Region } from "@/Types/AudioState";
-import { useRef } from "react"; 
+import { useEffect, useRef } from "react"; 
 import { DOMElements } from "@/Constants/DOMElements";
 
 type StagingTrackProps = {
@@ -13,6 +13,23 @@ export default function StagingTrack({timelinePxLen,compactMode,uiControllerRef}
 
     const stagingWaveformsRef = useRef<HTMLCanvasElement>(null);
     const stagingRegionsRef = useRef<HTMLDivElement>(null);
+
+    useEffect(()=>{
+            if(stagingWaveformsRef.current && uiControllerRef.current){
+                console.log("Adding wheel event listener to staging waveforms");
+                stagingWaveformsRef.current.addEventListener("wheel",uiControllerRef.current.scroll.bind(uiControllerRef.current));
+            }else{
+                console.error("Failed to add wheel event listener to staging waveforms because reference was not found");
+            }
+            return () => {
+                if(stagingWaveformsRef.current && uiControllerRef.current){
+                    console.log("Removing wheel event listener from staging waveforms");
+                    stagingWaveformsRef.current.removeEventListener("wheel",uiControllerRef.current.scroll.bind(uiControllerRef.current));
+                }else{
+                    console.error("Failed to remove wheel event listener from staging waveforms because reference was not found");
+                }
+            }
+        },[]);
 
     const handleCanvasMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
         if(uiControllerRef.current){

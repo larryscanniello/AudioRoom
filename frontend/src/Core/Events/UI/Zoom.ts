@@ -9,27 +9,21 @@ import type { EventNamespace } from "../EventNamespace";
 export const Zoom: EventNamespace<typeof EventTypes.ZOOM> = {
     sharedState: false,
 
-    transactionData: {
-        transactionQueries: [],
-        mutations: [],
-    },
-
     getDispatchEvent: ({ param, emit }) => {
         return {
             type: EventTypes.ZOOM,
-            param,
             emit,
+            transactionData: {
+                transactionQueries: [],
+                mutations: [
+                    { key: 'viewport', value: param }
+                ],
+            },
             getEventNamespace: () => { return Zoom; }
         };
     },
 
-    stateTransaction(state: State,stateUpdate: {startTime: number, samplesPerPx: number} ): boolean {
-        const transactionData:TransactionData = {
-            transactionQueries: [],
-            mutations: [
-                { key: 'viewport', value: stateUpdate }
-            ],
-        };
+    stateTransaction(state: State, transactionData: TransactionData): boolean {
         return stateTransactionUtil(state, transactionData, this.sharedState);
     },
 
@@ -45,8 +39,8 @@ export const Zoom: EventNamespace<typeof EventTypes.ZOOM> = {
         engine.draw(Object.values(DOMCommands),data);
     },
 
-    executeSocket(socketManager: any, _data: any): void {
-        executeSocketUtil(socketManager, this.transactionData);
+    executeSocket(socketManager: any, transactionData: TransactionData): void {
+        executeSocketUtil(socketManager, transactionData);
     },
 };
 

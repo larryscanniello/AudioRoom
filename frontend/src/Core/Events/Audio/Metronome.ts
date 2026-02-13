@@ -6,28 +6,27 @@ import type { UIEngine } from "@/Core/UI/UIEngine";
 import type { SocketManager } from "@/Core/Sockets/SocketManager";
 import type { EventNamespace } from "../EventNamespace";
 import type { AudioEngine } from "@/Core/Audio/AudioEngine";
+import type { TransactionData } from "@/Core/State";
 
 export const Metronome: EventNamespace<typeof EventTypes.TOGGLE_METRONOME> = {
     sharedState: true,
 
-    transactionData: {
-        transactionQueries: [
-            { key: 'isMetronomeOn', comparitor: '===', target: false },
-        ],
-        mutations: [
-            { key: 'isMetronomeOn', value: 'toggle' },
-        ]
-    },
-
     getDispatchEvent: ({ emit }) => { return {
             type: EventTypes.TOGGLE_METRONOME,
-            param: null,
             emit,
+            transactionData: {
+                transactionQueries: [
+                    { key: 'isMetronomeOn', comparitor: '===', target: false },
+                ],
+                mutations: [
+                    { key: 'isMetronomeOn', value: 'toggle' },
+                ]
+            },
             getEventNamespace: () => { return Metronome; }
         }},
 
-    stateTransaction(state: State): boolean {
-        return stateTransactionUtil(state, this.transactionData, this.sharedState);
+    stateTransaction(state: State, transactionData: TransactionData): boolean {
+        return stateTransactionUtil(state, transactionData, this.sharedState);
     },
 
     getLocalPayload(state: State) {
@@ -42,7 +41,7 @@ export const Metronome: EventNamespace<typeof EventTypes.TOGGLE_METRONOME> = {
         // No specific UI action required for toggling the metronome
     },
 
-    executeSocket(socketManager: SocketManager, _data: any): void {
-        executeSocketUtil(socketManager, this.transactionData);
+    executeSocket(socketManager: SocketManager, transactionData: TransactionData): void {
+        executeSocketUtil(socketManager, transactionData);
     },
 };

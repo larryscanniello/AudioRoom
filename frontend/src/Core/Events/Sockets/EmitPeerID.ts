@@ -1,5 +1,5 @@
 import { EventTypes, type EventNamespace } from "../EventNamespace";
-import type { State } from "@/Core/State";
+import type { State, TransactionData } from "@/Core/State";
 import { stateTransactionUtil } from "../genericEventFunctions";
 import type { AudioEngine } from "@/Core/Audio/AudioEngine";
 import type { AudioProcessorData } from "@/Types/AudioState";
@@ -9,22 +9,21 @@ import type { SocketManager } from "@/Core/Sockets/SocketManager";
 export const EmitPeerID: EventNamespace<typeof EventTypes.EMIT_PEER_ID> = {
     sharedState: false,
 
-    transactionData: {
-        transactionQueries: [],
-        mutations: []
-    },
-
     getDispatchEvent: ({ emit, param }) => {
         return {
             type: EventTypes.EMIT_PEER_ID,
-            param, // needs to include peerID
+            param,
             emit,
+            transactionData: {
+                transactionQueries: [],
+                mutations: []
+            },
             getEventNamespace: () => EmitPeerID,
         };
     },
 
-    stateTransaction(state: State): boolean {
-        return stateTransactionUtil(state, this.transactionData, this.sharedState);
+    stateTransaction(state: State, transactionData: TransactionData): boolean {
+        return stateTransactionUtil(state, transactionData, this.sharedState);
     },
 
     getLocalPayload(_state: State): null {

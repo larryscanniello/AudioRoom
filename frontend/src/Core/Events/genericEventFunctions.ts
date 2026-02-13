@@ -1,6 +1,5 @@
 import type { State, TransactionData } from "@/Core/State";
 import type { SocketManager } from "../Sockets/SocketManager";
-import { EventTypes } from "./EventNamespace"
 
 
 export function stateTransactionUtil(state: State, transactionData: TransactionData, _sharedState: boolean): boolean {

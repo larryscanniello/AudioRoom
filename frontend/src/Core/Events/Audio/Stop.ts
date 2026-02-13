@@ -7,28 +7,27 @@ import type { StopAudioProcessorData } from "@/Types/AudioState";
 import type { UIEngine } from "@/Core/UI/UIEngine";
 import type { SocketManager } from "@/Core/Sockets/SocketManager";
 import type { EventNamespace } from "../EventNamespace";
+import type { TransactionData } from "@/Core/State";
 
 export const Stop: EventNamespace<typeof EventTypes.STOP> = {
     sharedState: true,
 
-    transactionData: {
-        transactionQueries: [],
-        mutations: [
-            { key: 'isPlaying', value: false },
-            { key: 'isRecording', value: false },
-        ]
-    },
-
     getDispatchEvent: ({ emit }) => {
          return {
             type: EventTypes.STOP,
-            param: null,
             emit,
+            transactionData: {
+                transactionQueries: [],
+                mutations: [
+                    { key: 'isPlaying', value: false },
+                    { key: 'isRecording', value: false },
+                ]
+            },
             getEventNamespace: () => { return Stop; }
         }},
 
-    stateTransaction(state: State): boolean {
-        return stateTransactionUtil(state, this.transactionData, this.sharedState);
+    stateTransaction(state: State, transactionData: TransactionData): boolean {
+        return stateTransactionUtil(state, transactionData, this.sharedState);
     },
 
     getLocalPayload(_state: State): StopAudioProcessorData {
@@ -43,7 +42,7 @@ export const Stop: EventNamespace<typeof EventTypes.STOP> = {
         engine.stopPlayhead();
     },
 
-    executeSocket(socketManager: SocketManager, _data: any): void {
-        executeSocketUtil(socketManager, this.transactionData);
+    executeSocket(socketManager: SocketManager, transactionData: TransactionData): void {
+        executeSocketUtil(socketManager, transactionData);
     },
 };

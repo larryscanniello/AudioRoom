@@ -3,19 +3,22 @@ import { DOMElements } from "@/Constants/DOMElements";
 import { HandleTimelineMouseDown } from "./HandleTimelineMouseDown";
 import { HandlePlayheadMouseDown } from "./HandlePlayheadMouseDown";
 import { HandleBPMBoxMouseDown } from "./HandleBPMBoxMouseDown";
+import { HandleTimelineScroll } from "./HandleTimelineScroll";
 
 
 export class DOMHandlers {
     #handleTimelineMouseDown: HandleTimelineMouseDown;
     #handlePlayheadMouseDown: HandlePlayheadMouseDown;
     #handleBPMBoxMouseDown: HandleBPMBoxMouseDown;
+    #handleTimelineScroll: HandleTimelineScroll;
     #refs: Map<keyof typeof DOMElements, React.RefObject<HTMLElement|null>>;
 
     constructor(context: GlobalContext) {
         this.#refs = new Map();
         this.#handleTimelineMouseDown = new HandleTimelineMouseDown(context);
         this.#handlePlayheadMouseDown = new HandlePlayheadMouseDown(context);
-        this.#handleBPMBoxMouseDown = new HandleBPMBoxMouseDown(context);    
+        this.#handleBPMBoxMouseDown = new HandleBPMBoxMouseDown(context);
+        this.#handleTimelineScroll = new HandleTimelineScroll(context);    
     }
 
     public registerRef(ID: keyof typeof DOMElements, ref: React.RefObject<HTMLElement|null>) {
@@ -46,6 +49,15 @@ export class DOMHandlers {
 
     bpmBoxMouseDown(e: React.MouseEvent<HTMLElement>) {
         this.#handleBPMBoxMouseDown.bpmBoxMouseDown(e);
+    }
+
+    timelineWheel(e: React.WheelEvent<HTMLDivElement>) {
+        const ref = this.#refs.get(DOMElements.CANVAS_CONTAINER);
+        if(!ref || !ref.current){
+            console.error("Reference for canvas container was not found when handling timeline scroll");
+            return;
+        }
+        this.#handleTimelineScroll.timelineScroll(e,ref);
     }
 
 }

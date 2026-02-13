@@ -76,17 +76,13 @@ export class UIEngine implements Observer{
     }
 
     public draw(commands: (keyof typeof DOMCommands)[], data: StateContainer) {
-        console.log('reached Draw');
         for(let command of commands){
             const ref = this.#refs.get(command);
-            console.log('got ref for command', command, ref);
             if(ref && ref.current){
-                console.log(`Drawing command: ${command}`);
                 const callback = this.#callbackObj[command];
                 const mipMap = command === DOMCommands.DRAW_TRACK_ONE_WAVEFORMS ? this.#mipMap.staging : 
                                 command === DOMCommands.DRAW_TRACK_TWO_WAVEFORMS ? this.#mipMap.mix : this.#mipMap.empty;
                 if(callback){
-                    console.log('about to call callback',callback);
                     callback(ref, data, mipMap);                
                 }else{
                     console.error(`No callback found for command: ${command}`);

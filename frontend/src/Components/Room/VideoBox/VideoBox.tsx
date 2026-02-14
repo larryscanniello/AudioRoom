@@ -12,12 +12,10 @@ export default function VideoBox({webRTCManagerRef,height,roomJoined}: VideoProp
   const localStreamRef = useRef<HTMLVideoElement>(null);
   const remoteStreamRef = useRef<HTMLVideoElement>(null);
 
-  console.log("WebRTC manager in VideoBox:", webRTCManagerRef.current);
 
   const localStream = webRTCManagerRef.current?.getLocalStream();
   const remoteStream = webRTCManagerRef.current?.getRemoteStream(); 
 
-  console.log("Local stream in VideoBox:", localStream);
 
   useEffect(() => {
       if (localStreamRef.current && localStream) {
@@ -35,11 +33,7 @@ export default function VideoBox({webRTCManagerRef,height,roomJoined}: VideoProp
     return <div>No streams available</div>;
   }
 
-  
-  console.log("Rendering VideoBox with localStream and remoteStream:", {
-    localStream,
-    remoteStream,
-  });
+
 
     return <div className="video-box relative flex justify-center"
                 style={{

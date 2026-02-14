@@ -70,7 +70,6 @@ export default function Room() {
           .buildRTC();
 
         webRTCManagerRef.current = builderRef.current.getWebRTCManager();
-        console.log('WebRTC manager from builder:', webRTCManagerRef.current);
 
         if(!webRTCManagerRef.current){
           throw new Error("Session builder failed to create WebRTC manager");
@@ -96,7 +95,6 @@ export default function Room() {
         //rerender so that components that depend on webRTCManager (ex: VideoBox) will update with the new stream info
         setDawInternalState(performance.now());
 
-        console.log("WebRTC manager after initialization:", webRTCManagerRef.current);
        
       }
       init();
@@ -130,8 +128,6 @@ export default function Room() {
     },[roomJoined])
 
     
-
-    console.log('validRoom:', validRoom);
 
     return <div>
         {validRoom ? <div className="flex flex-col h-screen">

@@ -44,8 +44,6 @@ export default function ZoomSlider({uiControllerRef, compactMode, timelinePxLen}
     const b =  (maxSamplesPerPx / 10) ** (1 / 1000);
     const sliderVal = Math.floor(Math.log10(samplesPerPx/10)/Math.log10(b));
     
-    console.log("Rendering zoom slider with slider value: ", sliderVal, " which corresponds to samples per px: ", samplesPerPx);
-
     return <div className={"flex flex-row items-center col-start-3 " + (compactMode!=1?"-translate-y-2":"")}>
             <FaMagnifyingGlass style={{transform:"scale(1.1)",marginRight:1}} className="text-blue-200"/>
             <Slider style={{width:100}}

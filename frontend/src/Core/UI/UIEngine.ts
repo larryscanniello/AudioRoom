@@ -47,7 +47,6 @@ export class UIEngine implements Observer{
     }
 
     public update(event:DispatchEvent,data:any):void{
-        console.log(event);
         const namespace = event.getEventNamespace();
         namespace.executeUI(this, data);
     }

@@ -39,7 +39,6 @@ export class Mediator implements Subject {
     }
 
     #dispatch(event: DispatchEvent): void {
-        console.log("Dispatching event: ", event.type, " with transaction data: ", event.transactionData);
         const namespace = event.getEventNamespace();
         const successfulTransaction = namespace.stateTransaction(this.#state, event.transactionData, namespace.sharedState);
         if(successfulTransaction){this.#processEvent(event);}

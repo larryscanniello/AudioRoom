@@ -1,3 +1,4 @@
+import { CONSTANTS } from "@/Constants/constants";
 import { type StateContainer } from "@/Core/State";
 
 export function setPlayhead(ref: React.RefObject<HTMLElement|null>,data: StateContainer,_mipMap: Int8Array){
@@ -12,7 +13,7 @@ export function setPlayhead(ref: React.RefObject<HTMLElement|null>,data: StateCo
         }
         const startTime = viewport.startTime;
         const samplesPerPx = viewport.samplesPerPx;
-        const endTime = startTime + samplesPerPx * Number(containerWidth);
+        const endTime = startTime + samplesPerPx * Number(containerWidth) / CONSTANTS.SAMPLE_RATE;
         const totalTime = endTime - startTime;
         if(playheadTimeSeconds < startTime || playheadTimeSeconds >= endTime){
             ref.current.style.display = "none";

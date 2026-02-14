@@ -99,7 +99,7 @@ export class State {
             "bpm","isLooping","isStreaming","metronomeOn",
             "snapToGrid","timeline","delayCompensation",
             "commMessage","stagingMasterVolume","mixMasterVolume",
-            "stagingMuted","mixMuted","timeline",
+            "stagingMuted","mixMuted","playheadTimeSeconds",
         ]);
     }
 

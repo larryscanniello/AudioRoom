@@ -39,8 +39,6 @@ public setZoom(newSliderVal:number){
 }
 
 public scroll(e: React.WheelEvent<HTMLDivElement>){
-    console.log("Received scroll event in UIController with delta: ", e.deltaX);
-    console.log("DOMHandlers", this.#DOMHandlers);
     this.#DOMHandlers.timelineWheel(e);
 }
 

@@ -18,6 +18,8 @@ export const EventTypes = {
     MOVE_PLAYHEAD: 'MOVE_PLAYHEAD',
     EMIT_PEER_ID: 'EMIT_PEER_ID',
     DRAW_ALL_CANVASES: 'DRAW_ALL_CANVASES',
+    SET_MOUSE_DRAG_START: 'SET_MOUSE_DRAG_START',
+    SET_MOUSE_DRAG_END: 'SET_MOUSE_DRAG_END',
 } as const;
 
 export type EventParams = {
@@ -34,6 +36,8 @@ export type EventParams = {
     [EventTypes.MOVE_PLAYHEAD]: number,
     [EventTypes.EMIT_PEER_ID]: {peerID: string},
     [EventTypes.DRAW_ALL_CANVASES]: null,
+    [EventTypes.SET_MOUSE_DRAG_START]: {t: number, trounded: number},
+    [EventTypes.SET_MOUSE_DRAG_END]: {t: number, trounded: number} | null,
 };
 
 /*

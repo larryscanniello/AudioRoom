@@ -10,7 +10,6 @@ export class HandleTimelineScroll {
     }
     timelineScroll(e: React.WheelEvent<HTMLDivElement>,ref: React.RefObject<HTMLElement|null>){
         e.preventDefault();
-        console.log("Handling timeline scroll with delta: ", e.deltaX);
         if(!ref || !ref.current || !(ref.current instanceof HTMLCanvasElement)){
             console.error("Reference for canvas container was not found when handling timeline scroll");
             return;

@@ -1,5 +1,8 @@
 import type { GlobalContext } from "@/Core/Mediator";
 import { CONSTANTS } from "@/Constants/constants";
+import { SetMouseDragStart } from "@/Core/Events/UI/SetMouseDragStart";
+import { SetMouseDragEnd } from "@/Core/Events/UI/SetMouseDragEnd";
+import { MovePlayhead } from "@/Core/Events/UI/MovePlayhead";
 
 export class HandleTimelineMouseDown {
     #context: GlobalContext;
@@ -55,7 +58,7 @@ export class HandleTimelineMouseDown {
         this.#isDragging = true;
         
         // Dispatch start of interaction
-        this.#context.dispatch(new MouseDragStart());
+        this.#context.dispatch(SetMouseDragStart.getDispatchEvent({ param: coords, emit: true }));
 
         window.addEventListener('mousemove', this.#handleCanvasMouseMove);
         window.addEventListener('mouseup', this.#handleCanvasMouseUp);
@@ -88,10 +91,7 @@ export class HandleTimelineMouseDown {
         }
         
         if (this.#mouseDragEnd) {
-             this.#context.dispatch({ 
-                type: "update_selection_region", 
-                payload: { start: this.#mouseDragStart, end: this.#mouseDragEnd } 
-            });
+             this.#context.dispatch(SetMouseDragEnd.getDispatchEvent({ param: this.#mouseDragEnd, emit: true }));
         }
     }
 
@@ -111,8 +111,8 @@ export class HandleTimelineMouseDown {
 
         if (Math.abs(startX - x) <= 5) {
             const loc = this.#mouseDragStart.t; 
-            this.#context.dispatch({ type: "set_playhead", payload: loc });
-            this.#context.dispatch({ type: "clear_selection" });
+            this.#context.dispatch(MovePlayhead.getDispatchEvent({ param: loc, emit: true }));
+            this.#context.dispatch(SetMouseDragEnd.getDispatchEvent({ param: null, emit: true }));
         } else {
             const endPos = this.#calculateDragPos(x);
             let start = this.#mouseDragStart;
@@ -122,10 +122,9 @@ export class HandleTimelineMouseDown {
             }
 
             const finalStart = snapToGrid ? start.trounded : start.t;
-            const finalEnd = snapToGrid ? end.trounded : end.t;
             
-            this.#context.dispatch({ type: "set_playhead", payload: finalStart });
-            this.#context.dispatch({ type: "set_loop_region", payload: { start: finalStart, end: finalEnd } });
+            this.#context.dispatch(MovePlayhead.getDispatchEvent({ param: finalStart, emit: true }));
+            this.#context.dispatch(SetMouseDragEnd.getDispatchEvent({ param: { t: end.t, trounded: end.trounded}, emit: true }));
             
         }
 

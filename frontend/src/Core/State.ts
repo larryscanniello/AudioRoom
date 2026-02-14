@@ -132,13 +132,11 @@ export class State {
 
     transaction(transaction: TransactionData): boolean {
             let canExecute = true;
-            console.log("TRANSACTION",transaction);
             for(let tQuery of transaction.transactionQueries){
                 canExecute = canExecute && this.#comparitor(tQuery);
             }
             if(canExecute){
                 for(let mutation of transaction.mutations){
-                    console.log("MUTATION", mutation,"VAL",mutation.value);
                     this.update(mutation.key, mutation.value);
                 }
                 return true;
@@ -157,7 +155,6 @@ export class State {
                 throw new Error(`Cannot apply "++" mutation to non-number type. Current value type: ${typeof currentVal}`);
             }
         }
-        console.log("Updating state key:", key, "with value:", newvalue);
         this.#state[key] = newvalue;
         if(this.#reactState.has(key)) {
             if(!this.#render) { 

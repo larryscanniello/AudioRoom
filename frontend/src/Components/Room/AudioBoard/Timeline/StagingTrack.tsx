@@ -18,6 +18,7 @@ export default function StagingTrack({timelinePxLen,compactMode,uiControllerRef}
             if(stagingWaveformsRef.current && uiControllerRef.current){
                 console.log("Adding wheel event listener to staging waveforms");
                 stagingWaveformsRef.current.addEventListener("wheel",uiControllerRef.current.scroll.bind(uiControllerRef.current));
+                uiControllerRef.current.registerRef(DOMElements.TRACK_ONE, stagingWaveformsRef);
             }else{
                 console.error("Failed to add wheel event listener to staging waveforms because reference was not found");
             }

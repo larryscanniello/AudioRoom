@@ -29,9 +29,9 @@ export type EventParams = {
     [EventTypes.JOIN_SOCKET_ROOM]: {roomID: string},
     [EventTypes.TOGGLE_LOOPING]: null,
     [EventTypes.TOGGLE_METRONOME]: null,
-    [EventTypes.SCROLL]: number
+    [EventTypes.SCROLL]: {startTime: number, samplesPerPx: number},
     [EventTypes.ZOOM]: {startTime: number, samplesPerPx: number},
-    [EventTypes.MOVE_PLAYHEAD]: {startTime: number, samplesPerPx: number},
+    [EventTypes.MOVE_PLAYHEAD]: number,
     [EventTypes.EMIT_PEER_ID]: {peerID: string},
     [EventTypes.DRAW_ALL_CANVASES]: null,
 };

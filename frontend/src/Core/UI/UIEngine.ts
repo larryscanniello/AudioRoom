@@ -22,9 +22,15 @@ export type MipMap = {
     empty: Int8Array;
 }
 
+export type UIHardware = {
+    opfsWorker: Worker,
+    mipMap: MipMap
+}
+
 export class UIEngine implements Observer{
     #refs: Map<keyof typeof DOMCommands, React.RefObject<HTMLElement|null>>;
     #mipMap: MipMap;
+    #opfsWorker: Worker;
     #mediaProvider: MediaProvider;
     #playheadManager: PlayheadManager;
     #context: GlobalContext;
@@ -33,8 +39,9 @@ export class UIEngine implements Observer{
         data: StateContainer, 
         mipMap: Int8Array) => void};
 
-    constructor(mipMap: MipMap,mediaProvider: MediaProvider,context: GlobalContext) {
-        this.#mipMap = mipMap;
+    constructor(hardware: UIHardware, mediaProvider: MediaProvider, context: GlobalContext) {
+        this.#mipMap = hardware.mipMap;
+        this.#opfsWorker = hardware.opfsWorker;
         this.#mediaProvider = mediaProvider;
         this.#context = context;
         this.#refs = new Map();
@@ -111,8 +118,6 @@ export class UIEngine implements Observer{
         this.#playheadManager.stop();
     }
 
-    
-
     #getCallbackObj():
     {[key in keyof typeof DOMCommands]: 
         (ref: React.RefObject<HTMLElement|null>, 
@@ -137,5 +142,9 @@ export class UIEngine implements Observer{
                 (ref: React.RefObject<HTMLElement|null>, data: StateContainer, mipMap: Int8Array) => {setPlayhead(ref,data,mipMap)}
         }
     }
+
+    init(){
+        this.#opfsWorker.postMessage({type: "initUI", mipMap: this.#mipMap});
+    }   
 
 }

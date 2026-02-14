@@ -1,5 +1,10 @@
 
 import { Play } from "../Events/Audio/Play"
+import { Record } from "../Events/Audio/Record"
+import { Stop } from "../Events/Audio/Stop"
+import { Skipback } from "../Events/Audio/Skipback";
+import { Metronome } from "../Events/Audio/Metronome";
+import { Loop } from "../Events/Audio/Loop";
 
 import type { StateContainer } from "../State";
 import type { GlobalContext } from "../Mediator"
@@ -7,47 +12,43 @@ import type { AudioEngine } from "./AudioEngine";
 import type { Mixer } from "./Mixer";
 
 
+
+
 export class AudioController{
     #context: GlobalContext;
     #mixer: Mixer;
+    #audioEngine: AudioEngine;
 
-    constructor(_engine: AudioEngine,context:GlobalContext,mixer:Mixer) {
+    constructor(audioEngine: AudioEngine,context:GlobalContext,mixer:Mixer) {
+        this.#audioEngine = audioEngine;
         this.#context = context;
         this.#mixer = mixer;
     }
 
     public play() {
-        this.#context.dispatch(Play.dispatchEvent);
+        this.#context.dispatch(Play.getDispatchEvent({emit:true, param: null}));
     }
-/*
+
     public record() {
-        const record = {
-            type: EventTypes.START_RECORDING,
-            data: null,
-            getClass:()=>{return Record}}
-        this.#context.dispatch(record);
+        this.#context.dispatch(Record.getDispatchEvent({emit:true, param: null}));
     }
 
     public stop() {
-        const stopEvent = new Stop();
-        this.#context.dispatch(stopEvent);
+        this.#context.dispatch(Stop.getDispatchEvent({emit:true, param: null}));
     }  
 
     public skipBack() {
-        const skipBackEvent = new Skipback();
-        this.#context.dispatch(skipBackEvent);
+        this.#context.dispatch(Skipback.getDispatchEvent({emit:true, param: null}));
     }
 
     public toggleMetronome() {
-        const toggleMetronomeEvent = new ToggleMetronome();
-        this.#context.dispatch(toggleMetronomeEvent);
+        this.#context.dispatch(Metronome.getDispatchEvent({emit:true, param: null}));
     }
 
     public toggleLooping() {
-        const toggleLoopEvent = new ToggleLoop();
-        this.#context.dispatch(toggleLoopEvent);
+        this.#context.dispatch(Loop.getDispatchEvent({emit:true, param: null}));
     }
-*/
+
     public changeStagingVolume(volume: number) {
         this.#mixer.setStagingMasterVolume(volume);
     }
@@ -76,5 +77,8 @@ export class AudioController{
         return this.#context.query(query);
     }
 
+    public initAudioEngine(){
+        this.#audioEngine.init();
+    }
 
 }

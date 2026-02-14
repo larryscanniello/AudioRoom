@@ -50,7 +50,9 @@ export const Record: EventNamespace<typeof EventTypes.START_RECORDING> = {
             timeline: {
                 start: state.query('playheadTimeSeconds'),
                 end: mouseDragEnd ? mouseDragEnd.t : CONSTANTS.TIMELINE_LENGTH_IN_SECONDS,
-                pos: state.query('playheadTimeSeconds')
+                pos: state.query('playheadTimeSeconds'),
+                staging: state.query('timeline').staging,
+                mix: state.query('timeline').mix,
             }
         };
         return data;

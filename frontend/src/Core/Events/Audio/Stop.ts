@@ -31,7 +31,7 @@ export const Stop: EventNamespace<typeof EventTypes.STOP> = {
     },
 
     getLocalPayload(_state: State): StopAudioProcessorData {
-        return { type: "stop" };
+        return { type: EventTypes.STOP };
     },
 
     executeAudio(engine: AudioEngine, data: StopAudioProcessorData): void {

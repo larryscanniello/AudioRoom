@@ -1,26 +1,16 @@
-import type {
-    Buffers,
-    Pointers,
-    BounceEntry,
-    OPFS,
-    Curr,
-    TimelineState,
-    MipMap,
-    Proceed,
-    Region,
-} from "./opfs_utils/types";
+
 import { getMixTimelineEndSample } from "./opfs_utils/getMixTimelineEndSample.ts";
 import { writeToMipMap } from "./opfs_utils/writeToMipMap.ts";
 import { fillPlaybackBufferUtil } from "./opfs_utils/fillPlaybackBufferUtil.ts";
 import { writeToOPFSUtil } from "./opfs_utils/writeToOPFSUtil.ts";
 
-const buffers:Buffers = {
+const buffers = {
     staging: null,
     mix: null,
     record: null,
 }
 
-const pointers:Pointers = {
+const pointers = {
     staging: {
         read: null,
         write: null,
@@ -38,7 +28,7 @@ const pointers:Pointers = {
     }
 }
 
-const opfs:OPFS = {
+const opfs = {
     root: null,
     sessionDir: null,
     bounces: [],
@@ -49,12 +39,12 @@ const opfs:OPFS = {
     }
 }
 
-const curr: Curr = {
+const curr = {
     bounce: 0,
     take: 0,
 }
 
-const timeline:TimelineState = {
+const timeline = {
     staging: [],
     mix: [],
     start: 0,
@@ -65,7 +55,7 @@ const timeline:TimelineState = {
     },
 }
 
-const mipMap:MipMap = {
+const mipMap = {
     staging: null,
     mix: null,
     halfSize: null,
@@ -79,13 +69,13 @@ const mipMap:MipMap = {
 }
 let looping = false;
 
-export const proceed: Proceed = {
+export const proceed = {
     record: null,
     staging: null,
     mix: null
 }
 
-async function listFiles(dir:any,dirstr:any) {
+async function listFiles(dir,dirstr="") {
     let root;
     if(!dir){
         root = await navigator.storage.getDirectory();
@@ -102,7 +92,7 @@ async function listFiles(dir:any,dirstr:any) {
     }
 }
 
-async function removeHandles(root:any){
+async function removeHandles(root){
     for await (let [name,handle] of root) {
         if (handle.kind === 'file') {
         await handle.remove();
@@ -113,8 +103,7 @@ async function removeHandles(root:any){
     }
 }
 
-if(typeof self !== "undefined"){ //for testing, otherwise in testing self is undefined
-self.onmessage = (e:any) => {
+self.onmessage = (e) => {
     console.log("any sign of life?",e.data);
     if(e.data.type === "init"){
         console.log('opfs worker inited');
@@ -126,9 +115,9 @@ self.onmessage = (e:any) => {
             opfs.sessionDir = sessionDir;
             const currDir = await sessionDir.getDirectoryHandle(`bounce_${curr.bounce}`,{create:true});
             opfs.bounces.push({dirHandle:currDir,takeHandles:{}});
-            const TRACK_COUNT:number = e.data.TRACK_COUNT;
-            const MIX_MIPMAP_BUFFER_SIZE_PER_TRACK:number = e.data.MIX_MIPMAP_BUFFER_SIZE_PER_TRACK;
-            const MIX_BUFFER_SIZE:number = e.data.MIX_BUFFER_SIZE;
+            const TRACK_COUNT = e.data.TRACK_COUNT;
+            const MIX_MIPMAP_BUFFER_SIZE_PER_TRACK = e.data.MIX_MIPMAP_BUFFER_SIZE_PER_TRACK;
+            const MIX_BUFFER_SIZE = e.data.MIX_BUFFER_SIZE;
             opfs.config.MIX_MIPMAP_BUFFER_SIZE_PER_TRACK = MIX_MIPMAP_BUFFER_SIZE_PER_TRACK;
             opfs.config.MIX_BUFFER_SIZE = MIX_BUFFER_SIZE;
             opfs.config.TRACK_COUNT = TRACK_COUNT;
@@ -339,20 +328,20 @@ self.onmessage = (e:any) => {
         });
     }
 }
-}
+
 
 
 
 
 export function fillMixPlaybackBuffer(
-    read:Uint32Array,
-    write:Uint32Array,
-    isFullArr:Uint32Array,
-    buffer:Float32Array,
-    TRACK_COUNT:number,
-    bounces:BounceEntry[],
-    timeline:TimelineState,
-    looping:boolean,
+    read,
+    write,
+    isFullArr,
+    buffer,
+    TRACK_COUNT,
+    bounces,
+    timeline,
+    looping,
 ){
     if(proceed.mix!=="ready") return;
     proceed.mix = "working";
@@ -361,7 +350,7 @@ export function fillMixPlaybackBuffer(
     const isFull = Atomics.load(isFullArr,0);
     const timeOutms = (buffer.length/timeline.mix.length)*1000/48000/32;
     if(isFull){
-        if((proceed as Proceed).mix!=="off"){
+        if(proceed.mix!=="off"){
             proceed.mix = "ready";
             setTimeout(()=>fillMixPlaybackBuffer(read,write,isFullArr,buffer,TRACK_COUNT,bounces,timeline,looping),timeOutms)
         }
@@ -383,19 +372,19 @@ export function fillMixPlaybackBuffer(
     if(newWritePtr === Atomics.load(read,0)){
         Atomics.store(isFullArr,0,1);
     };
-    if((proceed as Proceed).mix!=="off"){proceed.mix="ready";}
+    if(proceed.mix!=="off"){proceed.mix="ready";}
     setTimeout(()=>fillMixPlaybackBuffer(read,write,isFullArr,buffer,TRACK_COUNT,bounces,timeline,looping),timeOutms);
 };
 
 export function fillStagingPlaybackBuffer(
-    read:Uint32Array,
-    write:Uint32Array,
-    isFullArr:Uint32Array,
-    buffer:Float32Array,
-    TRACK_COUNT:number,
-    bounces:BounceEntry[],
-    timeline:TimelineState,
-    looping:boolean,
+    read,
+    write,
+    isFullArr,
+    buffer,
+    TRACK_COUNT,
+    bounces,
+    timeline,
+    looping,
 ){
     if(proceed.staging!=="ready") return;
     proceed.staging = "working";
@@ -403,7 +392,7 @@ export function fillStagingPlaybackBuffer(
     const timeOutms = (buffer.length/timeline.staging.length)*1000/48000/32;
 
     if(isFull){
-        if((proceed as Proceed).staging!=="off"){
+        if(proceed.staging!=="off"){
             proceed.staging = "ready";
             setTimeout(()=>fillStagingPlaybackBuffer(read,write,isFullArr,buffer,TRACK_COUNT,bounces,timeline,looping),timeOutms)
         }
@@ -429,17 +418,17 @@ export function fillStagingPlaybackBuffer(
     if(newWritePtr === Atomics.load(read,0)){
         Atomics.store(isFullArr,0,1);
     };
-    if((proceed as Proceed).staging!=="off"){proceed.staging="ready";}
+    if(proceed.staging!=="off"){proceed.staging="ready";}
     setTimeout(()=>fillStagingPlaybackBuffer(read,write,isFullArr,buffer,TRACK_COUNT,bounces,timeline,looping),timeOutms);
     
 }
 
 
 function writeToOPFS(
-    read:Uint32Array,
-    write:Uint32Array,
-    isFullArr:Uint32Array,
-    buffer:Float32Array,
+    read,
+    write,
+    isFullArr,
+    buffer,
 ){
     if(proceed.record!=="ready") return;
     proceed.record = "working";
@@ -449,7 +438,7 @@ function writeToOPFS(
     let samplesToWrite = (writePtr - readPtr + buffer.length) % buffer.length;
     if(isFull){samplesToWrite = buffer.length;}
     if(samplesToWrite===0){
-        if((proceed as Proceed).record!=="off"){
+        if(proceed.record!=="off"){
             proceed.record = "ready";
             setTimeout(()=>writeToOPFS(read,write,isFullArr,buffer),15);
         }
@@ -460,7 +449,7 @@ function writeToOPFS(
     
     Atomics.store(read,0,readPtr);
     Atomics.store(isFullArr,0,0);
-    if((proceed as Proceed).record!=="off"){proceed.record = "ready";}
+    if(proceed.record!=="off"){proceed.record = "ready";}
     setTimeout(()=>writeToOPFS(read,write,isFullArr,buffer),15);
 }
 

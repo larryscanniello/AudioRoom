@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { vi } from 'vitest';
-import timelineReducer from '../src/Components/RoomComponents/timelineReducer';
-import type { TimelineState, Region, Action } from '../src/Components/types/timeline';
+import timelineReducer from '../src/Core/UI/timelineReducer';
+import type { TimelineState, Region, Action } from "../src/Types/AudioState";
 
 export const addRegionTest = (initialRegions: number[][],regionToAdd:number[]) => {
   const postMessage = vi.fn();
@@ -86,7 +86,7 @@ describe('timelineReducer Scenarios', () => {
     const initialRegions: number[][] = [[0, 10]];
     const regionToAdd: number[] = [10, 20];
     const newState = addRegionTest(initialRegions, regionToAdd);
-    const resultArray = newState.regionStack.map(r => [r.start, r.end]);
+    const resultArray = newState.regionStack.map((r:Region) => [r.start, r.end]);
     expect(newState.regionStack).toHaveLength(2);
     expect(resultArray).toEqual([[0, 10], [10, 20]]);
   });

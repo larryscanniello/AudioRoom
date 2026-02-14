@@ -61,7 +61,7 @@ export default function Room() {
         builderRef.current = await new SessionBuilder(roomID)
           .withReact(setDawInternalState)
           .withAudEngine("worklet", {
-            opfsFilePath: "/opfs_worker.ts",
+            opfsFilePath: "../../Workers/opfs_worker.ts",
             workletFilePath: "/AudioProcessor.js",
           })
           .withMixTracks(16)
@@ -116,9 +116,10 @@ export default function Room() {
         const {audioController,uiController} = builderResult;
 
         audioControllerRef.current = audioController;
+        audioControllerRef.current.initAudioEngine();
 
         uiControllerRef.current = uiController;
-        
+        uiControllerRef.current.initUIEngine();
     }
 
     useEffect(()=>{

@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 // Mock the Web Worker global 'self' object to prevent import errors
 globalThis.self = globalThis.self || (globalThis as any);
 
-import { writeToOPFSUtil } from '../public/opfs_utils/writeToOPFSUtil';
+import { writeToOPFSUtil } from '../src/Workers/opfs_utils/writeToOPFSUtil';
 
 /**
  * Comprehensive test suite for writeToOPFSUtil

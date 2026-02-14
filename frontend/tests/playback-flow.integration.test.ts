@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { fillPlaybackBufferUtil } from '../public/opfs_utils/fillPlaybackBufferUtil';
-import type { BounceEntry, TimelineState, Region } from '../public/opfs_utils/types';
-import { fillMixPlaybackBuffer, fillStagingPlaybackBuffer, proceed } from '../public/opfs_worker';
-import {readTo} from "../public/audioProcessorUtils/readTo"
+import { fillPlaybackBufferUtil } from '../src/Workers/opfs_utils/fillPlaybackBufferUtil';
+import type { Region } from '../src/Types/AudioState';
+import { fillMixPlaybackBuffer, fillStagingPlaybackBuffer, proceed, opfs } from '../src/Workers/opfs_worker';
+import {readTo} from "../src/Workers/audioProcessorUtils/readTo"
 
 /**
  * Integration test for the full playback flow:
@@ -10,6 +10,22 @@ import {readTo} from "../public/audioProcessorUtils/readTo"
  */
 const BUFFER_SIZE = 128*16;
 const PROCESS_FRAMES = 128;
+
+type BounceEntry = {
+    dirHandle: FileSystemDirectoryHandle;
+    takeHandles: {[key: string]: any};
+};
+
+type TimelineState = {
+    staging: Region[][];
+    mix: Region[][];
+    startSample: number;
+    endSample: number;
+    posSample: {
+        staging: number;
+        mix: number;
+    };
+};
 
 function createTimelineObject(stagingNums:number[][],mixNums:number[][][],range:{start:number,end:number}):TimelineState{
     const timeline:TimelineState = {
@@ -38,9 +54,9 @@ function createTimelineObject(stagingNums:number[][],mixNums:number[][][],range:
                 return reg;
             })
         ),
-        start: range.start,
-        end: range.end,
-        pos: {
+        startSample: range.start,
+        endSample: range.end,
+        posSample: {
             staging: range.start,
             mix: range.start,
         }
@@ -72,7 +88,7 @@ function getBounceEntries(timeline:TimelineState,audioData:Float32Array[]):Bounc
             takeHandles: {},
         })
         for(let j=0;j<timeline.mix[i].length;j++){
-            const audioDataIndex = count; // Capture the current count for this closure
+            const audioDataIndex = count;
             bounceEntries[i].takeHandles[`bounce_${i}_take_${j}`] = {
                 read: vi.fn((buffer: Float32Array, options: { at: number }) => {
                     const offset = options.at / Float32Array.BYTES_PER_ELEMENT;
@@ -108,7 +124,15 @@ function getBounceEntries(timeline:TimelineState,audioData:Float32Array[]):Bounc
         count ++;
     }
     return bounceEntries;
-    
+}
+
+function applyTimelineToOpfs(timeline: TimelineState) {
+    opfs.timeline.staging = timeline.staging;
+    opfs.timeline.mix = timeline.mix;
+    opfs.timeline.startSample = timeline.startSample;
+    opfs.timeline.endSample = timeline.endSample;
+    opfs.timeline.posSample.staging = timeline.posSample.staging;
+    opfs.timeline.posSample.mix = timeline.posSample.mix;
 }
 
 function runSimulation(
@@ -131,8 +155,11 @@ function runSimulation(
     proceed.mix = "ready";
     proceed.staging = "ready";
 
-    fillMixPlaybackBuffer(mixRead,mixWrite,mixIsFull,mixBuffer,timeline.mix.length,bounceEntries,timeline,looping);
-    fillStagingPlaybackBuffer(stagingRead,stagingWrite,stagingIsFull,stagingBuffer,timeline.staging.length,bounceEntries,timeline,looping);
+    // Set the module-level opfs.timeline state
+    applyTimelineToOpfs(timeline);
+
+    fillMixPlaybackBuffer(mixRead,mixWrite,mixIsFull,mixBuffer,timeline.mix.length,bounceEntries,looping);
+    fillStagingPlaybackBuffer(stagingRead,stagingWrite,stagingIsFull,stagingBuffer,timeline.staging.length,bounceEntries,looping);
     let mixCount = 0;
     let stagingCount = 0;
     const start = (vi.getMockedSystemTime() as Date).getTime();
@@ -522,8 +549,8 @@ describe('Basic Region Playback', () => {
         const mix = [[[10,20]]];
 
         const timeline = createTimelineObject(staging, mix, { start: 0, end: timelineEnd });
-        timeline.pos.staging = 95;
-        timeline.pos.mix = 95;
+        timeline.posSample.staging = 95;
+        timeline.posSample.mix = 95;
         
         const audioData = getAudioData(timeline);
         const bounceEntries = getBounceEntries(timeline, audioData);

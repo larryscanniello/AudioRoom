@@ -33,7 +33,7 @@ export interface Region {
 
 export interface TimelineState {
     readonly regionStack: readonly Region[];
-    readonly staging: readonly Region[];
+    readonly staging: readonly Region[][];
     readonly mix: readonly Region[][];
     readonly redoStack: readonly Region[];
 }
@@ -78,7 +78,9 @@ interface AudioProcessorData {
     timeline: {
         start: number,
         end: number,
-        pos: number
+        pos: number,
+        staging: readonly Region[][],
+        mix: readonly Region[][],
     }
 }
 

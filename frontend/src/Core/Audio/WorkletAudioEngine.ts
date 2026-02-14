@@ -48,17 +48,17 @@ export class WorkletAudioEngine implements AudioEngine{
 
     public play(data: AudioProcessorData) {
         this.#hardware.processorNode.port.postMessage(data);
-        this.#hardware.opfs.postMessage(data);
+        this.#hardware.opfsWorker.postMessage(data);
     }
 
     public record(data: AudioProcessorData) {
         this.#hardware.processorNode.port.postMessage(data);
-        this.#hardware.opfs.postMessage(data);
+        this.#hardware.opfsWorker.postMessage(data);
     }
 
     public stop(data:StopAudioProcessorData) {
         this.#hardware.processorNode.port.postMessage(data);
-        this.#hardware.opfs.postMessage(data);
+        this.#hardware.opfsWorker.postMessage(data);
     }
 
     public getMetronomeClickSound(): Float32Array{
@@ -67,7 +67,7 @@ export class WorkletAudioEngine implements AudioEngine{
 
     public init(){
         this.#hardware.processorNode.port.postMessage({type: "init",memory: this.#hardware.memory});
-        this.#hardware.opfs.postMessage({type: "init",memory: this.#hardware.memory});
+        this.#hardware.opfsWorker.postMessage({type: "initAudio",memory: this.#hardware.memory});
     }
 
 }

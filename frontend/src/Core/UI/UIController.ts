@@ -62,6 +62,10 @@ public drawAllCanvases(){
     this.#context.dispatch(DrawAllCanvases.getDispatchEvent({emit:false,param:null}));
 }
 
+public initUIEngine(){
+    this.#UIEngine.init();
+}
+
 public terminate() {
     this.#keydownManager.terminate();
 }

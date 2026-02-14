@@ -48,6 +48,7 @@ export class SessionBuilder{
     #mediator: Mediator | null = null;
     #mediaProvider: MediaProvider | null = null;
     #socketManager: SocketManager | null = null;
+    #opfsWorker: Worker | null = null;
 
     constructor(roomID?:string){
         this.#config.standaloneMode = roomID ? false : true;
@@ -163,10 +164,13 @@ export class SessionBuilder{
             if(!this.#config.opfsFilePath){
                 throw new Error("OPFS file path must be provided for worklet audio engine");
             }
-            const opfsWorker = new Worker(this.#config.opfsFilePath,{type: "module"});
+            if(!this.#opfsWorker){
+                this.#opfsWorker = new Worker(new URL(this.#config.opfsFilePath, import.meta.url), {type: "module"});
+            }
+            console.log("In builder: OPFS worker",this.#opfsWorker,this.#config.opfsFilePath);
             memory = this.#allocateBuffersandPointers();
             const source = null;
-            const hardware = {audioContext, processorNode, source, memory, opfsWorker};
+            const hardware = {audioContext, processorNode, source, memory, opfsWorker: this.#opfsWorker};
             audioEngine = new WorkletAudioEngine({hardware,mixer,mediaProvider});
         }
         const audioController = new AudioController(audioEngine, globalContext,mixer);
@@ -177,7 +181,14 @@ export class SessionBuilder{
         const keydownManager = new KeydownManager(context);
         const domHandlers = new DOMHandlers(context);
         const mipMap = this.#allocateMipMap();
-        const uiEngine = new UIEngine(mipMap,mediaProvider, context);
+        if(!this.#config.opfsFilePath){
+            throw new Error("OPFS file path must be provided for worklet audio engine");
+        }
+        if(!this.#opfsWorker){
+            this.#opfsWorker = new Worker(new URL(this.#config.opfsFilePath, import.meta.url), {type: "module"});
+        }
+        const UIhardware = {opfsWorker:this.#opfsWorker, mipMap}
+        const uiEngine = new UIEngine(UIhardware,mediaProvider,context);
         const uiController = new UIController(uiEngine, context, keydownManager, domHandlers);
         return {uiEngine, uiController};
     }

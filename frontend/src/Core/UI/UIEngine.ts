@@ -3,7 +3,7 @@ import { drawMeasureTicks } from "./DrawCallbacks/measureTicks";
 import { renderStagingWaveforms } from "./DrawCallbacks/renderStagingWaveforms";
 import { drawCanvasContainer } from "./DrawCallbacks/canvasContainer"
 import { renderMixWaveforms } from "./DrawCallbacks/renderMixWaveforms";
-import { setPlayhead } from "./DrawCallbacks/setPlayhead"
+import { drawPlayhead} from "./DrawCallbacks/drawPlayhead"
 
 import type { StateContainer } from "../State";
 import type React from "react";
@@ -75,7 +75,7 @@ export class UIEngine implements Observer{
                 this.#refs.set(DOMCommands.DRAW_TRACK_TWO_WAVEFORMS, ref);
                 this.#refs.set(DOMCommands.FILL_SELECTED_REGION_TRACK_TWO, ref);
                 break;
-            case DOMElements.PLAYHEAD:
+            case DOMElements.TOUCH_OVERLAY:
                 this.#refs.set(DOMCommands.DRAW_PLAYHEAD, ref);
                 break;
         }
@@ -139,7 +139,7 @@ export class UIEngine implements Observer{
             [DOMCommands.FILL_SELECTED_REGION_TRACK_TWO]:
                 (ref: React.RefObject<HTMLElement|null>, data: StateContainer, mipMap: Int8Array) => {fillSelectedRegion(ref,data,mipMap)},
             [DOMCommands.DRAW_PLAYHEAD]:
-                (ref: React.RefObject<HTMLElement|null>, data: StateContainer, mipMap: Int8Array) => {setPlayhead(ref,data,mipMap)}
+                (ref: React.RefObject<HTMLElement|null>, data: StateContainer, mipMap: Int8Array) => {drawPlayhead(ref,data,mipMap)}
         }
     }
 

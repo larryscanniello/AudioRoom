@@ -1,44 +1,23 @@
 import { CONSTANTS } from "@/Constants/constants";
 import type { Region } from "@/Types/AudioState";
-import { useEffect, useRef } from "react"; 
+import { useRef } from "react"; 
 import { DOMElements } from "@/Constants/DOMElements";
 
 type StagingTrackProps = {
     timelinePxLen: number;
-    compactMode: number;
+    trackHeights: {
+        stagingHeight: number;
+        mixHeight: number;
+    };
     uiControllerRef: React.RefObject<any>;
 }
 
-export default function StagingTrack({timelinePxLen,compactMode,uiControllerRef}:StagingTrackProps) {
+export default function StagingTrack({timelinePxLen,trackHeights,uiControllerRef}:StagingTrackProps) {
 
     const stagingWaveformsRef = useRef<HTMLCanvasElement>(null);
     const stagingRegionsRef = useRef<HTMLDivElement>(null);
 
-    useEffect(()=>{
-            if(stagingWaveformsRef.current && uiControllerRef.current){
-                console.log("Adding wheel event listener to staging waveforms");
-                stagingWaveformsRef.current.addEventListener("wheel",uiControllerRef.current.scroll.bind(uiControllerRef.current));
-                uiControllerRef.current.registerRef(DOMElements.TRACK_ONE, stagingWaveformsRef);
-            }else{
-                console.error("Failed to add wheel event listener to staging waveforms because reference was not found");
-            }
-            return () => {
-                if(stagingWaveformsRef.current && uiControllerRef.current){
-                    console.log("Removing wheel event listener from staging waveforms");
-                    stagingWaveformsRef.current.removeEventListener("wheel",uiControllerRef.current.scroll.bind(uiControllerRef.current));
-                }else{
-                    console.error("Failed to remove wheel event listener from staging waveforms because reference was not found");
-                }
-            }
-        },[]);
 
-    const handleCanvasMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-        if(uiControllerRef.current){
-            uiControllerRef.current.timelineMouseDown(e, stagingWaveformsRef);
-        }else{
-            console.error("UI Controller reference was not available when handling canvas mouse down in staging track");
-        }
-    }
 
     function setRegions():void{
         const viewport = uiControllerRef.current.query("viewport");
@@ -89,7 +68,7 @@ export default function StagingTrack({timelinePxLen,compactMode,uiControllerRef}
             child.style.position = "absolute"
             child.style.transform = `translateX(${left}px)`;
             child.style.width = `${regionWidth}px`;
-            child.style.height = '57px';
+            child.style.height = `${trackHeights.stagingHeight}px`;
             child.style.background = "rgb(10, 138, 74,.5)";
             child.style.borderRadius = borderRadius;
             child.style.border = "2px solid rgb(220,220,2020,.8)";
@@ -107,10 +86,9 @@ export default function StagingTrack({timelinePxLen,compactMode,uiControllerRef}
     return <div><canvas 
             ref={stagingWaveformsRef}
             width={timelinePxLen}
-            height={Math.floor(58*compactMode)}
-            style={{width:`${timelinePxLen}px`,imageRendering:"pixelated",height:`${Math.floor(58*compactMode)}px`}} 
+            height={trackHeights.stagingHeight}
+            style={{width:`${timelinePxLen}px`,imageRendering:"pixelated",height:`${trackHeights.stagingHeight}px`}} 
             className={`row-start-2 col-start-3`}
-            onMouseDown={handleCanvasMouseDown}
             >
             </canvas>
 

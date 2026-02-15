@@ -20,7 +20,6 @@ import { useState, useEffect, } from "react";
 import MeasureTicks from "./Timeline/MeasureTicks.tsx";
 import TimelineContainer from "./Timeline/TimelineContainer.tsx";
 import StagingTrack from "./Timeline/StagingTrack.tsx";
-import Playhead from "./Timeline/Playhead.tsx";
 import MixTrack from "./Timeline/MixTrack.tsx";
 import Play from "./Transport/Play.tsx";
 import Skipback from "./Transport/Skipback.tsx";
@@ -31,6 +30,7 @@ import { ButtonGroupSeparator } from "@/Components/ui/button-group.tsx";
 import Settings from "./BottomRight/Settings.tsx";
 import Latency from "./BottomRight/Latency.tsx";
 import CommMessage from "./BottomRight/CommMessage.tsx";
+import TouchOverlay from "./Timeline/TouchOverlay.tsx";
 
 type AudioBoardProps = {
     uiControllerRef:React.RefObject<UIController|null>,
@@ -61,6 +61,13 @@ export default function AudioBoard({uiControllerRef,audioControllerRef}:AudioBoa
         uiControllerRef.current.drawAllCanvases();
     }
 
+    const stagingTrackHeight = Math.floor(58*compactMode);
+    const mixTrackHeight = Math.floor(57*compactMode);
+    const trackHeights = {
+        stagingHeight: stagingTrackHeight,
+        mixHeight: mixTrackHeight,
+    }
+
     return <div className="">
             <div className="w-full grid place-items-center items-center">
                 <div 
@@ -83,13 +90,14 @@ export default function AudioBoard({uiControllerRef,audioControllerRef}:AudioBoa
                         </div>
                     </TrackList>
                     <Timeline timelinePxLen={timelinePxLen} compactMode={compactMode}>
+                        <TouchOverlay timelinePxLen={timelinePxLen} compactMode={compactMode} trackHeights={trackHeights} uiControllerRef={uiControllerRef}/>
                         <MeasureTicks timelinePxLen={timelinePxLen} compactMode={compactMode} uiControllerRef={uiControllerRef} />
                         <TimelineContainer timelinePxLen={timelinePxLen} compactMode={compactMode} uiControllerRef={uiControllerRef} />
                         <div className="row-start-2 col-start-3">
-                            <StagingTrack timelinePxLen={timelinePxLen} compactMode={compactMode} uiControllerRef={uiControllerRef} />
-                            <MixTrack timelinePxLen={timelinePxLen} compactMode={compactMode} uiControllerRef={uiControllerRef}/>
+                            <StagingTrack timelinePxLen={timelinePxLen} trackHeights={trackHeights} uiControllerRef={uiControllerRef} />
+                            <MixTrack timelinePxLen={timelinePxLen} trackHeights={trackHeights} uiControllerRef={uiControllerRef}/>
                         </div>
-                        <Playhead compactMode={compactMode} windowLen={timelinePxLen} UIControllerRef={uiControllerRef} />
+                        {/*<Playhead compactMode={compactMode} windowLen={timelinePxLen} UIControllerRef={uiControllerRef} />*/}
                     </Timeline>
                         {/*<Button variant="default" size={compactMode==1?"lg":"sm"} onClick={()=>setSnapToGrid(prev=>!prev)} 
                             className="border-1 border-gray-300 hover:bg-gray-800"

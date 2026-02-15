@@ -1,4 +1,4 @@
-import { UIController } from "@/Core/UI/UIController";
+/*import { UIController } from "@/Core/UI/UIController";
 import { useRef } from "react";
 import { DOMElements } from "@/Constants/DOMElements";
 import { CONSTANTS } from "@/Constants/constants";
@@ -27,7 +27,7 @@ export default function Playhead({compactMode,windowLen,UIControllerRef}: Playhe
 
     if(UIControllerRef.current && playheadRef && playheadRef.current){
         UIControllerRef.current.registerRef(DOMElements.PLAYHEAD, playheadRef);
-        /*
+        
         const playheadTimeSeconds = UIControllerRef.current.query("playheadTimeSeconds");
         const viewport = UIControllerRef.current.query("viewport");
         const start = viewport.startTime;
@@ -39,7 +39,7 @@ export default function Playhead({compactMode,windowLen,UIControllerRef}: Playhe
             playheadRef.current.style.transform = `translateX(${playheadX}px)`;
         }else{
             playheadRef.current.style.display = "none";
-        }*/
+        }
     }
 
 
@@ -69,4 +69,4 @@ export default function Playhead({compactMode,windowLen,UIControllerRef}: Playhe
 
                     </div>
             </div>
-}
+}*/

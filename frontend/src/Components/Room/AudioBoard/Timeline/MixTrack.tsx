@@ -1,43 +1,21 @@
 import { CONSTANTS } from "@/Constants/constants";
 import type { Region } from "@/Types/AudioState";
-import { useRef, useEffect } from "react";
+import { useRef } from "react";
 import { DOMElements } from "@/Constants/DOMElements";
 
 type MixTrackProps = {
     timelinePxLen: number;
-    compactMode: number;
+    trackHeights: {
+        stagingHeight: number;
+        mixHeight: number;
+    };
     uiControllerRef: React.RefObject<any>;
 }
 
-export default function MixTrack({timelinePxLen, compactMode, uiControllerRef}: MixTrackProps) {
+export default function MixTrack({timelinePxLen, trackHeights, uiControllerRef}: MixTrackProps) {
 
     const mixWaveformsRef = useRef<HTMLCanvasElement>(null);
     const mixRegionsRef = useRef<HTMLDivElement>(null);
-
-    useEffect(()=>{
-        if(mixWaveformsRef.current && uiControllerRef.current){
-            console.log("Adding wheel event listener to mix waveforms");
-            mixWaveformsRef.current.addEventListener("wheel",uiControllerRef.current.scroll.bind(uiControllerRef.current));
-        }else{
-            console.error("Failed to add wheel event listener to mix waveforms because reference was not found");
-        }
-        return () => {
-            if(mixWaveformsRef.current && uiControllerRef.current){
-                console.log("Removing wheel event listener from mix waveforms");
-                mixWaveformsRef.current.removeEventListener("wheel",uiControllerRef.current.scroll.bind(uiControllerRef.current));
-            }else{
-                console.error("Failed to remove wheel event listener from mix waveforms because reference was not found");
-            }
-        }
-    },[]);
-
-    const handleCanvasMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-        if(uiControllerRef.current){
-            uiControllerRef.current.timelineMouseDown(e, mixWaveformsRef);
-        } else {
-            console.error("UI Controller reference was not available when handling canvas mouse down in mix track");
-        }
-    }
 
     function setRegions(): void {
         const viewport = uiControllerRef.current?.query("viewport");
@@ -96,7 +74,7 @@ export default function MixTrack({timelinePxLen, compactMode, uiControllerRef}: 
         regionToDisplay.style.position = "absolute"
         regionToDisplay.style.transform = `translateX(${left}px)`;
         regionToDisplay.style.width = `${regionWidth}px`;
-        regionToDisplay.style.height = '57px';
+        regionToDisplay.style.height = `${trackHeights.mixHeight}px`;
         regionToDisplay.style.background = "rgb(10, 138, 74,.5)";
         regionToDisplay.style.borderRadius = borderRadius;
         regionToDisplay.style.border = "2px solid rgb(220,220,2020,.8)";
@@ -114,10 +92,9 @@ export default function MixTrack({timelinePxLen, compactMode, uiControllerRef}: 
         <div>
             <canvas
                 ref={mixWaveformsRef}
-                height={Math.floor(57*compactMode)}
+                height={trackHeights.mixHeight}
                 width={timelinePxLen}
-                style={{width:`${timelinePxLen}px`,imageRendering:"pixelated",height:Math.floor(57*compactMode)}}
-                onMouseDown={handleCanvasMouseDown}
+                style={{width:`${timelinePxLen}px`,imageRendering:"pixelated",height:`${trackHeights.mixHeight}px`}}
             ></canvas>
 
             <div ref={mixRegionsRef} className="">

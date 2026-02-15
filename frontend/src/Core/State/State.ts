@@ -1,5 +1,4 @@
 import type { TimelineState } from "../../Types/AudioState"; // Assuming type exists based on AudioEngine
-import timelineReducer from "./timelineReducer";
 
 
 export interface StateContainer {
@@ -75,7 +74,7 @@ export class State {
                 denominator: 4
             },
             snapToGrid: true,
-            timeline: { staging: [], mix: [], regionStack: [], redoStack: [] },
+            timeline: { staging: [[]], mix: [[]], regionStack: [], redoStack: [] },
             delayCompensation: [0],
             isPlaying: false,
             isRecording: false,
@@ -177,8 +176,5 @@ export class State {
         this.update("commMessage", {text: message, color: color});
     }
 
-    public timelineUpdate(action: "add_region" | "bounce" ) {
-        const timeline = this.query("timeline");
-        this.update("timeline", timelineReducer(timeline, action));
-    }
+
 }

@@ -19,69 +19,15 @@ export default function StagingTrack({timelinePxLen,trackHeights,uiControllerRef
 
 
 
-    function setRegions():void{
-        const viewport = uiControllerRef.current.query("viewport");
-        const startTime = viewport.startTime;
-        const samplesPerPx = viewport.samplesPerPx;
-        const endTime = viewport.startTime + (timelinePxLen * samplesPerPx / CONSTANTS.SAMPLE_RATE);
-        if(!stagingRegionsRef.current){
-            console.error("Staging regions ref not set when trying to set regions");
-            return;
-        }
-        const stagingChildren = stagingRegionsRef.current.children;
-        const elements: Element[] = Array.from(stagingChildren);
-        elements.forEach((child:Element) => {
-            if(!(child instanceof HTMLElement)){
-                console.error("Child of staging regions was not an HTMLElement");
-                return;
-            }
-            if(!child.dataset.start || !child.dataset.end){
-                console.error("Region element was missing start or end data attributes");
-                return;
-            }
-            const start = Number(child.dataset.start) / CONSTANTS.SAMPLE_RATE;
-            const end = Number(child.dataset.end) / CONSTANTS.SAMPLE_RATE;
-            if (end < startTime || start > endTime){
-                child.style.display = "none";
-                return;
-            }
-            child.style.display = "block";
-
-            const left = Math.max(0,(start - startTime) / (endTime-startTime)) * timelinePxLen;
-            const leftOverflow = Math.max(0, startTime - start);
-            const rightOverflow = Math.max(0, end - endTime)
-            const regionWidth = Math.min(1,(end - start - leftOverflow - rightOverflow) / (endTime-startTime)) * timelinePxLen;
-
-            let borderRadius;
-            if(start < startTime && end > endTime){
-                borderRadius = "0px";
-            }else if(start < startTime){
-                borderRadius = "0px 7px 7px 0px";
-            }else if(end > endTime){
-                borderRadius = "7px 0px 0px 7px";
-            }else{
-                borderRadius = "7px";
-            }
-
-            child.style.left = "0";
-            child.style.top = "35px";
-            child.style.position = "absolute"
-            child.style.transform = `translateX(${left}px)`;
-            child.style.width = `${regionWidth}px`;
-            child.style.height = `${trackHeights.stagingHeight}px`;
-            child.style.background = "rgb(10, 138, 74,.5)";
-            child.style.borderRadius = borderRadius;
-            child.style.border = "2px solid rgb(220,220,2020,.8)";
-            child.style.pointerEvents = "none";
-        });
-    }
     
-    const timeline = uiControllerRef.current ? uiControllerRef.current.query("timeline") : {staging: []};
+    
+    const timeline = uiControllerRef.current ? uiControllerRef.current.query("timeline") : {staging: [[]]};
 
-    if(uiControllerRef.current && stagingWaveformsRef.current){
+    if(uiControllerRef.current){
         uiControllerRef.current.registerRef(DOMElements.TRACK_ONE, stagingWaveformsRef);
-        setRegions();
+        uiControllerRef.current.registerRef(DOMElements.TRACK_ONE_REGIONS, stagingRegionsRef);
     }
+
 
     return <div><canvas 
             ref={stagingWaveformsRef}
@@ -92,8 +38,11 @@ export default function StagingTrack({timelinePxLen,trackHeights,uiControllerRef
             >
             </canvas>
 
-            <div ref={stagingRegionsRef} className="">
-                {timeline.staging.map((region:Region) => {
+            <div ref={stagingRegionsRef} 
+            data-timelinepxlen={timelinePxLen}
+            data-stagingheight={trackHeights.stagingHeight}
+            className="">
+                {timeline.staging[0].map((region:Region) => {
                     return <div
                     key={region.name}
                     data-start={region.start}

@@ -1,13 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { vi } from 'vitest';
-import timelineReducer from '../src/Core/UI/timelineReducer';
+import timelineReducer from '../src/Core/State/timelineReducer';
 import type { TimelineState, Region, Action } from "../src/Types/AudioState";
 
 export const addRegionTest = (initialRegions: number[][],regionToAdd:number[]) => {
-  const postMessage = vi.fn();
-  const fileSystemRef = { 
-                            current: { postMessage } as unknown as Worker 
-                    } as React.RefObject<Worker>;
 
   const regionStack: Region[] = [];
   for(let i=0;i<initialRegions.length;i++){
@@ -36,9 +32,9 @@ export const addRegionTest = (initialRegions: number[][],regionToAdd:number[]) =
             takeNumber: regionStack.length,
             bounceNumber: 0,
             fileName: `bounce_${0}_take_${regionStack.length}`,
+            delayCompensation: [0],
         },
-        delayCompensation: [0],
-        fileSystemRef,
+        
     };
 
     const newState = timelineReducer(prevState, action);
@@ -51,8 +47,8 @@ const getGenericTimelines = (): TimelineState => {
       { start: 0, end: 10, take: 0, bounce: 1, name: 'bounce_1_take_0', offset: 0, },
     ];
 
-    const staging: Region[] = [
-      { start: 0, end: 10, take: 0, bounce: 1, name: 'bounce_1_take_1', offset: 0, },
+    const staging: Region[][] = [
+      [{ start: 0, end: 10, take: 0, bounce: 1, name: 'bounce_1_take_1', offset: 0, }],
     ];
 
     const mix: Region[][] = [
@@ -73,13 +69,15 @@ const getGenericTimelines = (): TimelineState => {
 
 describe('timelineReducer Scenarios', () => {
     it('correctly adds a region to an empty timeline', () => {
+      
         const initialRegions: number[][] = [];
         const regionToAdd: number[] = [0, 10];
         const newState = addRegionTest(initialRegions, regionToAdd);
+        console.log('newState',newState);
         expect(newState.regionStack).toHaveLength(1);
         expect(newState.regionStack[0]).toMatchObject({ start: 0, end: 10 });
-        expect(newState.staging).toHaveLength(1);
-        expect(newState.staging[0]).toMatchObject({ start: 0, end: 10 });
+        expect(newState.staging[0]).toHaveLength(1);
+        expect(newState.staging[0][0]).toMatchObject({ start: 0, end: 10 });
     });
 
   it('handles adding regions overlapping at boundary correctly', () => {
@@ -97,7 +95,7 @@ describe('timelineReducer Scenarios', () => {
     const newState = addRegionTest(initial, toAdd);
 
     expect(newState.regionStack).toHaveLength(2);
-    const startsEnds = newState.staging.map((r: any) => [r.start, r.end]);
+    const startsEnds = newState.staging[0].map((r: any) => [r.start, r.end]);
     expect(startsEnds).toEqual([[0, 2], [2, 8], [8, 10]]);
   });
 
@@ -107,8 +105,8 @@ describe('timelineReducer Scenarios', () => {
     const newState = addRegionTest(initial, toAdd);
 
     expect(newState.regionStack).toHaveLength(2);
-    expect(newState.staging).toHaveLength(1);
-    expect(newState.staging[0]).toMatchObject({ start: 0, end: 20 });
+    expect(newState.staging[0]).toHaveLength(1);
+    expect(newState.staging[0][0]).toMatchObject({ start: 0, end: 20 });
   });
 
   it('handles partial overlap (new region extends beyond existing end)', () => {
@@ -117,7 +115,7 @@ describe('timelineReducer Scenarios', () => {
     const newState = addRegionTest(initial, toAdd);
 
     // staging should contain the preserved left part of the old region and the new region
-    const startsEnds = newState.staging.map((r: any) => [r.start, r.end]);
+    const startsEnds = newState.staging[0].map((r: any) => [r.start, r.end]);
     expect(startsEnds).toEqual([[0, 5], [5, 15]]);
   });
 
@@ -127,7 +125,7 @@ describe('timelineReducer Scenarios', () => {
     const newState = addRegionTest(initial, toAdd);
 
     // staging should be: [0,5], [5,25], [25,30]
-    const startsEnds = newState.staging.map((r: any) => [r.start, r.end]);
+    const startsEnds = newState.staging[0].map((r: any) => [r.start, r.end]);
     expect(startsEnds).toEqual([[0, 5], [5, 25], [25, 30]]);
   });
 
@@ -138,15 +136,15 @@ describe('timelineReducer Scenarios', () => {
 
     // regionStack should have two entries but staging should contain only one shard (the newest)
     expect(newState.regionStack).toHaveLength(2);
-    expect(newState.staging).toHaveLength(1);
-    expect(newState.staging[0]).toMatchObject({ start: 0, end: 10 });
+    expect(newState.staging[0]).toHaveLength(1);
+    expect(newState.staging[0][0]).toMatchObject({ start: 0, end: 10 });
   });
 
   it('correctly adds a region that partially overlaps at the start', () => {
     const initial = [[10, 20]];
     const toAdd = [5, 15];
     const newState = addRegionTest(initial, toAdd);
-    const startsEnds = newState.staging.map((r: any) => [r.start, r.end]);
+    const startsEnds = newState.staging[0].map((r: any) => [r.start, r.end]);
     expect(startsEnds).toEqual([[5, 15], [15, 20]]);
   });
 
@@ -154,7 +152,7 @@ describe('timelineReducer Scenarios', () => {
     const initial = [[10, 20]];
     const toAdd = [15, 25];
     const newState = addRegionTest(initial, toAdd);
-    const startsEnds = newState.staging.map((r: any) => [r.start, r.end]);
+    const startsEnds = newState.staging[0].map((r: any) => [r.start, r.end]);
     expect(startsEnds).toEqual([[10, 15], [15, 25]]);
   });
 
@@ -162,7 +160,7 @@ describe('timelineReducer Scenarios', () => {
     const initial = [[0, 10], [15, 25], [30, 40]];
     const toAdd = [5, 35];
     const newState = addRegionTest(initial, toAdd);
-    const startsEnds = newState.staging.map((r: any) => [r.start, r.end]);
+    const startsEnds = newState.staging[0].map((r: any) => [r.start, r.end]);
     expect(newState.regionStack).toHaveLength(4);
     expect(startsEnds).toEqual([[0, 5], [5, 35], [35, 40]]);
   });
@@ -171,7 +169,7 @@ describe('timelineReducer Scenarios', () => {
     const initial = [[0, 10], [20, 30]];
     const toAdd = [10, 20];
     const newState = addRegionTest(initial, toAdd);
-    const startsEnds = newState.staging.map((r: any) => [r.start, r.end]);
+    const startsEnds = newState.staging[0].map((r: any) => [r.start, r.end]);
     expect(newState.regionStack).toHaveLength(3);
     expect(startsEnds).toEqual([[0, 10], [10, 20], [20, 30]]);
   });
@@ -180,7 +178,7 @@ describe('timelineReducer Scenarios', () => {
     const initial = [[10, 20], [30, 40], [50, 60]];
     const toAdd = [0, 70];
     const newState = addRegionTest(initial, toAdd);
-    const startsEnds = newState.staging.map((r: any) => [r.start, r.end]);
+    const startsEnds = newState.staging[0].map((r: any) => [r.start, r.end]);
     expect(newState.regionStack).toHaveLength(4);
     expect(startsEnds).toEqual([[0, 70]]);
   });
@@ -196,7 +194,7 @@ describe('timelineReducer Scenarios', () => {
     const initial = [[0, 10]];
     const toAdd = [0, 15];  
     const newState = addRegionTest(initial, toAdd);
-    const startsEnds = newState.staging.map((r: any) => [r.start, r.end]);
+    const startsEnds = newState.staging[0].map((r: any) => [r.start, r.end]);
     expect(startsEnds).toEqual([[0, 15]]);
   });   
 
@@ -204,7 +202,7 @@ describe('timelineReducer Scenarios', () => {
     const initial = [[0, 10]];
     const toAdd = [5, 10];
     const newState = addRegionTest(initial, toAdd);
-    const startsEnds = newState.staging.map((r: any) => [r.start, r.end]);
+    const startsEnds = newState.staging[0].map((r: any) => [r.start, r.end]);
     expect(startsEnds).toEqual([[0, 5], [5, 10]]);
   });
 
@@ -226,16 +224,16 @@ describe('timelineReducer Scenarios', () => {
           takeNumber: 1,
           bounceNumber: 0,
           fileName: `track_0_take_2`,
+          delayCompensation: [0],
       },
-      delayCompensation: [0],
-      fileSystemRef,
+      
     };
 
     const newState = timelineReducer(prevState, action);
 
     // State should remain unchanged
     expect(newState.regionStack).toHaveLength(1);
-    expect(newState.staging).toHaveLength(1);
+    expect(newState.staging[0]).toHaveLength(1);
     expect(newState.mix).toHaveLength(1);
     expect(newState.redoStack).toHaveLength(1);
     expect(newState).toMatchObject(prevState);
@@ -257,9 +255,8 @@ describe('timelineReducer Scenarios', () => {
           takeNumber: 1,
           bounceNumber: 0,
           fileName: `track_0_take_2`,
+          delayCompensation: [0],
       },
-      delayCompensation: [0],
-      fileSystemRef,
     };
 
     const newState = timelineReducer(prevState, action);
@@ -287,14 +284,13 @@ describe('timelineReducer Scenarios', () => {
 
     const prevState: TimelineState = {
       regionStack,
-      staging: [...regionStack],
+      staging: [[...regionStack]],
       mix: [],
       redoStack: [],
     };
 
     const action:Action = {
       type: 'bounce_to_mix',
-      fileSystemRef,
     };
 
     const newState = timelineReducer(prevState, action);

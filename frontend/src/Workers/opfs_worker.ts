@@ -67,10 +67,6 @@ export type OPFS = {
         halfSize: number;
         resolutions: number[];
         totalTimelineSamples: number;
-        isWorking: {
-            staging: Int32Array;
-            mix: Int32Array;
-        }
     },
     
 }
@@ -104,18 +100,10 @@ const opfs:OPFS = {
         halfSize: 0,
         resolutions: [],
         totalTimelineSamples: 0,
-        isWorking: {
-            staging: new Int32Array(),
-            mix: new Int32Array()
-        }
     }
 }
 
 
-const curr: {bounce: number, take: number} = {
-    bounce: 0,
-    take: 0,
-}
 
 let looping = false;
 
@@ -170,7 +158,7 @@ self.onmessage = (e:any) => {
             const uuid = crypto.randomUUID();
             const sessionDir = await root.getDirectoryHandle(`session_${uuid}`,{create:true});
             opfs.sessionDir = sessionDir;
-            const currDir = await sessionDir.getDirectoryHandle(`bounce_${curr.bounce}`,{create:true});
+            const currDir = await sessionDir.getDirectoryHandle(`bounce_${0}`,{create:true});
             opfs.bounces.push({dirHandle:currDir,takeHandles:{}});
             const trackCount = CONSTANTS.MIX_MAX_TRACKS;
             opfs.config.MIX_MIPMAP_BUFFER_SIZE_PER_TRACK = CONSTANTS.MIPMAP_HALF_SIZE / trackCount;
@@ -183,14 +171,13 @@ self.onmessage = (e:any) => {
         init();
     }
     if(e.data.type === "initUI"){
-        console.log('opfs worker UI inited');
-        Object.assign(opfs.mipMap, e.data.mipMap.mipMap);
-        opfs.mipMapBuffer = e.data.mipMap.buffer;
+        console.log('opfs worker UI inited',e.data);
+        Object.assign(opfs.mipMap, e.data.mipMap);
+        opfs.mipMapBuffer = new Float32Array(2**16);
         Object.assign(opfs.mipMapConfig, {
-            halfSize: e.data.mipMap.halfSize,
-            resolutions: e.data.mipMap.resolutions,
-            totalTimelineSamples: e.data.mipMap.totalTimelineSamples,
-            isWorking: e.data.mipMap.isWorking,
+            halfSize: CONSTANTS.MIPMAP_HALF_SIZE,
+            resolutions: CONSTANTS.MIPMAP_RESOLUTIONS,
+            totalTimelineSamples: CONSTANTS.SAMPLE_RATE * CONSTANTS.TIMELINE_LENGTH_IN_SECONDS,
         });
     }
     if(e.data.type === EventTypes.START_RECORDING){
@@ -201,17 +188,18 @@ self.onmessage = (e:any) => {
             ){
                     console.error("Can't record. Recorder not initialized.");
                     return;
-            };   
-            const fileName = `bounce_${curr.bounce}_take_${curr.take}`
-            const currTakeFile = await opfs.bounces[curr.bounce].dirHandle.getFileHandle(fileName,{create:true});
+            };
+            const bounce = e.data.state.count.bounce;
+            const take = e.data.state.count.take;   
+            const fileName = `bounce_${bounce}_take_${take}`
+            const currTakeFile = await opfs.bounces[bounce].dirHandle.getFileHandle(fileName,{create:true});
             const currTakeHandle = await (currTakeFile as any).createSyncAccessHandle();
-            opfs.bounces[curr.bounce].takeHandles[fileName] = currTakeHandle;
+            opfs.bounces[bounce].takeHandles[fileName] = currTakeHandle;
             const start = Math.round(e.data.timelineStart * CONSTANTS.SAMPLE_RATE);
             const end = Math.round(e.data.timelineEnd * CONSTANTS.SAMPLE_RATE);
             
             opfs.timeline.staging = [e.data.timeline.staging];
             opfs.timeline.mix = e.data.timeline.mix;
-            console.log("opfs timeline:", opfs.timeline);
             opfs.timeline.startSample = start;
             opfs.timeline.endSample = end;
             opfs.timeline.posSample.mix = start;
@@ -241,7 +229,6 @@ self.onmessage = (e:any) => {
                 opfs.bounces,
                 looping,
             );
-            curr.take++;
         }
         init_recording();
     }
@@ -253,7 +240,6 @@ self.onmessage = (e:any) => {
                 console.error("Can't play back. Player not initialized.");
                 return;
         };
-        console.log(e.data.timeline.staging,e.data.timeline.mix);
         const start = Math.round(e.data.timelineStart * CONSTANTS.SAMPLE_RATE);
         const end = Math.round(e.data.timelineEnd * CONSTANTS.SAMPLE_RATE);
 
@@ -298,14 +284,14 @@ self.onmessage = (e:any) => {
         proceed.mix = "off";
     }
     if(e.data.type === "bounce_to_mix"){
-        if(!opfs.mipMapConfig.isWorking.mix || !opfs.mipMapConfig.totalTimelineSamples || !opfs.mipMapConfig.resolutions || !opfs.mipMapBuffer.length || !opfs.mipMap.mix){
+        if( !opfs.mipMapConfig.totalTimelineSamples || !opfs.mipMapConfig.resolutions || !opfs.mipMapBuffer.length || !opfs.mipMap.mix){
             console.error("Can't fill mipmap - not initialized");
             return;
         }
         const mixTimelines = e.data.mixTimelines;
         opfs.timeline.mix = mixTimelines;
         const endSample = getMixTimelineEndSample(mixTimelines);
-        Atomics.store(opfs.mipMapConfig.isWorking.mix,0,0);
+        Atomics.store(opfs.mipMap.mix,0,0);
         writeToMipMap(
             0,
             endSample,
@@ -316,10 +302,8 @@ self.onmessage = (e:any) => {
             opfs.mipMap.mix,
             opfs.bounces,
         );
-        Atomics.store(opfs.mipMapConfig.isWorking.mix,0,1);
+        Atomics.store(opfs.mipMap.mix,0,0);
         postMessage({type:'mipmap_done'})
-        curr.bounce ++;
-        curr.take = 0;
         const createNewTrack = async () => {
             const newTrack = await opfs.sessionDir!.getDirectoryHandle(`bounce_${curr.bounce}`,{create:true});
             opfs.bounces.push({dirHandle:newTrack,takeHandles:{}});
@@ -327,12 +311,16 @@ self.onmessage = (e:any) => {
         createNewTrack();
     }
     if(e.data.type === "fill_staging_mipmap"){
-        if(!opfs.mipMapConfig.totalTimelineSamples || !opfs.mipMapConfig.resolutions || !opfs.mipMapBuffer.length || !opfs.mipMap.staging){
-            console.error("Can't fill staging mipmap - not initialized");
+        if(!opfs.mipMapConfig.totalTimelineSamples || !opfs.mipMapConfig.resolutions || !opfs.mipMapBuffer || !opfs.mipMap.staging){
+            console.error("Can't fill staging mipmap - not initialized",
+                "mipMapConfig:", opfs.mipMapConfig,
+                "mipMapBuffer:", opfs.mipMapBuffer,
+                "mipMap:", opfs.mipMap
+            );
             return;
         }
         const newTake = e.data.newTake;
-        opfs.timeline.staging = [e.data.timeline];
+        opfs.timeline.staging = e.data.timeline.staging;
         writeToMipMap(
             newTake.start,
             newTake.end,
@@ -343,6 +331,8 @@ self.onmessage = (e:any) => {
             opfs.mipMap.staging,
             opfs.bounces,
         );
+        Atomics.store(opfs.mipMap.staging,0,0);
+        postMessage({type:'staging_mipmap_done'})
     }
     if(e.data.type === "cleanup"){
         opfs.bounces.forEach(bounce => {

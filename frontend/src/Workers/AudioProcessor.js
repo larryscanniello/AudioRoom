@@ -113,19 +113,20 @@ class AudioProcessor extends AudioWorkletProcessor {
       });
     };
     if (data.type === 'STOP'){ 
-      console.log("stopping playback/recording with data",data)
-      this.absolute.end = currentTime + .5;
-      this.state.sessionId = null;
       if(this.state.isRecording){
+        console.log("recording stopped, posting message with timeline data",data);
         this.port.postMessage({
+          type:"add_region",
           timelineStart: this.timeline.start,
-          timelineEnd: this.timeline.start + ((data.timelineEnd*sampleRate) - this.absolute.start),
+          timelineEnd: Math.round(this.timeline.start + ((sampleRate * currentTime - this.absolute.start)%(this.timeline.end - this.timeline.start))),
           takeNumber: this.state.count.take,
           bounceNumber: this.state.count.bounce,
           fileName: `bounce_${this.state.count.bounce}_take_${this.state.count.take}`,
-          fileLength: this.absolute.end + this.halfSecondInSamples - this.absolute.start,
+          delayCompensation: [0],
         })
       }
+      this.absolute.end = currentTime + .5;
+      this.state.sessionId = null;
       this.state.isPlayback = false;
       this.state.isRecording = false;
     };

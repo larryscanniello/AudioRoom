@@ -56,6 +56,7 @@ export const Play:EventNamespace<typeof EventTypes.START_PLAYBACK> = {
                 staging: state.query('timeline').staging,
                 mix: state.query('timeline').mix,
             }
+            
         }
         return data;
     },

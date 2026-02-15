@@ -4,6 +4,8 @@ import { renderStagingWaveforms } from "./DrawCallbacks/renderStagingWaveforms";
 import { drawCanvasContainer } from "./DrawCallbacks/canvasContainer"
 import { renderMixWaveforms } from "./DrawCallbacks/renderMixWaveforms";
 import { drawPlayhead} from "./DrawCallbacks/drawPlayhead"
+import { renderRegions } from "./DrawCallbacks/renderRegions";
+import { MipMapsDone } from "../Events/UI/MipMapsDone";
 
 import type { StateContainer } from "../State/State";
 import type React from "react";
@@ -42,11 +44,30 @@ export class UIEngine implements Observer{
     constructor(hardware: UIHardware, mediaProvider: MediaProvider, context: GlobalContext) {
         this.#mipMap = hardware.mipMap;
         this.#opfsWorker = hardware.opfsWorker;
+        this.#opfsWorker.onmessage = this.opfsOnMessage.bind(this);
         this.#mediaProvider = mediaProvider;
         this.#context = context;
         this.#refs = new Map();
         this.#callbackObj =this.#getCallbackObj();
         this.#playheadManager = new PlayheadManager(this.#context, this.#mediaProvider.getAudioContext());
+    }
+
+    opfsOnMessage(e: MessageEvent){
+        if(e.data.type === "staging_mipmap_done"){
+            this.#context.dispatch(MipMapsDone.getDispatchEvent({emit: false, param: null}));
+        }
+    }
+
+    renderNewRegion(){
+        const timeline = this.#context.query("timeline");
+        const bounce = this.#context.query("bounce");
+        const take = this.#context.query("take");
+        const regionStack = timeline.regionStack;
+        this.#opfsWorker.postMessage({
+            type: "fill_staging_mipmap", 
+            timeline,bounce,take,
+            newTake: regionStack[regionStack.length-1]
+        });
     }
 
     public getRef(ID: keyof typeof DOMCommands): React.RefObject<HTMLElement|null>|undefined{
@@ -70,6 +91,9 @@ export class UIEngine implements Observer{
             case DOMElements.TRACK_ONE:
                 this.#refs.set(DOMCommands.DRAW_TRACK_ONE_WAVEFORMS, ref);
                 this.#refs.set(DOMCommands.FILL_SELECTED_REGION_TRACK_ONE, ref);
+                break;
+            case DOMElements.TRACK_ONE_REGIONS:
+                this.#refs.set(DOMCommands.RENDER_TRACK_ONE_REGIONS, ref);
                 break;
             case DOMElements.TRACK_TWO:
                 this.#refs.set(DOMCommands.DRAW_TRACK_TWO_WAVEFORMS, ref);
@@ -139,7 +163,11 @@ export class UIEngine implements Observer{
             [DOMCommands.FILL_SELECTED_REGION_TRACK_TWO]:
                 (ref: React.RefObject<HTMLElement|null>, data: StateContainer, mipMap: Int8Array) => {fillSelectedRegion(ref,data,mipMap)},
             [DOMCommands.DRAW_PLAYHEAD]:
-                (ref: React.RefObject<HTMLElement|null>, data: StateContainer, mipMap: Int8Array) => {drawPlayhead(ref,data,mipMap)}
+                (ref: React.RefObject<HTMLElement|null>, data: StateContainer, mipMap: Int8Array) => {drawPlayhead(ref,data,mipMap)},
+            [DOMCommands.RENDER_TRACK_ONE_REGIONS]:
+                (ref: React.RefObject<HTMLElement|null>, data: StateContainer, mipMap: Int8Array) => {renderRegions(ref, data, mipMap)},
+            [DOMCommands.RENDER_TRACK_TWO_REGIONS]:
+                (ref: React.RefObject<HTMLElement|null>, data: StateContainer, mipMap: Int8Array) => {renderRegions(ref, data, mipMap)}
         }
     }
 

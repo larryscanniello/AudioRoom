@@ -3,6 +3,7 @@ import type { AudioEngine } from "../Audio/AudioEngine";
 import type { UIEngine } from "../UI/UIEngine";
 import type { SocketManager } from "../Sockets/SocketManager";
 import type { DispatchEvent } from "../Mediator";
+import type { TimelineState } from "@/Types/AudioState";
 
 export const EventTypes = {
     START_PLAYBACK: 'START_PLAYBACK',
@@ -21,6 +22,8 @@ export const EventTypes = {
     DRAW_ALL_CANVASES: 'DRAW_ALL_CANVASES',
     SET_MOUSE_DRAG_START: 'SET_MOUSE_DRAG_START',
     SET_MOUSE_DRAG_END: 'SET_MOUSE_DRAG_END',
+    RECORDING_FINISHED: 'RECORDING_FINISHED',
+    MIPMAPS_DONE: 'MIPMAPS_DONE',
 } as const;
 
 export type EventParams = {
@@ -40,6 +43,8 @@ export type EventParams = {
     [EventTypes.DRAW_ALL_CANVASES]: null,
     [EventTypes.SET_MOUSE_DRAG_START]: {t: number, trounded: number},
     [EventTypes.SET_MOUSE_DRAG_END]: {t: number, trounded: number} | null,
+    [EventTypes.RECORDING_FINISHED]: TimelineState,
+    [EventTypes.MIPMAPS_DONE]: null,
 };
 
 /*

@@ -62,7 +62,7 @@ export default function Room() {
           .withReact(setDawInternalState)
           .withAudEngine("worklet", {
             opfsFilePath: "../../Workers/opfs_worker.ts",
-            workletFilePath: "/AudioProcessor.js",
+            workletFilePath: "../../Workers/AudioProcessor",
           })
           .withMixTracks(16)
           .withSockets()

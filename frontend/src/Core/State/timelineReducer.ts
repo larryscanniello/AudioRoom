@@ -1,9 +1,9 @@
 import type { Region, TimelineState, Action } from '../../Types/AudioState';
 
-export default function timelineReducer(state:TimelineState, action: Action): TimelineState {
+export default function timelineReducer(state:TimelineState, action: any): TimelineState {
         switch(action.type){
             case "add_region":
-                const {timelineStart,timelineEnd,takeNumber,fileName,bounceNumber} = action.data;
+                const {timelineStart,timelineEnd,takeNumber,fileName,bounceNumber,delayCompensation} = action.data;
                 if(timelineEnd <= timelineStart){
                     console.error("Invalid region: end must be greater than start");
                     return state;
@@ -14,10 +14,9 @@ export default function timelineReducer(state:TimelineState, action: Action): Ti
                     bounce:bounceNumber,
                     take:takeNumber,
                     name:fileName,
-                    offset: action.delayCompensation[0],
+                    offset: delayCompensation[0],
                 }
                 if(state.regionStack.length === 0){ 
-                    action.fileSystemRef.current.postMessage({type:"fill_staging_mipmap",newTake:newRegion,timeline:[newRegion]});
                     return {
                     regionStack: [newRegion],
                     staging:[[newRegion]],
@@ -66,17 +65,15 @@ export default function timelineReducer(state:TimelineState, action: Action): Ti
                 timeline.sort((a, b) => a.start - b.start);
                 regionStack.reverse();
                 const toReturn = {regionStack,staging:[timeline],mix:state.mix,redoStack:[]};
-                action.fileSystemRef.current.postMessage({type:"fill_staging_mipmap",newTake:regionStack[regionStack.length-1],timeline:timeline});
                  //there's another return earlier in the function... lol
                 return toReturn;
             case "bounce_to_mix":
                 const newState = {
-                    staging: [[]],
-                    mix: [...state.mix,[...state.staging]],
+                    staging: [],
+                    mix: [...state.mix,[...state.staging[0]]],
                     regionStack: [],
                     redoStack: [],
                 };
-                action.fileSystemRef.current.postMessage({type:"bounce_to_mix",mixTimelines:newState.mix})
                 return newState
             default:
                 if(import.meta.env.PRODUCTION){

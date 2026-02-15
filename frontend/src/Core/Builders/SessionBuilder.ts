@@ -149,7 +149,7 @@ export class SessionBuilder{
                 throw new Error("Worklet file path must be provided for worklet audio engine");
             }
             try {
-                await audioContext.audioWorklet.addModule(this.#config.workletFilePath);
+                await audioContext.audioWorklet.addModule(new URL(this.#config.workletFilePath, import.meta.url));
             } catch (e) {
                 throw new Error(`Failed to load worklet at '${this.#config.workletFilePath}'. \n1. Check Console for "Diagnostic pre-fetch" errors.\n2. If the file is valid JS, check inside 'AudioProcessor.js' for syntax errors.\nOriginal Error: ${e}`);
             }
@@ -171,7 +171,7 @@ export class SessionBuilder{
             memory = this.#allocateBuffersandPointers();
             const source = null;
             const hardware = {audioContext, processorNode, source, memory, opfsWorker: this.#opfsWorker};
-            audioEngine = new WorkletAudioEngine({hardware,mixer,mediaProvider});
+            audioEngine = new WorkletAudioEngine({hardware,mixer,mediaProvider,context: globalContext});
         }
         const audioController = new AudioController(audioEngine, globalContext,mixer);
         return {audioController, audioEngine};

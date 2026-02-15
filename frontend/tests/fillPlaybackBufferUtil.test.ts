@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { fillPlaybackBufferUtil } from '../public/opfs_utils/fillPlaybackBufferUtil.ts'; // Update this path
-import type { TimelineState, BounceEntry, Region } from '../public/opfs_utils/types.ts';
+import { fillPlaybackBufferUtil } from '../src/Workers/opfs_utils/fillPlaybackBufferUtil.ts'; // Update this path
+import type { TimelineState, BounceEntry, Region } from '../src/Workers/opfs_utils/types.ts'; // Update this path
 
 
 function createMockTimeline(regionsToAdd: number[][][], timelineStart: number, timelineEnd: number) {

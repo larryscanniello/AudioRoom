@@ -46,14 +46,13 @@ interface AddRegionAction {
         takeNumber: number;
         bounceNumber: number;
         fileName: string;
+        delayCompensation: number[];
     };
-    delayCompensation: number[];
-    fileSystemRef: React.RefObject<Worker>;
+    
 }
 
 interface BounceToMixAction {
     type: 'bounce_to_mix';
-    fileSystemRef: React.RefObject<Worker>;
 }
 
 interface Absolute {

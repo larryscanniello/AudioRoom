@@ -9,7 +9,7 @@ import type { EventNamespace } from "../EventNamespace";
 export const DrawAllCanvases: EventNamespace<typeof EventTypes.DRAW_ALL_CANVASES> = {
     sharedState: false,
 
-    getDispatchEvent: ({ param, emit }) => {
+    getDispatchEvent: ({ emit }) => {
         return {
             type: EventTypes.DRAW_ALL_CANVASES,
             emit,

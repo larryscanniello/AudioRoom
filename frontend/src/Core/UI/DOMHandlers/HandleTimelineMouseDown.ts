@@ -2,7 +2,7 @@ import type { GlobalContext } from "@/Core/Mediator";
 import { CONSTANTS } from "@/Constants/constants";
 import { SetMouseDragStart } from "@/Core/Events/UI/SetMouseDragStart";
 import { SetMouseDragEnd } from "@/Core/Events/UI/SetMouseDragEnd";
-import { MovePlayhead } from "@/Core/Events/UI/MovePlayhead";
+import { PlayheadMoveMouseDown } from "@/Core/Events/UI/PlayheadMoveMouseDown";
 
 export class HandleTimelineMouseDown {
     #context: GlobalContext;
@@ -111,7 +111,7 @@ export class HandleTimelineMouseDown {
 
         if (Math.abs(startX - x) <= 5) {
             const loc = this.#mouseDragStart.t; 
-            this.#context.dispatch(MovePlayhead.getDispatchEvent({ param: loc, emit: true }));
+            this.#context.dispatch(PlayheadMoveMouseDown.getDispatchEvent({ param: loc, emit: true }));
             this.#context.dispatch(SetMouseDragEnd.getDispatchEvent({ param: null, emit: true }));
         } else {
             const endPos = this.#calculateDragPos(x);
@@ -123,7 +123,7 @@ export class HandleTimelineMouseDown {
 
             const finalStart = snapToGrid ? start.trounded : start.t;
             
-            this.#context.dispatch(MovePlayhead.getDispatchEvent({ param: finalStart, emit: true }));
+            this.#context.dispatch(PlayheadMoveMouseDown.getDispatchEvent({ param: finalStart, emit: true }));
             this.#context.dispatch(SetMouseDragEnd.getDispatchEvent({ param: { t: end.t, trounded: end.trounded}, emit: true }));
             
         }

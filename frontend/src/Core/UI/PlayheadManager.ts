@@ -1,6 +1,5 @@
 import type { GlobalContext } from "../Mediator";
-import { CONSTANTS } from "@/Constants/constants";
-
+import { PlayheadMoveAuto } from "../Events/UI/PlayheadMoveAuto";
 
 export class PlayheadManager {
     playheadData: {isMoving:boolean, startTime:number} = {isMoving:false, startTime:0};
@@ -22,11 +21,6 @@ export class PlayheadManager {
                 console.error("Playhead or waveform ref not found during playhead loop");
                 return;
             }
-            const rect = waveformRef.current.getBoundingClientRect();
-            const width = rect.width;
-            const viewport = this.#context.query("viewport");
-            const viewportStart = viewport.startTime;
-            const viewportEnd = viewportStart + width * viewport.samplesPerPx / CONSTANTS.SAMPLE_RATE;
             
             const audioCtx = this.#audioCtx;
             const elapsed = audioCtx.currentTime - startTime;
@@ -34,19 +28,13 @@ export class PlayheadManager {
 
             let newPlayheadTime;
             if(looping){
-                newPlayheadTime = timeline.start + ((elapsed + startTime) % (timeline.end - timeline.start));
+                newPlayheadTime = timeline.start + (elapsed % (timeline.end - timeline.start));
             }else{
                 newPlayheadTime = Math.min(timeline.start + elapsed, timeline.end);
             }
 
-            if(newPlayheadTime >= viewportEnd || newPlayheadTime < viewportStart){
-                playheadRef.current.style.display = "none";
-            }else{
-                playheadRef.current.style.display = "block";
-                const playheadRatio = (newPlayheadTime - viewportStart) / (viewportEnd - viewportStart);
-                const offset = playheadRatio * width;
-                playheadRef.current.style.left = `${offset}px`;
-            }
+            this.#context.dispatch(PlayheadMoveAuto.getDispatchEvent({ param: newPlayheadTime, emit: false }));
+
             if(isMoving){
                 requestAnimationFrame(() => this.playheadLoop(playheadRef, waveformRef,timeline));
             }

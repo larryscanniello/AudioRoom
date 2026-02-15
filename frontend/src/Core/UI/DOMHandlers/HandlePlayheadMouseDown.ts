@@ -1,6 +1,6 @@
 import type { GlobalContext } from "@/Core/Mediator";
 import { CONSTANTS } from "../../../Constants/constants"
-import { MovePlayhead } from "@/Core/Events/UI/MovePlayhead";
+import { PlayheadMoveMouseDown } from "@/Core/Events/UI/PlayheadMoveMouseDown";
 
 export class HandlePlayheadMouseDown{
     #context: GlobalContext;
@@ -25,12 +25,12 @@ export class HandlePlayheadMouseDown{
             const totalTime = this.#viewportEndTime - this.#viewportStartTime;
             const playheadPosInSeconds = this.#viewportStartTime+pxWindowRatio*totalTime;
             if(x<0){
-                this.#context.dispatch(MovePlayhead.getDispatchEvent({param: 0, emit: true}));
+                this.#context.dispatch(PlayheadMoveMouseDown.getDispatchEvent({param: 0, emit: true}));
             }
             else if(playheadPosInSeconds>this.#viewportEndTime){
-                this.#context.dispatch(MovePlayhead.getDispatchEvent({param: this.#viewportEndTime, emit: true}));
+                this.#context.dispatch(PlayheadMoveMouseDown.getDispatchEvent({param: this.#viewportEndTime, emit: true}));
             }else{
-                this.#context.dispatch(MovePlayhead.getDispatchEvent({param: playheadPosInSeconds, emit: true}));
+                this.#context.dispatch(PlayheadMoveMouseDown.getDispatchEvent({param: playheadPosInSeconds, emit: true}));
             }
         }
         

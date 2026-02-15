@@ -6,23 +6,20 @@ import { DOMCommands } from "@/Constants/DOMElements";
 
 import type { EventNamespace } from "../EventNamespace";
 
-export const MovePlayhead: EventNamespace<typeof EventTypes.MOVE_PLAYHEAD> = {
+export const PlayheadMoveAuto: EventNamespace<typeof EventTypes.PLAYHEAD_MOVE_AUTO> = {
     sharedState: true,
 
     getDispatchEvent: ({ param, emit }) => {
         return {
-            type: EventTypes.MOVE_PLAYHEAD,
+            type: EventTypes.PLAYHEAD_MOVE_AUTO,
             emit,
             transactionData: {
-                transactionQueries: [
-                    { key: 'isPlaying', comparitor: '===', target: false },
-                    { key: 'isRecording', comparitor: '===', target: false },
-                ],
+                transactionQueries: [],
                 mutations: [
                     { key: 'playheadTimeSeconds', value: param }
                 ],
             },
-            getEventNamespace: () => { return MovePlayhead; }
+            getEventNamespace: () => { return PlayheadMoveAuto; }
         };
     },
 

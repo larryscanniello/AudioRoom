@@ -1,5 +1,5 @@
 import { CONSTANTS } from "@/Constants/constants";
-import { type StateContainer } from "@/Core/State";
+import { type StateContainer } from "@/Core/State/State";
 
 export function drawPlayhead(
     ref: React.RefObject<HTMLCanvasElement | null>,

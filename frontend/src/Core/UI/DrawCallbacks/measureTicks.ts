@@ -1,4 +1,4 @@
-import { type StateContainer } from "@/Core/State";  
+import { type StateContainer } from "@/Core/State/State";  
 import { CONSTANTS } from "@/Constants/constants";
    
 export function drawMeasureTicks(ref: React.RefObject<HTMLElement|null>, data: StateContainer, _mipMap: Int8Array){

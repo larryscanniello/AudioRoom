@@ -5,7 +5,7 @@ import { drawCanvasContainer } from "./DrawCallbacks/canvasContainer"
 import { renderMixWaveforms } from "./DrawCallbacks/renderMixWaveforms";
 import { drawPlayhead} from "./DrawCallbacks/drawPlayhead"
 
-import type { StateContainer } from "../State";
+import type { StateContainer } from "../State/State";
 import type React from "react";
 import { fillSelectedRegion } from "./DrawCallbacks/fillSelectedRegion";
 import type { Observer } from "@/Types/Observer";

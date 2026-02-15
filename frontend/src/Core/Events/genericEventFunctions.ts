@@ -1,4 +1,4 @@
-import type { State, TransactionData } from "@/Core/State";
+import type { State, TransactionData } from "@/Core/State/State";
 import type { SocketManager } from "../Sockets/SocketManager";
 
 

@@ -1,6 +1,6 @@
 import { CONSTANTS } from "@/Constants/constants";
 
-import { type StateContainer } from "@/Core/State";
+import { type StateContainer } from "@/Core/State/State";
 
 export function renderStagingWaveforms(ref: React.RefObject<HTMLElement|null>, data: StateContainer, mipMap: Int8Array){
 

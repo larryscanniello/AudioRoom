@@ -1,4 +1,4 @@
-import { type StateContainer } from "@/Core/State";
+import { type StateContainer } from "@/Core/State/State";
 
 export function fillSelectedRegion(ref: React.RefObject<HTMLElement|null>, data:StateContainer,_mipMap: Int8Array){
         const {viewport, mouseDragStart, mouseDragEnd} = data;

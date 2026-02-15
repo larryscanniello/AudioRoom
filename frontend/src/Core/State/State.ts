@@ -1,5 +1,5 @@
-import type { TimelineState } from "../Types/AudioState"; // Assuming type exists based on AudioEngine
-import timelineReducer from "./UI/timelineReducer";
+import type { TimelineState } from "../../Types/AudioState"; // Assuming type exists based on AudioEngine
+import timelineReducer from "./timelineReducer";
 
 
 export interface StateContainer {

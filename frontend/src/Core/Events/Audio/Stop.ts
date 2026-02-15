@@ -1,5 +1,5 @@
 import { EventTypes } from "../EventNamespace";
-import type { State } from "@/Core/State";
+import type { State } from "@/Core/State/State";
 import { executeSocketUtil, stateTransactionUtil } from "../genericEventFunctions";
 
 import type { AudioEngine } from "@/Core/Audio/AudioEngine";
@@ -7,7 +7,7 @@ import type { StopAudioProcessorData } from "@/Types/AudioState";
 import type { UIEngine } from "@/Core/UI/UIEngine";
 import type { SocketManager } from "@/Core/Sockets/SocketManager";
 import type { EventNamespace } from "../EventNamespace";
-import type { TransactionData } from "@/Core/State";
+import type { TransactionData } from "@/Core/State/State";
 
 export const Stop: EventNamespace<typeof EventTypes.STOP> = {
     sharedState: true,

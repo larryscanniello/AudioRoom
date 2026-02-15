@@ -1,4 +1,4 @@
-import type { State, TransactionData } from "../State"
+import type { State, TransactionData } from "../State/State"
 import type { AudioEngine } from "../Audio/AudioEngine";
 import type { UIEngine } from "../UI/UIEngine";
 import type { SocketManager } from "../Sockets/SocketManager";

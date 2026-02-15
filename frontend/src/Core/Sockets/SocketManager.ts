@@ -4,7 +4,7 @@ import { Play } from "../Events/Audio/Play";
 import type { Observer } from "@/Types/Observer";
 import type { DispatchEvent, GlobalContext } from "../Mediator";
 import { EventTypes } from "../Events/EventNamespace";
-import type { Mutation, StateContainer } from "@/Core/State";
+import type { Mutation, StateContainer } from "@/Core/State/State";
 import { Stop } from "../Events/Audio/Stop";
 
 export class SocketManager implements Observer {

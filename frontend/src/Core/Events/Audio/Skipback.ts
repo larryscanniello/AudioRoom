@@ -1,12 +1,12 @@
 import { EventTypes } from "../EventNamespace";
-import type { State } from "@/Core/State";
+import type { State } from "@/Core/State/State";
 import { executeSocketUtil, stateTransactionUtil } from "../genericEventFunctions";
 
 import type { UIEngine } from "@/Core/UI/UIEngine";
 import type { SocketManager } from "@/Core/Sockets/SocketManager";
 import type { EventNamespace } from "../EventNamespace";
 import type { AudioEngine } from "@/Core/Audio/AudioEngine";
-import type { TransactionData } from "@/Core/State";
+import type { TransactionData } from "@/Core/State/State";
 
 export const Skipback: EventNamespace<typeof EventTypes.SKIPBACK> = {
     sharedState: true,

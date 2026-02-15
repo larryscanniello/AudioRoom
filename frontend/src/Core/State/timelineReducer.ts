@@ -1,4 +1,4 @@
-import type { Region, TimelineState, Action } from '../../Types/timeline';
+import type { Region, TimelineState, Action } from '../../Types/AudioState';
 
 export default function timelineReducer(state:TimelineState, action: Action): TimelineState {
         switch(action.type){
@@ -20,7 +20,7 @@ export default function timelineReducer(state:TimelineState, action: Action): Ti
                     action.fileSystemRef.current.postMessage({type:"fill_staging_mipmap",newTake:newRegion,timeline:[newRegion]});
                     return {
                     regionStack: [newRegion],
-                    staging:[newRegion],
+                    staging:[[newRegion]],
                     mix: state.mix,
                     redoStack: [],
                 }};
@@ -65,13 +65,13 @@ export default function timelineReducer(state:TimelineState, action: Action): Ti
                 }
                 timeline.sort((a, b) => a.start - b.start);
                 regionStack.reverse();
-                const toReturn = {regionStack,staging:timeline,mix:state.mix,redoStack:[]};
+                const toReturn = {regionStack,staging:[timeline],mix:state.mix,redoStack:[]};
                 action.fileSystemRef.current.postMessage({type:"fill_staging_mipmap",newTake:regionStack[regionStack.length-1],timeline:timeline});
                  //there's another return earlier in the function... lol
                 return toReturn;
             case "bounce_to_mix":
                 const newState = {
-                    staging: [],
+                    staging: [[]],
                     mix: [...state.mix,[...state.staging]],
                     regionStack: [],
                     redoStack: [],

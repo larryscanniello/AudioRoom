@@ -1,9 +1,9 @@
-import { State } from "./State";
+import { State } from "./State/State";
 
-import type { StateContainer } from "./State"
+import type { StateContainer } from "./State/State"
 import { type EventParams } from "./Events/EventNamespace";
 import type { Observer, Subject } from "../Types/Observer";
-import type { TransactionData } from "./State";
+import type { TransactionData } from "./State/State";
 
 export type GlobalContext = {
     dispatch: (event: DispatchEvent) => void,

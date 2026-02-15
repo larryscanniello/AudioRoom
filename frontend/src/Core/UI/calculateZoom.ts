@@ -1,4 +1,4 @@
-import { type StateContainer } from "../State";
+import { type StateContainer } from "../State/State";
 import { CONSTANTS } from "@/Constants/constants";
 
 export function calculateZoom(

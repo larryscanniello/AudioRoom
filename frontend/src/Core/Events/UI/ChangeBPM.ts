@@ -1,5 +1,5 @@
 import { EventTypes } from "../EventNamespace";
-import type { State, TransactionData } from "@/Core/State";
+import type { State, TransactionData } from "@/Core/State/State";
 import type { UIEngine } from "@/Core/UI/UIEngine";
 import { executeSocketUtil, stateTransactionUtil } from "../genericEventFunctions";
 

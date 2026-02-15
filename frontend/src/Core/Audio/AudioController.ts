@@ -6,7 +6,7 @@ import { Skipback } from "../Events/Audio/Skipback";
 import { Metronome } from "../Events/Audio/Metronome";
 import { Loop } from "../Events/Audio/Loop";
 
-import type { StateContainer } from "../State";
+import type { StateContainer } from "../State/State";
 import type { GlobalContext } from "../Mediator"
 import type { AudioEngine } from "./AudioEngine";
 import type { Mixer } from "./Mixer";

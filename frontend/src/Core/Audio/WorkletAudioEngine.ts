@@ -8,6 +8,7 @@ import type { AudioProcessorData,StopAudioProcessorData } from "../../Types/Audi
 import type { AudioEngine } from "./AudioEngine";
 import type { DispatchEvent } from "../Mediator";
 
+
 type Hardware = {
     audioContext: AudioContext,
     processorNode: AudioWorkletNode
@@ -36,10 +37,17 @@ export class WorkletAudioEngine implements AudioEngine{
 
     constructor({hardware,mediaProvider,mixer}:WorkletAudioEngineDependencies) {
         this.#hardware = hardware;
+        hardware.processorNode.port.onmessage = this.#processorOnMessage;
         this.#mixer = mixer;
         this.#mediaProvider = mediaProvider;
         this.#metronome = new Metronome();
+
     }
+
+    #processorOnMessage = (event: MessageEvent) => {
+        
+    }
+
 
     public update(event:DispatchEvent,data:any): void {
         const namespace = event.getEventNamespace();

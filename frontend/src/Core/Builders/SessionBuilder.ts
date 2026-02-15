@@ -12,7 +12,7 @@ import { UIController } from "../UI/UIController";
 import { KeydownManager } from "../UI/KeydownManager";
 import { DOMHandlers } from "../UI/DOMHandlers/DOMHandlers";
 import { MIXER_PARAMS } from "@/Constants/MixerParams";
-import { State } from "../State";
+import { State } from "../State/State";
 import type { MipMap } from "../UI/UIEngine";
 
 type Config = {

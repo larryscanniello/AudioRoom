@@ -3,7 +3,7 @@ import { KeydownManager } from "./KeydownManager";
 import { DOMHandlers } from "./DOMHandlers/DOMHandlers"
 import { DOMCommands,DOMElements } from "@/Constants/DOMElements";
 import { calculateZoom } from "./calculateZoom";
-import type { StateContainer } from "@/Core/State";
+import type { StateContainer } from "@/Core/State/State";
 
 import type { GlobalContext } from "../Mediator";
 import { Zoom } from "../Events/UI/Zoom";

@@ -1,5 +1,5 @@
 import { EventTypes, type EventNamespace } from "../EventNamespace";
-import type { State, StateContainer, TransactionData } from "@/Core/State";
+import type { State, StateContainer, TransactionData } from "@/Core/State/State";
 import { stateTransactionUtil } from "../genericEventFunctions";
 import type { AudioEngine } from "@/Core/Audio/AudioEngine";
 import type { AudioProcessorData } from "@/Types/AudioState";

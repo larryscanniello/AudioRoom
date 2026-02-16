@@ -38,7 +38,7 @@ class AudioProcessor extends AudioWorkletProcessor {
 
     this.state = {
       isRecording: false,
-      isPlayback: false,
+      isPlaying: false, // changed from isPlayback
       isStreaming: false,
       looping: false,
       sessionId:null,
@@ -87,7 +87,7 @@ class AudioProcessor extends AudioWorkletProcessor {
 
   handleMessage(data){
     if(data.type === 'initAudio'){
-      console.log("Audio Worklet inited",data.buffers);
+      console.log("Audio Worklet inited");
       Object.assign(this.buffers,data.memory.buffers)
       Object.assign(this.pointers,data.memory.pointers)
       Object.assign(this.readers,{
@@ -97,6 +97,7 @@ class AudioProcessor extends AudioWorkletProcessor {
       });
     }
     if (data.type === "START_RECORDING" || data.type === "START_PLAYBACK"){ 
+      console.log("starting recording or playback with data",data);
       Object.assign(this.state, data.state);
       Object.assign(this.timeline,{
         start: Math.round(sampleRate * data.timeline.start),
@@ -125,7 +126,7 @@ class AudioProcessor extends AudioWorkletProcessor {
       }
       this.absolute.end = currentTime + .5;
       this.state.sessionId = null;
-      this.state.isPlayback = false;
+      this.state.isPlaying = false;
       this.state.isRecording = false;
     };
     if(data.actiontype === "bounce_to_mix"){
@@ -155,11 +156,11 @@ class AudioProcessor extends AudioWorkletProcessor {
 }
 
   process(inputs,outputs) {
-    if(!this.state.isRecording && !this.state.isPlayback) return true;
+    if (!this.state.isRecording && !this.state.isPlaying) return true;
     if(currentFrame+this.PROCESS_FRAMES<this.absolute.start) return true;
     //if not looping and at timeline end, stop playback
     if(this.absolute.end){
-      if(currentFrame > this.absolute.end){this.state.isPlayback = false;}
+      if(currentFrame > this.absolute.end){this.state.isPlaying = false; }
       if(currentFrame > this.absolute.end + this.halfSecondInSamples){this.state.isRecording = false;}
     }
     const framesToDelay = 0//Math.max(0,this.absolute.start-currentFrame);
@@ -178,15 +179,15 @@ class AudioProcessor extends AudioWorkletProcessor {
       this.absolute.packetPos++;
     }
     
-    if(this.state.isPlayback) readTo(this.readers.staging,this.pointers.staging,this.buffers.staging,1);
+    if (this.state.isPlaying) readTo(this.readers.staging, this.pointers.staging, this.buffers.staging, 1);
     readTo(this.readers.mix,this.pointers.mix,this.buffers.mix,CONSTANTS.MIX_MAX_TRACKS);
     
     const output = outputs[0];
     for (let i = 0; i < this.PROCESS_FRAMES; i++) {
-      if(!this.state.isRecording && !this.state.isPlayback) break;
+      if (!this.state.isRecording && !this.state.isPlaying) break;
         for (let channel = 0; channel < 2; channel++) {
-
-          output[channel][i] = (this.state.isPlayback ? this.readers.staging[i] : 0);
+          output[channel][i] = (this.state.isPlaying ? this.readers.staging[i] : 0);
+          
           for(let track=0;track<this.buffers.mix.trackCount;track++){
             output[channel][i] += this.readers.mix[track * this.PROCESS_FRAMES + i];
           }

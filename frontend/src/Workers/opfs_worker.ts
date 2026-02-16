@@ -214,7 +214,7 @@ self.onmessage = (e:OPFSMessageEvent) => {
         return;
     }
     if(e.data.type === "initUI"){
-        console.log('opfs worker UI inited',e.data);
+        console.log('opfs worker UI inited');
         Object.assign(opfs.mipMap, e.data.mipMap);
         opfs.mipMapBuffer = new Float32Array(2**16);
         Object.assign(opfs.mipMapConfig, {
@@ -263,8 +263,6 @@ self.onmessage = (e:OPFSMessageEvent) => {
             Atomics.store(pointers.mix.write,0,0);
             Atomics.store(pointers.mix.isFull,0,0);
             proceed.record = "ready";
-            console.log("starting recording with timeline",
-                opfs.timeline,"pointers",pointers.record,"buffers",buffers.record);
             writeToOPFS(
                 pointers.record.read,
                 pointers.record.write,
@@ -371,7 +369,6 @@ self.onmessage = (e:OPFSMessageEvent) => {
             );
             return;
         }
-        console.log("Filling staging mipmap with timeline",e.data.timeline,"newTake",e.data.newTake);
         const newTake = e.data.newTake;
         opfs.timeline.staging = e.data.timeline.staging;
         writeToMipMap(

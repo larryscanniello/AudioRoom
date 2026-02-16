@@ -88,8 +88,8 @@ export class WorkletAudioEngine implements AudioEngine{
         }else{
             throw new Error("Source node is not initialized in WorkletAudioEngine. Cannot connect to processor node.");
         }
+        this.#hardware.processorNode.connect(this.#hardware.audioContext.destination);
         this.#hardware.processorNode.port.postMessage({type: "initAudio",memory: this.#hardware.memory});
         this.#hardware.opfsWorker.postMessage({type: "initAudio",memory: this.#hardware.memory});
     }
-
 }

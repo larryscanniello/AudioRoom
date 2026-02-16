@@ -1,6 +1,7 @@
 import { Skipback } from "../Events/Audio/Skipback";
 import { Play } from "../Events/Audio/Play"
 import { Record } from "../Events/Audio/Record"
+import { Stop } from "../Events/Audio/Stop";
 
 import type { GlobalContext } from "../Mediator"
 
@@ -21,13 +22,19 @@ export class KeydownManager {
         e.preventDefault();
         switch(e.key.toLowerCase()) {
             case"enter":
-                this.#context.dispatch(new Skipback());
+                this.#context.dispatch(Skipback.getDispatchEvent({param: null, emit: true}));
                 break;
             case" ":
-                this.#context.dispatch(new Play());
+                const isPlaying = this.#context.query("isPlaying");
+                const isRecording = this.#context.query("isRecording");
+                if(isPlaying || isRecording){
+                    this.#context.dispatch(Stop.getDispatchEvent({param: null, emit: true}));
+                }else{
+                    this.#context.dispatch(Play.getDispatchEvent({param: null, emit: true}));
+                }
                 break;
             case"r":
-                this.#context.dispatch(new Record());
+                this.#context.dispatch(Record.getDispatchEvent({param: null, emit: true}));
                 break;
         }
         

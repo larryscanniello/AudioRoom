@@ -4,7 +4,7 @@ import { renderStagingWaveforms } from "./DrawCallbacks/renderStagingWaveforms";
 import { drawCanvasContainer } from "./DrawCallbacks/canvasContainer"
 import { renderMixWaveforms } from "./DrawCallbacks/renderMixWaveforms";
 import { drawPlayhead} from "./DrawCallbacks/drawPlayhead"
-import { renderRegions } from "./DrawCallbacks/renderRegions";
+import { renderStagingRegions } from "./DrawCallbacks/renderStagingRegions";
 import { MipMapsDone } from "../Events/UI/MipMapsDone";
 
 import type { StateContainer } from "../State/State";
@@ -14,6 +14,7 @@ import type { Observer } from "@/Types/Observer";
 import type { DispatchEvent, GlobalContext } from "../Mediator";
 import { MediaProvider } from "../MediaProvider";
 import { PlayheadManager } from "./PlayheadManager";
+import { renderMixRegion } from "./DrawCallbacks/renderMixRegion";
 
 //Reminder: Implement init for mipmaps
 
@@ -99,6 +100,9 @@ export class UIEngine implements Observer{
                 this.#refs.set(DOMCommands.DRAW_TRACK_TWO_WAVEFORMS, ref);
                 this.#refs.set(DOMCommands.FILL_SELECTED_REGION_TRACK_TWO, ref);
                 break;
+            case DOMElements.TRACK_TWO_REGIONS:
+                this.#refs.set(DOMCommands.RENDER_TRACK_TWO_REGIONS, ref);
+                break;
             case DOMElements.TOUCH_OVERLAY:
                 this.#refs.set(DOMCommands.DRAW_PLAYHEAD, ref);
                 break;
@@ -165,9 +169,9 @@ export class UIEngine implements Observer{
             [DOMCommands.DRAW_PLAYHEAD]:
                 (ref: React.RefObject<HTMLElement|null>, data: StateContainer, mipMap: Int8Array) => {drawPlayhead(ref,data,mipMap)},
             [DOMCommands.RENDER_TRACK_ONE_REGIONS]:
-                (ref: React.RefObject<HTMLElement|null>, data: StateContainer, mipMap: Int8Array) => {renderRegions(ref, data, mipMap)},
+                (ref: React.RefObject<HTMLElement|null>, data: StateContainer, mipMap: Int8Array) => {renderStagingRegions(ref, data, mipMap)},
             [DOMCommands.RENDER_TRACK_TWO_REGIONS]:
-                (ref: React.RefObject<HTMLElement|null>, data: StateContainer, mipMap: Int8Array) => {renderRegions(ref, data, mipMap)}
+                (ref: React.RefObject<HTMLElement|null>, data: StateContainer, mipMap: Int8Array) => {renderMixRegion(ref, data, mipMap)}
         }
     }
 

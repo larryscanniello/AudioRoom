@@ -270,10 +270,6 @@ describe('timelineReducer Scenarios', () => {
   });   
 
   it('bounces correctly when mix is empty', () => {
-    const postMessage = vi.fn();
-    const fileSystemRef = { 
-                              current: { postMessage } as unknown as Worker 
-                      } as React.RefObject<Worker>;
 
     const regionStack: Region[] = [
       { start: 0, end: 10, take: 0, bounce: 0, name: 'track_0_take_0', offset: 0,},
@@ -299,7 +295,7 @@ describe('timelineReducer Scenarios', () => {
     expect(newState.mix[0]).toHaveLength(4);
     expect(newState.mix[0].map((r: any)=>[r.start,r.end])).toEqual([[0,10],[20,30],[40,50],[50,70]]);
     expect(newState.regionStack).toHaveLength(0);
-    expect(newState.staging).toHaveLength(0);
+    expect(newState.staging).toHaveLength(1);
     expect(newState.redoStack).toHaveLength(0);
     });
 

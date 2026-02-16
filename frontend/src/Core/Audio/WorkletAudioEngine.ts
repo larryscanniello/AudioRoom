@@ -11,6 +11,8 @@ import type { DispatchEvent, GlobalContext } from "../Mediator";
 import timelineReducer from "../State/timelineReducer";
 import { RecordingFinished } from "../Events/Audio/RecordingFinished";
 
+import type { OPFSEventData } from "@/Workers/opfs_worker";
+import { data } from "react-router-dom";
 
 type Hardware = {
     audioContext: AudioContext,
@@ -75,6 +77,10 @@ export class WorkletAudioEngine implements AudioEngine{
 
     public stop(data:StopAudioProcessorData) {
         this.#hardware.processorNode.port.postMessage(data);
+        this.#hardware.opfsWorker.postMessage(data);
+    }
+
+    public bounce(data: OPFSEventData) {
         this.#hardware.opfsWorker.postMessage(data);
     }
 

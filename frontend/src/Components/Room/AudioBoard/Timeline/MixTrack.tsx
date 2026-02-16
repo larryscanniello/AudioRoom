@@ -17,6 +17,7 @@ export default function MixTrack({timelinePxLen, trackHeights, uiControllerRef}:
     const mixWaveformsRef = useRef<HTMLCanvasElement>(null);
     const mixRegionsRef = useRef<HTMLDivElement>(null);
 
+    /*
     function setRegions(): void {
         const viewport = uiControllerRef.current?.query("viewport");
         if (!viewport) return;
@@ -79,13 +80,13 @@ export default function MixTrack({timelinePxLen, trackHeights, uiControllerRef}:
         regionToDisplay.style.borderRadius = borderRadius;
         regionToDisplay.style.border = "2px solid rgb(220,220,2020,.8)";
         regionToDisplay.style.pointerEvents = "none";
-    }
+    }*/
 
-    const timeline = uiControllerRef.current?.query("timeline");
-    
+    const timeline = uiControllerRef.current ? uiControllerRef.current.query("timeline") : {mix: []};
+
     if(uiControllerRef.current){
         uiControllerRef.current.registerRef(DOMElements.TRACK_TWO, mixWaveformsRef);
-        setRegions();
+        uiControllerRef.current.registerRef(DOMElements.TRACK_TWO_REGIONS, mixRegionsRef);
     };
 
     return (
@@ -97,7 +98,12 @@ export default function MixTrack({timelinePxLen, trackHeights, uiControllerRef}:
                 style={{width:`${timelinePxLen}px`,imageRendering:"pixelated",height:`${trackHeights.mixHeight}px`}}
             ></canvas>
 
-            <div ref={mixRegionsRef} className="">
+            <div ref={mixRegionsRef} className=""
+                data-timelinepxlen={timelinePxLen}
+                data-mixheight={trackHeights.mixHeight}
+                data-stagingheight={trackHeights.stagingHeight}
+                data-track={"mix"}
+            >
                 {timeline?.mix.map((track: Region[]) => 
                     track.map((region: Region) => (
                         <div

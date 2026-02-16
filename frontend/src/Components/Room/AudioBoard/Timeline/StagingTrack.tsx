@@ -40,7 +40,9 @@ export default function StagingTrack({timelinePxLen,trackHeights,uiControllerRef
 
             <div ref={stagingRegionsRef} 
             data-timelinepxlen={timelinePxLen}
+            data-mixheight={trackHeights.mixHeight}
             data-stagingheight={trackHeights.stagingHeight}
+            data-track={"staging"}
             className="">
                 {timeline.staging[0].map((region:Region) => {
                     return <div

@@ -11,7 +11,8 @@ import type { GlobalContext } from "../Mediator"
 import type { AudioEngine } from "./AudioEngine";
 import type { Mixer } from "./Mixer";
 
-
+import timelineReducer from "../State/timelineReducer";
+import { Bounce } from "../Events/Audio/Bounce";
 
 
 export class AudioController{
@@ -39,6 +40,12 @@ export class AudioController{
 
     public skipBack() {
         this.#context.dispatch(Skipback.getDispatchEvent({emit:true, param: null}));
+    }
+
+    public bounce(){
+        const timeline = this.#context.query("timeline");
+        const newTimeline = timelineReducer(timeline, { type: "bounce_to_mix" });
+        this.#context.dispatch(Bounce.getDispatchEvent({emit:true, param: newTimeline}));
     }
 
     public toggleMetronome() {

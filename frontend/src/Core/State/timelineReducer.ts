@@ -69,7 +69,7 @@ export default function timelineReducer(state:TimelineState, action: any): Timel
                 return toReturn;
             case "bounce_to_mix":
                 const newState = {
-                    staging: [],
+                    staging: [[]],
                     mix: [...state.mix,[...state.staging[0]]],
                     regionStack: [],
                     redoStack: [],

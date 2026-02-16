@@ -3,17 +3,17 @@ import { CONSTANTS } from "@/Constants/constants";
 
 
 
-export function renderRegions(
+export function renderStagingRegions(
     ref: React.RefObject<HTMLElement|null>,
     data: StateContainer,
     _mipMap: Int8Array
 ):void{
         if(!ref.current) {
-            console.error("Reference in renderRegion is not available");
+            console.error("Reference in renderStagingRegions is not available");
             return;
         }
         if(!(ref.current instanceof HTMLDivElement)){
-            console.error("Reference in renderRegion is not a HTMLDivElement");
+            console.error("Reference in renderStagingRegions is not a HTMLDivElement");
             return
         };
 
@@ -21,12 +21,12 @@ export function renderRegions(
 
         const stagingHeight = Number(ref.current.dataset.stagingheight);
         if(isNaN(stagingHeight)){
-            console.error("Failed to parse staging track height from canvas dataset in renderRegion");
+            console.error("Failed to parse staging track height from canvas dataset in renderStagingRegions");
             return;
         }
         const timelinePxLen = Number(ref.current.dataset.timelinepxlen);
         if(isNaN(timelinePxLen)){
-            console.error("Failed to parse timeline pixel length from canvas dataset in renderRegion");
+            console.error("Failed to parse timeline pixel length from canvas dataset in renderStagingRegions");
             return;
         }
         const startTime = viewport.startTime;

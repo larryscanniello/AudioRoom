@@ -156,7 +156,7 @@ async function removeHandles(root:any){
     }
 }
 
-type OPFSEventData = OPFSInitAudioData | OPFSInitUIData | AudioProcessorData | OPFSStopData | OPFSFillStagingMipMapData;
+export type OPFSEventData = OPFSInitAudioData | OPFSInitUIData | AudioProcessorData | OPFSStopData | OPFSFillStagingMipMapData | OPFSBounceToMixData;
 
 type OPFSInitAudioData = {
     type: "initAudio";
@@ -183,6 +183,13 @@ type OPFSFillStagingMipMapData = {
     },
     newTake: Region;
 }
+
+type OPFSBounceToMixData = {
+    type: "bounce_to_mix";
+    bounce: number;
+    mixTimelines: readonly Region[][];
+}
+
 
 type OPFSMessageEvent = MessageEvent<OPFSEventData>;
 
@@ -333,11 +340,13 @@ self.onmessage = (e:OPFSMessageEvent) => {
         proceed.staging = "off";
         proceed.mix = "off";
     }
+
     if(e.data.type === "bounce_to_mix"){
         if( !opfs.mipMapConfig.totalTimelineSamples || !opfs.mipMapConfig.resolutions || !opfs.mipMapBuffer.length || !opfs.mipMap.mix){
             console.error("Can't fill mipmap - not initialized");
             return;
         }
+        const bounce = e.data.bounce;
         const mixTimelines = e.data.mixTimelines;
         opfs.timeline.mix = mixTimelines;
         const endSample = getMixTimelineEndSample(mixTimelines);
@@ -355,7 +364,7 @@ self.onmessage = (e:OPFSMessageEvent) => {
         Atomics.store(opfs.mipMap.mix,0,0);
         postMessage({type:'mipmap_done'})
         const createNewTrack = async () => {
-            const newTrack = await opfs.sessionDir!.getDirectoryHandle(`bounce_${curr.bounce}`,{create:true});
+            const newTrack = await opfs.sessionDir!.getDirectoryHandle(`bounce_${bounce}`,{create:true});
             opfs.bounces.push({dirHandle:newTrack,takeHandles:{}});
         }
         createNewTrack();

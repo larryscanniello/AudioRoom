@@ -2,19 +2,23 @@ import { CONSTANTS } from "@/Constants/constants";
 import type { StateContainer } from "@/Core/State/State";
 
 export function renderMixWaveforms(ref: React.RefObject<HTMLElement|null>, data: StateContainer, mipMap: Int8Array){
+       
         if(!(ref.current instanceof HTMLCanvasElement)){
             console.error("Reference in renderMixWaveforms is not a HTMLCanvasElement");
             return
         };
         const canvasCtx = ref.current.getContext("2d")!;
-        Atomics.load(mipMap,0);
+
+        const WIDTH = canvasCtx.canvas.width;
+        const HEIGHT = canvasCtx.canvas.height;
+        canvasCtx.clearRect(0,0,WIDTH,HEIGHT);
+
+        Atomics.load(mipMap,0); //synchronize memory to ensure we have the latest mipmap data from the worker
 
         const timeline = data.timeline.mix;
         const startTime = data.viewport.startTime;
-        const WIDTH = canvasCtx.canvas.width;
-        const HEIGHT = canvasCtx.canvas.height;
-        const pxPerSecond = CONSTANTS.SAMPLE_RATE / data.viewport.samplesPerPx;
-        const endTime = startTime + WIDTH / pxPerSecond;
+        
+        const endTime = startTime + WIDTH * data.viewport.samplesPerPx / CONSTANTS.SAMPLE_RATE;
 
         if(timeline.length === 0) return;
         
@@ -39,7 +43,7 @@ export function renderMixWaveforms(ref: React.RefObject<HTMLElement|null>, data:
         const iterateAmount = CONSTANTS.TIMELINE_LENGTH_IN_SECONDS * CONSTANTS.SAMPLE_RATE / halfLength;
         
         const mipMapStart = resolutions.slice(0,currRes).reduce((acc, curr) => acc + curr, 0);
-        const pxGap = CONSTANTS.TIMELINE_LENGTH_IN_SECONDS / (endTime - startTime) * CONSTANTS.MIPMAP_HALF_SIZE / resolutions[currRes];
+        const pxGap = CONSTANTS.TIMELINE_LENGTH_IN_SECONDS / (endTime - startTime) * WIDTH / resolutions[currRes];
         let startBucket = Math.floor(vpStartSamples/iterateAmount) //the index of the lowest level of the pyramid corresponding to the start
         
         let mipMapIndex = mipMapStart + Math.floor(startBucket / 2**(currRes+1));

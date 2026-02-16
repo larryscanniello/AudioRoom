@@ -24,6 +24,7 @@ export const EventTypes = {
     SET_MOUSE_DRAG_END: 'SET_MOUSE_DRAG_END',
     RECORDING_FINISHED: 'RECORDING_FINISHED',
     MIPMAPS_DONE: 'MIPMAPS_DONE',
+    BOUNCE: "BOUNCE",
 } as const;
 
 export type EventParams = {
@@ -45,6 +46,7 @@ export type EventParams = {
     [EventTypes.SET_MOUSE_DRAG_END]: {t: number, trounded: number} | null,
     [EventTypes.RECORDING_FINISHED]: TimelineState,
     [EventTypes.MIPMAPS_DONE]: null,
+    [EventTypes.BOUNCE]: TimelineState,
 };
 
 /*

@@ -12,6 +12,11 @@ export function renderStagingWaveforms(ref: React.RefObject<HTMLElement|null>, d
     };
     const canvasCtx = ref.current.getContext("2d")!;
 
+    const WIDTH = canvasCtx.canvas.width;
+    const HEIGHT = canvasCtx.canvas.height;
+
+    canvasCtx.clearRect(0,0,WIDTH,HEIGHT);
+
     const timeline = data.timeline.staging;
     if(timeline[0].length === 0){
         return;
@@ -21,13 +26,8 @@ export function renderStagingWaveforms(ref: React.RefObject<HTMLElement|null>, d
 
     const {startTime, samplesPerPx} = data.viewport;
 
-
-    const WIDTH = canvasCtx.canvas.width;
-    const HEIGHT = canvasCtx.canvas.height;
-
     const endTime = startTime + WIDTH * samplesPerPx / CONSTANTS.SAMPLE_RATE;
-
-    canvasCtx.clearRect(0,0,WIDTH,HEIGHT);
+    
     canvasCtx.globalAlpha = 1.0
     canvasCtx.lineWidth = 1; // slightly thicker than 1px
     canvasCtx.strokeStyle =  "#1c1e22";

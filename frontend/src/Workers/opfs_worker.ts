@@ -362,12 +362,12 @@ self.onmessage = (e:OPFSMessageEvent) => {
             opfs.bounces,
         );
         Atomics.store(opfs.mipMap.mix,0,0);
-        postMessage({type:'mipmap_done'})
         const createNewTrack = async () => {
             const newTrack = await opfs.sessionDir!.getDirectoryHandle(`bounce_${bounce}`,{create:true});
             opfs.bounces.push({dirHandle:newTrack,takeHandles:{}});
         }
         createNewTrack();
+        postMessage({type:'bounce_to_mix_done'})
     }
     if(e.data.type === "fill_staging_mipmap"){
         if(!opfs.mipMapConfig.totalTimelineSamples || !opfs.mipMapConfig.resolutions || !opfs.mipMapBuffer || !opfs.mipMap.staging){

@@ -54,8 +54,15 @@ export class UIEngine implements Observer{
     }
 
     opfsOnMessage(e: MessageEvent){
-        if(e.data.type === "staging_mipmap_done"){
-            this.#context.dispatch(MipMapsDone.getDispatchEvent({emit: false, param: null}));
+        switch(e.data.type){
+            case "staging_mipmap_done":
+                this.#context.dispatch(MipMapsDone.getDispatchEvent({emit: false, param: null}));
+                break;
+            case "bounce_to_mix_done":
+                this.#context.dispatch(MipMapsDone.getDispatchEvent({emit: false, param: null}));
+                break;
+            default:
+                console.warn(`Unrecognized message from OPFS worker: ${e.data.type}`);
         }
     }
 

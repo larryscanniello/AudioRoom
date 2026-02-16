@@ -1,9 +1,10 @@
+import { CONSTANTS } from "../../Constants/constants";
 import type {Region,BounceEntry} from "./types"
 
 export function writeToMipMap(
     startSample: number,
     endSample: number,
-    timelines:Region[][],
+    timelines:readonly Region[][],
     totalTimelineSamples:number,
     resolutions:number[],
     buffer: Float32Array,
@@ -12,7 +13,7 @@ export function writeToMipMap(
 ){
     const iterateAmount = totalTimelineSamples / resolutions[0];
     const TRACK_COUNT = timelines.length;
-    const halfLength = mipMap.length/2;
+    const halfLength = CONSTANTS.MIPMAP_HALF_SIZE;
     const MIPMAP_BUFFER_SIZE_PER_TRACK = buffer.length / TRACK_COUNT;
     let currBucket = 0;
     let bufferIndex = buffer.length/TRACK_COUNT;
@@ -21,17 +22,27 @@ export function writeToMipMap(
     buffer.fill(0);
     let startBucket = Math.floor(startSample / iterateAmount);
     let iterateAmountMultiple = startBucket * iterateAmount;
-    
+    currBucket = startBucket;
     //generate the combined (summed) waveform, and then take mins / maxes and put into buckets
     for(let i=startSample;i<endSample;i++){
         if(bufferIndex >= buffer.length/TRACK_COUNT){
             const readToEnd = Math.min(endSample,i+MIPMAP_BUFFER_SIZE_PER_TRACK)
             readTo(i,readToEnd,timelines,buffer,tracks)
+            /*for(let w=0;w<buffer.length;w++){
+                if(buffer[w]!==0){
+                    console.log("nonzero value in buffer",buffer[w],"at index",w);
+                }else{
+                    console.log("zero value in buffer at index");
+                }
+            }*/
             bufferIndex = 0;
         }
         if(i >= iterateAmountMultiple){
             iterateAmountMultiple += iterateAmount;
             mipMap[currBucket] = Math.max(-128, Math.min(127, Math.round(max * 127)));
+            if(mipMap[currBucket] !== 0){
+                console.log("writing to mipmap at bucket",currBucket,"value",mipMap[currBucket]);
+            }
             mipMap[halfLength + currBucket] = Math.max(-128, Math.min(127, Math.round(min * 127)));
             currBucket += 1;
             min = 1; max = -1;
@@ -72,7 +83,7 @@ export function writeToMipMap(
 function readTo(
     startSample:number,
     endSample:number,
-    timelines: Region[][],
+    timelines: readonly Region[][],
     buffer: Float32Array,
     tracks: BounceEntry[],
 ){
@@ -97,6 +108,9 @@ function readTo(
                     const toFill = Math.min(region.end - currPos,bufferEndPos-bufferPos);
                     const subarray = buffer.subarray(bufferPos,bufferPos+toFill);
                     tracks[region.bounce].takeHandles[region.name].read(subarray,{at:(currPos-region.start)*Float32Array.BYTES_PER_ELEMENT});
+                    const test = new Float32Array(10**7);
+                    tracks[region.bounce].takeHandles[region.name].read(test,{at:0});
+                    console.log("test read",test.every(value => value === 0));
                     currPos += toFill;
                     bufferPos += toFill;
                 }

@@ -1,3 +1,5 @@
+import { EventTypes } from "@/Core/Events/EventNamespace"
+
 interface PointerEntries {
     read: Uint32Array,
     write: Uint32Array,
@@ -62,7 +64,7 @@ interface Absolute {
 }
 
 interface AudioProcessorData {
-    type: string,
+    type: typeof EventTypes.START_RECORDING | typeof EventTypes.START_PLAYBACK;
     state: {
         isPlaying: boolean,
         isRecording: boolean,

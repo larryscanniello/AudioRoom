@@ -6,6 +6,8 @@ import { writeToMipMap } from "./opfs_utils/writeToMipMap.ts";
 import { fillPlaybackBufferUtil } from "./opfs_utils/fillPlaybackBufferUtil.ts";
 import { writeToOPFSUtil } from "./opfs_utils/writeToOPFSUtil.ts";
 
+import type { AudioProcessorData } from "../Types/AudioState.ts";
+
 import { EventTypes } from "../Core/Events/EventNamespace";
 
 import {CONSTANTS} from "../Constants/constants"
@@ -52,8 +54,8 @@ export type OPFS = {
         MIX_BUFFER_SIZE: number|null;
     }
     timeline: {
-        staging: Region[][];
-        mix: Region[][];
+        staging: readonly Region[][];
+        mix: readonly Region[][];
         startSample: number;
         endSample: number;
         posSample: {
@@ -68,7 +70,10 @@ export type OPFS = {
         resolutions: number[];
         totalTimelineSamples: number;
     },
-    
+    curr:{
+        bounce: number;
+        take: number;
+    }
 }
 
 const opfs:OPFS = {
@@ -100,6 +105,10 @@ const opfs:OPFS = {
         halfSize: 0,
         resolutions: [],
         totalTimelineSamples: 0,
+    },
+    curr:{
+        bounce: 0,
+        take: 0,
     }
 }
 
@@ -147,12 +156,45 @@ async function removeHandles(root:any){
     }
 }
 
+type OPFSEventData = OPFSInitAudioData | OPFSInitUIData | AudioProcessorData | OPFSStopData | OPFSFillStagingMipMapData;
+
+type OPFSInitAudioData = {
+    type: "initAudio";
+    memory: {
+        buffers: Buffers;
+        pointers: Pointers;
+    }
+}
+
+type OPFSInitUIData = {
+    type: "initUI";
+    mipMap: MipMap;
+}
+
+type OPFSStopData = {
+    type: typeof EventTypes.STOP;
+}
+
+type OPFSFillStagingMipMapData = {
+    type: "fill_staging_mipmap";
+    timeline: {
+        staging: readonly Region[][];
+        mix: readonly Region[][];
+    },
+    newTake: Region;
+}
+
+type OPFSMessageEvent = MessageEvent<OPFSEventData>;
+
 if(typeof self !== "undefined"){ //for testing, otherwise in testing self is undefined
-self.onmessage = (e:any) => {
-    console.log('opfs worker received message',e.data);
+self.onmessage = (e:OPFSMessageEvent) => {
     if(e.data.type === "initAudio"){
         console.log('opfs worker audio inited');
         const init = async () => {
+            if(e.data.type !== "initAudio"){
+                console.error("Expected initAudio data");
+                return;
+            }
             await removeHandles(await navigator.storage.getDirectory()); //delete all previous files in opfs
             const root = await navigator.storage.getDirectory();
             const uuid = crypto.randomUUID();
@@ -169,6 +211,7 @@ self.onmessage = (e:any) => {
             opfs.root = root;
         }
         init();
+        return;
     }
     if(e.data.type === "initUI"){
         console.log('opfs worker UI inited',e.data);
@@ -189,23 +232,30 @@ self.onmessage = (e:any) => {
                     console.error("Can't record. Recorder not initialized.");
                     return;
             };
+            if(e.data.type !== EventTypes.START_RECORDING){
+                console.error("Expected START_RECORDING data");
+                return;
+            }
             const bounce = e.data.state.count.bounce;
             const take = e.data.state.count.take;   
             const fileName = `bounce_${bounce}_take_${take}`
             const currTakeFile = await opfs.bounces[bounce].dirHandle.getFileHandle(fileName,{create:true});
             const currTakeHandle = await (currTakeFile as any).createSyncAccessHandle();
             opfs.bounces[bounce].takeHandles[fileName] = currTakeHandle;
-            const start = Math.round(e.data.timelineStart * CONSTANTS.SAMPLE_RATE);
-            const end = Math.round(e.data.timelineEnd * CONSTANTS.SAMPLE_RATE);
+            const start = Math.round(e.data.timeline.start * CONSTANTS.SAMPLE_RATE);
+            const end = Math.round(e.data.timeline.end * CONSTANTS.SAMPLE_RATE);
             
-            opfs.timeline.staging = [e.data.timeline.staging];
+            opfs.curr.take = take;
+            opfs.curr.bounce = bounce;
+
+            opfs.timeline.staging = e.data.timeline.staging;
             opfs.timeline.mix = e.data.timeline.mix;
             opfs.timeline.startSample = start;
             opfs.timeline.endSample = end;
             opfs.timeline.posSample.mix = start;
             opfs.timeline.posSample.staging = start;
 
-            looping = e.data.looping;
+            looping = e.data.state.looping;
             Atomics.store(pointers.record.read,0,0);
             Atomics.store(pointers.record.write,0,0);
             Atomics.store(pointers.record.isFull,0,0);
@@ -213,6 +263,8 @@ self.onmessage = (e:any) => {
             Atomics.store(pointers.mix.write,0,0);
             Atomics.store(pointers.mix.isFull,0,0);
             proceed.record = "ready";
+            console.log("starting recording with timeline",
+                opfs.timeline,"pointers",pointers.record,"buffers",buffers.record);
             writeToOPFS(
                 pointers.record.read,
                 pointers.record.write,
@@ -240,17 +292,17 @@ self.onmessage = (e:any) => {
                 console.error("Can't play back. Player not initialized.");
                 return;
         };
-        const start = Math.round(e.data.timelineStart * CONSTANTS.SAMPLE_RATE);
-        const end = Math.round(e.data.timelineEnd * CONSTANTS.SAMPLE_RATE);
+        const start = Math.round(e.data.timeline.start * CONSTANTS.SAMPLE_RATE);
+        const end = Math.round(e.data.timeline.end * CONSTANTS.SAMPLE_RATE);
 
-        opfs.timeline.staging = [e.data.timeline.staging];
+        opfs.timeline.staging = e.data.timeline.staging;
         opfs.timeline.mix = e.data.timeline.mix;
         opfs.timeline.startSample = start;
         opfs.timeline.endSample = end;
         opfs.timeline.posSample.mix = start;
         opfs.timeline.posSample.staging = start;
 
-        looping = e.data.looping;
+        looping = e.data.state.looping;
         Atomics.store(pointers.staging.read,0,0);
         Atomics.store(pointers.staging.write,0,0);
         Atomics.store(pointers.staging.isFull,0,0);
@@ -319,6 +371,7 @@ self.onmessage = (e:any) => {
             );
             return;
         }
+        console.log("Filling staging mipmap with timeline",e.data.timeline,"newTake",e.data.newTake);
         const newTake = e.data.newTake;
         opfs.timeline.staging = e.data.timeline.staging;
         writeToMipMap(
@@ -331,6 +384,7 @@ self.onmessage = (e:any) => {
             opfs.mipMap.staging,
             opfs.bounces,
         );
+        
         Atomics.store(opfs.mipMap.staging,0,0);
         postMessage({type:'staging_mipmap_done'})
     }
@@ -456,7 +510,7 @@ function writeToOPFS(
         }
         return;
     }
-    const handle = opfs.bounces[curr.bounce].takeHandles[`bounce_${curr.bounce}_take_${curr.take}`];
+    const handle = opfs.bounces[opfs.curr.bounce].takeHandles[`bounce_${opfs.curr.bounce}_take_${opfs.curr.take}`];
     readPtr = writeToOPFSUtil(samplesToWrite,buffer,readPtr,writePtr,handle);
     
     Atomics.store(read,0,readPtr);

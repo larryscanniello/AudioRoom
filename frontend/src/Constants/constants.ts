@@ -2,13 +2,13 @@ const SAMPLE_RATE = 48000;
 const TIMELINE_LENGTH_IN_SECONDS = 15 * 60; // 15 minutes
 const MIX_MAX_TRACKS = 16;
 const PACKET_SIZE = 960;
-const MIPMAP_HALF_SIZE = 2**22;
+const MIPMAP_HALF_SIZE = 2**23;
 const MINIMUM_WAVEFORM_WINDOW_LEN = 900;
 const LEFT_CONTROLS_WIDTH = 250;
 
-const resolutions = [MIPMAP_HALF_SIZE];
-let curr = MIPMAP_HALF_SIZE;
-while(curr > MINIMUM_WAVEFORM_WINDOW_LEN){
+const resolutions = [MIPMAP_HALF_SIZE/2];
+let curr = MIPMAP_HALF_SIZE/2;
+while(curr/2 > MINIMUM_WAVEFORM_WINDOW_LEN){
     curr = curr / 2;
     resolutions.push(curr);
 }

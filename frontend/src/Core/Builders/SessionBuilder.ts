@@ -169,7 +169,7 @@ export class SessionBuilder{
             }
             console.log("In builder: OPFS worker",this.#opfsWorker,this.#config.opfsFilePath);
             memory = this.#allocateBuffersandPointers();
-            const source = null;
+            const source = mediaProvider.getSourceNode();
             const hardware = {audioContext, processorNode, source, memory, opfsWorker: this.#opfsWorker};
             audioEngine = new WorkletAudioEngine({hardware,mixer,mediaProvider,context: globalContext});
         }

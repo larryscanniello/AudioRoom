@@ -4,6 +4,7 @@ export class MediaProvider {
     #AVStream: MediaStream | null = null;
     #audioStream: MediaStream | null = null;
     #remoteStream: MediaStream | null = null; 
+    #sourceNode: MediaStreamAudioSourceNode | null = null;
     #audioContext: AudioContext;
 
     constructor(audioContext: AudioContext,standaloneMode:boolean) {
@@ -37,6 +38,13 @@ export class MediaProvider {
         return this.#audioContext;
     }
 
+    getSourceNode(): MediaStreamAudioSourceNode {
+        if(!this.#sourceNode){
+            throw new Error("Source node has not been loaded yet in MediaProvider");
+        }
+        return this.#sourceNode;    
+    }
+
     async loadStream(): Promise<GainNode|null>{
         const config = {
             video:!this.#standaloneMode,
@@ -48,6 +56,7 @@ export class MediaProvider {
         return await navigator.mediaDevices.getUserMedia(config)
         .then((stream) => {
             const audioSource = this.#audioContext.createMediaStreamSource(stream);
+            this.#sourceNode = audioSource;
             const chatGain = this.#audioContext.createGain();
             audioSource.connect(chatGain);
             const destination = this.#audioContext.createMediaStreamDestination();

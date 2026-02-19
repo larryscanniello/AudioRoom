@@ -26,6 +26,7 @@ export const EventTypes = {
     MIPMAPS_DONE: 'MIPMAPS_DONE',
     BOUNCE: "BOUNCE",
     SET_NUMBER_OF_CONNECTED_USERS: "SET_NUMBER_OF_CONNECTED_USERS",
+    REMOTE_STREAM_ATTACHED: "REMOTE_STREAM_ATTACHED",
 } as const;
 
 export type EventParams = {
@@ -48,8 +49,7 @@ export type EventParams = {
     [EventTypes.MIPMAPS_DONE]: null,
     [EventTypes.BOUNCE]: TimelineState,
     [EventTypes.SET_NUMBER_OF_CONNECTED_USERS]: number,
-
-
+    [EventTypes.REMOTE_STREAM_ATTACHED]: boolean,
 };
 
 /*

@@ -60,13 +60,13 @@ export default function VideoBox({webRTCManagerRef,height,roomJoined}: VideoProp
       playsInline
       muted
       className={
-        !remoteStreamRef.current
+        !remoteStream
           ? "bg-black"
           : "absolute top-4 right-4 w-48 h-32 object-cover border border-white/30 shadow-lg bg-black"
       }
       style={{
-        width: !remoteStreamRef.current ? 1050 : undefined,
-        height: !remoteStreamRef.current
+        width: !remoteStream ? 1050 : undefined,
+        height: !remoteStream
           ? height - (height < 700 ? 235 * (4 / 7) : 235)
           : undefined,
         objectFit: "cover",

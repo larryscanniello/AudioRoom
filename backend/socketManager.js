@@ -42,12 +42,19 @@ const socketManager = async (server,sessionMiddleware) => {
         socket.emit('sync_state', roomStates.get(state.roomID));
       }
 
+      
+
       //socket.to(roomID).emit('request_audio_server_to_client');
-      io.in(state.roomID).emit('JOIN_SOCKET_ROOM', {size});
+      socket.to(state.roomID).emit('JOIN_SOCKET_ROOM', {size});
       console.log(`User has joined room: ${state.roomID}`);
     });
 
-    socket.on('state_transaction',({transactionData}) => {
+    socket.on("EMIT_PEER_ID", data=>{
+      console.log(`Emitting peer ID ${data.peerID} to room ${socket.data.roomID}`);
+        socket.to(socket.data.roomID).emit("call-peer",data.peerID);      
+    })
+
+    socket.on('state_transaction',() => {
       return;
       if(!socket.data.roomID) return;
       transaction(transactionData,socket.data.roomID);

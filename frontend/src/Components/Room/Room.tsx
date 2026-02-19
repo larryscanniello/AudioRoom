@@ -75,7 +75,7 @@ export default function Room() {
           throw new Error("Session builder failed to create WebRTC manager");
         }
 
-        webRTCManagerRef.current.initializePeer();
+        
         if(!roomID){
           throw new Error("No room ID found in URL params");
         }
@@ -114,6 +114,12 @@ export default function Room() {
         }
 
         const {audioController,uiController} = builderResult;
+
+        if(webRTCManagerRef.current){
+          webRTCManagerRef.current.initializePeer();
+        }else{
+          throw new Error("WebRTC manager not found in session builder result");
+        }
 
         audioControllerRef.current = audioController;
         audioControllerRef.current.initAudioEngine();

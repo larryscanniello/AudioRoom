@@ -31,6 +31,7 @@ export interface StateContainer {
     mixMasterVolume: number;
     stagingMuted: boolean;
     mixMuted: boolean;
+    remoteStreamAttached: boolean;
 }
 
 export type TransactionQuery<K extends keyof StateContainer> = {
@@ -60,6 +61,7 @@ export type TransactionData = {
 
 export class State {
     #reactState: Set<string>;
+    #commMessageTimeout: ReturnType<typeof setTimeout> | null = null;
     #state: StateContainer = {
             bpm: 100,
             isLooping: true,
@@ -90,7 +92,8 @@ export class State {
             mixMasterVolume: 1.0,
             stagingMuted: false,
             mixMuted: false,
-        };;
+            remoteStreamAttached: false,
+        };
     #render: React.Dispatch<React.SetStateAction<number>> | null = null;
 
     constructor() {
@@ -98,7 +101,7 @@ export class State {
             "bpm","isLooping","isStreaming","metronomeOn",
             "snapToGrid","timeline","delayCompensation",
             "commMessage","stagingMasterVolume","mixMasterVolume",
-            "stagingMuted","mixMuted","playheadTimeSeconds",
+            "stagingMuted","mixMuted","playheadTimeSeconds","remoteStreamAttached",
         ]);
     }
 
@@ -145,6 +148,7 @@ export class State {
         }
     
     public update<K extends keyof StateContainer>(key: K, value: StateContainer[K]|"++"): void {
+        console.log('update: ' , key, value);
         let newvalue = value;
         if(newvalue === "++"){ // Handle increment mutation
             const currentVal = this.query(key);
@@ -172,9 +176,16 @@ export class State {
         return { ...this.#state };
     }
 
-    public commMessage(message:string,color:string){
-        console.log('check comm message',message,color);
+    public commMessage(message:string,color:string,timeInMs:number = 5000): void{
         this.update("commMessage", {text: message, color: color});
+        if(this.#commMessageTimeout){
+            clearTimeout(this.#commMessageTimeout);
+        }
+        this.#commMessageTimeout = setTimeout(() => {
+            this.update("commMessage", {text: "", color: "white"});
+            this.#commMessageTimeout = null;
+        }, timeInMs);
+
     }
 
 

@@ -9,9 +9,8 @@ import { SetNumConnectedUsers } from "../Events/Sockets/SetNumberOfConnectedUser
 export default function socketOns(socket: Socket, context: GlobalContext){
 
     socket.on(EventTypes.JOIN_SOCKET_ROOM,(size:number)=>{
-        console.log("Received JOIN_SOCKET_ROOM event from server");
         context.dispatch(SetNumConnectedUsers.getDispatchEvent({param: size, emit: false}));
-        context.commMessage("Partner connected to DAW.","white");
+        context.commMessage("Partner connected to app; awaiting room join.","white");
     });
 
     socket.on(EventTypes.START_PLAYBACK, () => {

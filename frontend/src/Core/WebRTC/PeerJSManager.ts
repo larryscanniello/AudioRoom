@@ -5,8 +5,8 @@ import type { DataConnection } from "Peerjs";
 import { Socket } from "socket.io-client";
 import { JoinSocketRoom } from "../Events/Sockets/JoinSocketRoom";
 import type { WebRTCManager } from "./WebRTCManager";
-import type { AudioProcessorData, DecodeAudioData } from "@/Types/AudioState";
-import { EventTypes } from "../Events/EventNamespace";
+import type { AudioProcessorData } from "@/Types/AudioState";
+import { RemoteStreamAttached } from "../Events/WebRTC/RemoteStreamAttached";
 
 type GainContainer = {
     local: GainNode | null,
@@ -179,6 +179,7 @@ export class PeerJSManager implements WebRTCManager{
           this.#chatGains.remote = remoteGain
           remoteSource.connect(remoteGain);
           remoteGain.connect(ctx.destination);
+          this.#context.dispatch(RemoteStreamAttached.getDispatchEvent({emit: false, param: true}));
         });
 
         call.on("close", () => {

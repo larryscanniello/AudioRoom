@@ -4,7 +4,6 @@ import { Peer } from "Peerjs"
 import type { DataConnection } from "Peerjs"; 
 import { Socket } from "socket.io-client";
 import { JoinSocketRoom } from "../Events/Sockets/JoinSocketRoom";
-import { EmitPeerID } from "../Events/Sockets/EmitPeerID";
 import type { WebRTCManager } from "./WebRTCManager";
 import type { AudioProcessorData, DecodeAudioData } from "@/Types/AudioState";
 import { EventTypes } from "../Events/EventNamespace";
@@ -86,7 +85,7 @@ export class PeerJSManager implements WebRTCManager{
 
         this.#peer.on("open", peerID => {
             console.log("PeerJS open:", peerID);
-            this.#socketManager.emit(EventTypes.EMIT_PEER_ID, {peerID});
+            this.#socketManager.emit("EMIT_PEER_ID", {peerID});
         });
 
         this.#peer.on("call", call => {

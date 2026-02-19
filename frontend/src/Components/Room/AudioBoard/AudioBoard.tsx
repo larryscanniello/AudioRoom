@@ -9,10 +9,10 @@ import UpperLeftBox from "./TrackList/UpperLeftBox";
 import StagingTrackHeader from "./TrackList/StagingTrackHeader";
 import MixTrackHeader from "./TrackList/MixTrackHeader";
 import Timeline from "./Timeline/Timeline";
-import Transport from "./Transport/Transport";
-import Stop from "./Transport/Stop";
-import Record from "./Transport/Record";
-import ZoomSlider from "./BottomRight/ZoomSlider";
+import Transport from "./BottomControls/Transport/Transport";
+import Stop from "./BottomControls/Transport/Stop.tsx";
+import Record from "./BottomControls/Transport/Record.tsx";
+import ZoomSlider from "./BottomControls/BottomRight/ZoomSlider.tsx";
 
 import { CONSTANTS } from "@/Constants/constants.ts";
 
@@ -21,16 +21,17 @@ import MeasureTicks from "./Timeline/MeasureTicks.tsx";
 import TimelineContainer from "./Timeline/TimelineContainer.tsx";
 import StagingTrack from "./Timeline/StagingTrack.tsx";
 import MixTrack from "./Timeline/MixTrack.tsx";
-import Play from "./Transport/Play.tsx";
-import Skipback from "./Transport/Skipback.tsx";
-import Metronome from "./Transport/Metronome.tsx";
-import Loop from "./Transport/Loop.tsx";
-import BPM from "./Transport/BPM.tsx";
+import Play from "./BottomControls/Transport/Play.tsx";
+import Skipback from "./BottomControls/Transport/Skipback.tsx";
+import Metronome from "./BottomControls/Transport/Metronome.tsx";
+import Loop from "./BottomControls/Transport/Loop.tsx";
+import BPM from "./BottomControls/Transport/BPM.tsx";
 import { ButtonGroupSeparator } from "@/Components/ui/button-group.tsx";
-import Settings from "./BottomRight/Settings.tsx";
-import Latency from "./BottomRight/Latency.tsx";
-import CommMessage from "./BottomRight/CommMessage.tsx";
+import Settings from "./BottomControls/BottomRight/Settings.tsx";
+import Latency from "./BottomControls/BottomRight/Latency.tsx";
+import CommMessage from "./BottomControls/BottomRight/CommMessage.tsx";
 import TouchOverlay from "./Timeline/TouchOverlay.tsx";
+import BottomControls from "./BottomControls/BottomControls.tsx";
 
 type AudioBoardProps = {
     uiControllerRef:React.RefObject<UIController|null>,
@@ -106,25 +107,27 @@ export default function AudioBoard({uiControllerRef,audioControllerRef}:AudioBoa
                             <Columns4 color={snapToGrid ? "lightblue" : "white"} style={{transform:compactMode==1?"scale(1.5)":"scale(1)"}}></Columns4>
                         </Button>*/}
                     </div>
-                    <Transport compactMode={compactMode}>
-                        <Play audioControllerRef={audioControllerRef} compactMode={compactMode}/>
-                        <ButtonGroupSeparator/>
-                        <Stop audioControllerRef={audioControllerRef} compactMode={compactMode}/>
-                        <ButtonGroupSeparator/>
-                        <Record audioControllerRef={audioControllerRef} compactMode={compactMode}/>
-                        <ButtonGroupSeparator/>
-                        <Skipback audioControllerRef={audioControllerRef} compactMode={compactMode}/>
-                        <ButtonGroupSeparator/>
-                        <Loop audioControllerRef={audioControllerRef} compactMode={compactMode}/>
-                        <ButtonGroupSeparator/>
-                        <Metronome audioControllerRef={audioControllerRef} compactMode={compactMode}/>
-                        <ButtonGroupSeparator/>
-                        <BPM audioControllerRef={audioControllerRef} compactMode={compactMode}/>
+                    <BottomControls compactMode={compactMode}>
+                        <Transport compactMode={compactMode}>
+                            <Play audioControllerRef={audioControllerRef} compactMode={compactMode}/>
+                            <ButtonGroupSeparator/>
+                            <Stop audioControllerRef={audioControllerRef} compactMode={compactMode}/>
+                            <ButtonGroupSeparator/>
+                            <Record audioControllerRef={audioControllerRef} compactMode={compactMode}/>
+                            <ButtonGroupSeparator/>
+                            <Skipback audioControllerRef={audioControllerRef} compactMode={compactMode}/>
+                            <ButtonGroupSeparator/>
+                            <Loop audioControllerRef={audioControllerRef} compactMode={compactMode}/>
+                            <ButtonGroupSeparator/>
+                            <Metronome audioControllerRef={audioControllerRef} compactMode={compactMode}/>
+                            <ButtonGroupSeparator/>
+                            <BPM audioControllerRef={audioControllerRef} compactMode={compactMode}/>
+                        </Transport>
                         <ZoomSlider uiControllerRef={uiControllerRef} compactMode={compactMode} timelinePxLen={timelinePxLen}/>
                         <Settings compactMode={compactMode}/>
                         <Latency compactMode={compactMode}/>
                         <CommMessage uiControllerRef={uiControllerRef} compactMode={compactMode}/>
-                    </Transport>
+                    </BottomControls>
                 </div>
             </div>
         </div>

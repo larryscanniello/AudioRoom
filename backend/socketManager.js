@@ -48,6 +48,7 @@ const socketManager = async (server,sessionMiddleware) => {
     });
 
     socket.on('state_transaction',({transactionData}) => {
+      return;
       if(!socket.data.roomID) return;
       transaction(transactionData,socket.data.roomID);
       const mutations = roomStates.get(socket.data.roomID);

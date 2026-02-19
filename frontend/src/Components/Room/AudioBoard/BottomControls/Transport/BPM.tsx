@@ -18,6 +18,8 @@ export default function BPM({ audioControllerRef, compactMode }: BPMProps){
 
     return <Button className={compactMode==1?"test-lg":"text-sm"} 
                     variant="default" size={compactMode==1?"lg":"sm"} onMouseDown={onBPMMouseDown}>
-                {currentBPM}
+                <div className="absolute">
+                    {currentBPM}
+                </div>
         </Button>
 }

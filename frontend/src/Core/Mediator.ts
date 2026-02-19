@@ -39,8 +39,10 @@ export class Mediator implements Subject {
     }
 
     #dispatch(event: DispatchEvent): void {
+        console.log("mediator dispatching event:", event.type, "with transaction data:", event.transactionData);
         const namespace = event.getEventNamespace();
         const successfulTransaction = namespace.stateTransaction(this.#state, event.transactionData, namespace.sharedState);
+        console.log(`State transaction ${successfulTransaction ? "succeeded" : "failed"} for event:`, event.type);
         if(successfulTransaction){this.#processEvent(event);}
     }
 
@@ -50,6 +52,7 @@ export class Mediator implements Subject {
     }
 
     notify(event: DispatchEvent, data: any): void {
+        console.log("Notifying observers: " ,this.#observers);
         this.#observers.forEach(observer => observer.update(event, data));
     }
 

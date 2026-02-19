@@ -30,26 +30,22 @@ const socketManager = async (server,sessionMiddleware) => {
     }
     
     // Listen for a 'join_room' event
-    socket.on('join_room', async ({state}) => {
-      socket.data.roomID = roomID;
-      await socket.join(roomID);
+    socket.on('JOIN_SOCKET_ROOM', async ({state}) => {
+      socket.data.roomID = state.roomID;
+      await socket.join(state.roomID);
 
-      const size = io.sockets.adapter.rooms.get(roomID)?.size ?? 0;
+      const size = io.sockets.adapter.rooms.get(state.roomID)?.size ?? 0;
 
-      if(size === 1 && !roomStates.has(roomID)){  
-        roomStates.set(roomID, state);
+      if(size === 1 && !roomStates.has(state.roomID)){  
+        roomStates.set(state.roomID, state);
       }else{
-        socket.emit('sync_state', roomStates.get(roomID));
+        socket.emit('sync_state', roomStates.get(state.roomID));
       }
 
       //socket.to(roomID).emit('request_audio_server_to_client');
-      io.in(roomID).emit('user_connected_server_to_client', size);
-      socket.to(roomID).emit('comm_event',{
-        type:"partner_joined",
-      })
-      console.log(`User has joined room: ${roomID}`);
+      io.in(state.roomID).emit('JOIN_SOCKET_ROOM', {size});
+      console.log(`User has joined room: ${state.roomID}`);
     });
-
 
     socket.on('state_transaction',({transactionData}) => {
       if(!socket.data.roomID) return;

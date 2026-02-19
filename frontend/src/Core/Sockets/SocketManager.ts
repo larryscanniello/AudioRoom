@@ -7,6 +7,9 @@ import { EventTypes } from "../Events/EventNamespace";
 import type { Mutation, StateContainer } from "@/Core/State/State";
 import { Stop } from "../Events/Audio/Stop";
 
+import socketOns from "./socketOns";
+import { Slottable } from "@radix-ui/react-slot";
+
 export class SocketManager implements Observer {
     #socket: Socket;
     #context: GlobalContext;
@@ -31,16 +34,13 @@ export class SocketManager implements Observer {
         this.#socket.emit(socketKey, data);
     }
 
-    update(event: DispatchEvent): void {
+    update(event: DispatchEvent, data:any): void {
+        console.log("SocketManager received event:", event.type, "with data:", data);
         if(!this.#isConnectedToDAW){
             throw new Error("Cannot process socket event before connection to DAW is initialized.");
         }
         const namespace = event.getEventNamespace();
-        namespace.executeSocket(this, event.transactionData, null);
-    }
-
-    joinRoom(roomId: string){
-        this.#socket.emit(EventTypes.JOIN_SOCKET_ROOM, {roomId});
+        namespace.executeSocket(this, data, event.transactionData);
     }
 
     initDAWConnection() {
@@ -53,11 +53,9 @@ export class SocketManager implements Observer {
             this.#handleStateSync(mutations);
         });
 
-        this.#socket.on(EventTypes.START_PLAYBACK, () => {
-            this.#context.dispatch(Play.getDispatchEvent({param: null,emit: false}));
-            this.#context.commMessage("Partner played audio","white");
-        });
+        
 
+        socketOns(this.#socket, this.#context);
     }
 
     #handleStateSync(mutations: Mutation<keyof StateContainer>[]) {

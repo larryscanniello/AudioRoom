@@ -6,7 +6,6 @@ import { executeSocketUtil, stateTransactionUtil } from "../genericEventFunction
 
 import type { EventNamespace } from "../EventNamespace";
 import type { WorkletAudioEngine } from "@/Core/Audio/WorkletAudioEngine";
-import { DOMCommands } from "@/Constants/DOMElements";
 
 export const RecordingFinished: EventNamespace<typeof EventTypes.RECORDING_FINISHED> = {
     sharedState: true,

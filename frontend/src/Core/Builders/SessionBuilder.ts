@@ -212,10 +212,14 @@ export class SessionBuilder{
         this.#mediaProvider = new MediaProvider(new AudioContext({latencyHint: "interactive"}), this.#config.standaloneMode);
         this.#socketManager = this.#config.socketManager ? new SocketManager(globalContext) : null;
         if(this.#socketManager){ //later I want to enable just video chat alone, but for now, this will do
+            this.#mediator.attach(this.#socketManager);
             this.#socketManager.initDAWConnection();
         }
-        const opusWorker = new Worker(new URL("../Workers/opus_worker.js", import.meta.url), {type: "module"});
+        const opusWorker = new Worker(new URL("../../Workers/opus_worker.js", import.meta.url), {type: "module"});
         this.#webRTCManager = this.#config.webRTCManager && this.#socketManager ? new PeerJSManager(this.#mediaProvider,globalContext,this.#socketManager.getSocket(), opusWorker) : null;
+        if(this.#webRTCManager){
+            this.#mediator.attach(this.#webRTCManager);
+        }
         return this
     }
 
@@ -235,13 +239,6 @@ export class SessionBuilder{
         const {uiEngine, uiController} = this.#getUIController(globalContext,this.#mediaProvider);
         this.#mediator.attach(audioEngine);
         this.#mediator.attach(uiEngine);
-        if(this.#socketManager){
-            this.#mediator.attach(this.#socketManager);
-        }
-        if(this.#webRTCManager){
-            this.#mediator.attach(this.#webRTCManager);
-        }
-        console.log("Session built with config:", this.#config);
         return {audioController, uiController,webRTCManager: this.#webRTCManager};
     }
 

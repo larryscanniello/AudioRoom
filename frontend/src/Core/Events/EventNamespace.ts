@@ -17,7 +17,6 @@ export const EventTypes = {
     TOGGLE_METRONOME: 'TOGGLE_METRONOME',
     SCROLL: 'SCROLL',
     ZOOM: 'ZOOM',
-    EMIT_PEER_ID: 'EMIT_PEER_ID',
     PLAYHEAD_MOVE_MOUSE_DOWN: 'PLAYHEAD_MOVE_MOUSE_DOWN',
     PLAYHEAD_MOVE_AUTO: 'PLAYHEAD_MOVE_AUTO',
     DRAW_ALL_CANVASES: 'DRAW_ALL_CANVASES',
@@ -26,6 +25,7 @@ export const EventTypes = {
     RECORDING_FINISHED: 'RECORDING_FINISHED',
     MIPMAPS_DONE: 'MIPMAPS_DONE',
     BOUNCE: "BOUNCE",
+    SET_NUMBER_OF_CONNECTED_USERS: "SET_NUMBER_OF_CONNECTED_USERS",
 } as const;
 
 export type EventParams = {
@@ -34,20 +34,21 @@ export type EventParams = {
     [EventTypes.STOP]: null;
     [EventTypes.SKIPBACK]: null,
     [EventTypes.CHANGE_BPM]: number,
-    [EventTypes.JOIN_SOCKET_ROOM]: {roomID: string},
+    [EventTypes.JOIN_SOCKET_ROOM]: string,
     [EventTypes.TOGGLE_LOOPING]: null,
     [EventTypes.TOGGLE_METRONOME]: null,
     [EventTypes.SCROLL]: {startTime: number, samplesPerPx: number},
     [EventTypes.ZOOM]: {startTime: number, samplesPerPx: number},
     [EventTypes.PLAYHEAD_MOVE_MOUSE_DOWN]: number,
     [EventTypes.PLAYHEAD_MOVE_AUTO]: number,
-    [EventTypes.EMIT_PEER_ID]: {peerID: string},
     [EventTypes.DRAW_ALL_CANVASES]: null,
     [EventTypes.SET_MOUSE_DRAG_START]: {t: number, trounded: number},
     [EventTypes.SET_MOUSE_DRAG_END]: {t: number, trounded: number} | null,
     [EventTypes.RECORDING_FINISHED]: TimelineState,
     [EventTypes.MIPMAPS_DONE]: null,
     [EventTypes.BOUNCE]: TimelineState,
+    [EventTypes.SET_NUMBER_OF_CONNECTED_USERS]: number,
+
 
 };
 

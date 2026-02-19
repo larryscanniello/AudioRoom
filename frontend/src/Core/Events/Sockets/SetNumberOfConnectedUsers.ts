@@ -6,19 +6,19 @@ import type { AudioProcessorData } from "@/Types/AudioState";
 import type { UIEngine } from "@/Core/UI/UIEngine";
 import type { SocketManager } from "@/Core/Sockets/SocketManager";
 
-export const EmitPeerID: EventNamespace<typeof EventTypes.EMIT_PEER_ID> = {
+export const SetNumConnectedUsers: EventNamespace<typeof EventTypes.SET_NUMBER_OF_CONNECTED_USERS> = {
     sharedState: false,
 
     getDispatchEvent: ({ emit, param }) => {
         return {
-            type: EventTypes.EMIT_PEER_ID,
+            type: EventTypes.SET_NUMBER_OF_CONNECTED_USERS,
             param,
             emit,
             transactionData: {
                 transactionQueries: [],
-                mutations: []
+                mutations: [{key: 'numConnectedUsers', value: param}]
             },
-            getEventNamespace: () => EmitPeerID,
+            getEventNamespace: () => SetNumConnectedUsers,
         };
     },
 
@@ -38,7 +38,7 @@ export const EmitPeerID: EventNamespace<typeof EventTypes.EMIT_PEER_ID> = {
         // No action needed
     },
 
-    executeSocket(socketManager: SocketManager, data: any): void {
-        socketManager.emit(EventTypes.EMIT_PEER_ID, { peerID: data.peerID });
+    executeSocket(_socketManager: SocketManager, _data: any): void {
+        //
     },
 };

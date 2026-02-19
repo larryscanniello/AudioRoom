@@ -16,7 +16,7 @@ export const JoinSocketRoom: EventNamespace<typeof EventTypes.JOIN_SOCKET_ROOM> 
             emit,
             transactionData: {
                 transactionQueries: [],
-                mutations: []
+                mutations: [{ key: 'roomID', value: param }]
             },
             getEventNamespace: () => JoinSocketRoom,
         };
@@ -39,6 +39,6 @@ export const JoinSocketRoom: EventNamespace<typeof EventTypes.JOIN_SOCKET_ROOM> 
     },
 
     executeSocket(socketManager: SocketManager, data: any): void {
-        socketManager.emit(EventTypes.JOIN_SOCKET_ROOM, { roomID: data.roomID, state: data.state });
+        socketManager.emit(EventTypes.JOIN_SOCKET_ROOM, { roomID: data.roomID, state: data });
     },
 };

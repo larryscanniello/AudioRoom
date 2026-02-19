@@ -123,8 +123,8 @@ const opfs:OPFS = {
         take: 0,
     },
     incomingStream:{
-        isInitializing: false;
-        queue: [];
+        isInitializing: false,
+        queue: [],
     }
 }
 

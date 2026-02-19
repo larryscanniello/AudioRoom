@@ -7,6 +7,7 @@ import { JoinSocketRoom } from "../Events/Sockets/JoinSocketRoom";
 import { EmitPeerID } from "../Events/Sockets/EmitPeerID";
 import type { WebRTCManager } from "./WebRTCManager";
 import type { AudioProcessorData, DecodeAudioData } from "@/Types/AudioState";
+import { EventTypes } from "../Events/EventNamespace";
 
 type GainContainer = {
     local: GainNode | null,
@@ -73,8 +74,8 @@ export class PeerJSManager implements WebRTCManager{
     }
 
     joinSocketRoom(roomID: string){
-      const joinRoomEvent = JoinSocketRoom.getDispatchEvent({emit:true, param:{roomID}});
-      this.#context.dispatch(joinRoomEvent)
+        console.log(' in webrtc manager, joining room', roomID);
+      this.#context.dispatch(JoinSocketRoom.getDispatchEvent({emit:true, param:roomID}));
     }
 
     initializePeer(){
@@ -83,9 +84,9 @@ export class PeerJSManager implements WebRTCManager{
         }
         this.#peer = new Peer();
 
-        this.#peer.on("open", peerId => {
-            console.log("PeerJS open:", peerId);
-            this.#context.dispatch(EmitPeerID.getDispatchEvent({emit:true, param:{peerID: peerId}}));
+        this.#peer.on("open", peerID => {
+            console.log("PeerJS open:", peerID);
+            this.#socketManager.emit(EventTypes.EMIT_PEER_ID, {peerID});
         });
 
         this.#peer.on("call", call => {

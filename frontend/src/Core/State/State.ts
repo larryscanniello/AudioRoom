@@ -173,6 +173,7 @@ export class State {
     }
 
     public commMessage(message:string,color:string){
+        console.log('check comm message',message,color);
         this.update("commMessage", {text: message, color: color});
     }
 

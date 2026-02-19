@@ -50,7 +50,7 @@ export default function Room() {
         }
 
         setValidRoom(true);
-        console.log(`Joining room ${roomID}`);
+        console.log(`Valid room ${roomID}`);
     
         
         /*
@@ -120,6 +120,8 @@ export default function Room() {
 
         uiControllerRef.current = uiController;
         uiControllerRef.current.initUIEngine();
+
+        
     }
 
     useEffect(()=>{

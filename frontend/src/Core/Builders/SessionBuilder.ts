@@ -14,6 +14,7 @@ import { DOMHandlers } from "../UI/DOMHandlers/DOMHandlers";
 import { MIXER_PARAMS } from "@/Constants/MixerParams";
 import { State } from "../State/State";
 import type { MipMap } from "../UI/UIEngine";
+import type { Buffers, Pointers } from "@/Types/AudioState";
 
 type Config = {
     audEngineType: "worklet" | "C++" | "inmemory",
@@ -94,15 +95,15 @@ export class SessionBuilder{
     #allocateBuffersandPointers() {
         const stagingSAB = new SharedArrayBuffer(CONSTANTS.SAMPLE_RATE * Float32Array.BYTES_PER_ELEMENT + 12);
         const mixSAB = new SharedArrayBuffer(CONSTANTS.SAMPLE_RATE * Float32Array.BYTES_PER_ELEMENT * this.#config.numberOfMixTracks + 12);
-        const recordSAB = new SharedArrayBuffer(CONSTANTS.SAMPLE_RATE * Float32Array.BYTES_PER_ELEMENT + 12);
+        const recordSAB = new SharedArrayBuffer(CONSTANTS.SAMPLE_RATE * Float32Array.BYTES_PER_ELEMENT + 16);
 
-        const buffers = {
+        const buffers:Buffers = {
             staging: new Float32Array(stagingSAB,12),
             mix: new Float32Array(mixSAB,12),
-            record: new Float32Array(recordSAB,12),
+            record: new Float32Array(recordSAB,16),
         };
 
-        const pointers = {
+        const pointers:Pointers = {
             staging: {
                 read: new Uint32Array(stagingSAB,0,1),
                 write: new Uint32Array(stagingSAB,4,1),
@@ -114,9 +115,10 @@ export class SessionBuilder{
                 isFull: new Uint32Array(mixSAB,8,1),
             },
             record: {
-                read: new Uint32Array(recordSAB,0,1),
-                write: new Uint32Array(recordSAB,4,1),
-                isFull: new Uint32Array(recordSAB,8,1),
+                readOPFS: new Uint32Array(recordSAB,0,1),
+                readStream: new Uint32Array(recordSAB,4,1),
+                write: new Uint32Array(recordSAB,8,1),
+                isFull: new Uint32Array(recordSAB,12,1),
             },
         };
         return {buffers, pointers};
@@ -212,7 +214,8 @@ export class SessionBuilder{
         if(this.#socketManager){ //later I want to enable just video chat alone, but for now, this will do
             this.#socketManager.initDAWConnection();
         }
-        this.#webRTCManager = this.#config.webRTCManager && this.#socketManager ? new PeerJSManager(this.#mediaProvider,globalContext,this.#socketManager.getSocket()) : null;
+        const opusWorker = new Worker(new URL("../Workers/opus_worker.js", import.meta.url), {type: "module"});
+        this.#webRTCManager = this.#config.webRTCManager && this.#socketManager ? new PeerJSManager(this.#mediaProvider,globalContext,this.#socketManager.getSocket(), opusWorker) : null;
         return this
     }
 

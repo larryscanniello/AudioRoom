@@ -1,4 +1,3 @@
-import type { Observer } from "@/Types/Observer";
 import { MediaProvider } from "../MediaProvider";
 import type { DispatchEvent, GlobalContext } from "../Mediator";
 import { Peer } from "Peerjs"
@@ -6,13 +5,15 @@ import type { DataConnection } from "Peerjs";
 import { Socket } from "socket.io-client";
 import { JoinSocketRoom } from "../Events/Sockets/JoinSocketRoom";
 import { EmitPeerID } from "../Events/Sockets/EmitPeerID";
+import type { WebRTCManager } from "./WebRTCManager";
+import type { AudioProcessorData, DecodeAudioData } from "@/Types/AudioState";
 
 type GainContainer = {
     local: GainNode | null,
     remote: GainNode | null,
 }
 
-export class PeerJSManager implements Observer{
+export class PeerJSManager implements WebRTCManager{
     #mediaProvider: MediaProvider;
     //#gainNode: GainNode | null = null;
     #chatGains: GainContainer = {local:null,remote:null};
@@ -20,11 +21,35 @@ export class PeerJSManager implements Observer{
     #socketManager: Socket;
     #dataChannel: DataConnection | null = null;
     #peer: Peer|undefined = undefined;
+    #opusWorker: Worker;
     
-    constructor(mediaProvider:MediaProvider,context:GlobalContext,socketManager: Socket){ 
+    constructor(mediaProvider:MediaProvider,context:GlobalContext,socketManager: Socket,opusWorker: Worker) { 
         this.#mediaProvider = mediaProvider;
         this.#context = context;
         this.#socketManager = socketManager;
+        this.#opusWorker = opusWorker;
+        this.#opusWorker.onmessage = this.#opusWorkerOnMessage.bind(this);
+    }
+
+    #opusWorkerOnMessage(e: MessageEvent){
+        switch(e.data.type){
+            case "encode":
+                if(this.#dataChannel && this.#dataChannel.open){
+                    this.#dataChannel.send(e.data.packet);
+                }else{
+                    console.warn("Data channel not open, cannot send encoded audio packet");
+                }
+                break;
+            case "decode":
+                this.#mediaProvider.receivePacket(e.data);
+                break;
+            default:
+                console.warn(`Unrecognized message from Opus worker: ${e.data.type}`);
+        }
+    }
+
+    record(data:AudioProcessorData){
+        this.#opusWorker.postMessage(data);
     }
 
     getRemoteStream(): MediaStream | null {
@@ -103,9 +128,46 @@ export class PeerJSManager implements Observer{
               reliable: false,
             });
             this.#dataChannel = conn;
+            this.#dataChannel.on("data", (data:any) => this.#dataChannelOnCallback(data));
         });
-        
     }
+
+    #dataChannelOnCallback = (data: ArrayBuffer) => {
+        const buffer = data; // confirmed ArrayBuffer
+        const view = new DataView(buffer);
+
+        // Byte 0: Flags (Uint8)
+        const flags = view.getUint8(0);
+        const isRecording = (flags & 0x01) !== 0;
+        const last = (flags & 0x02) !== 0;
+
+        // Bytes 1-4: recordingCount (Uint32)
+        const recordingCount = view.getUint32(1, false); 
+        
+        // Bytes 5-8: packetCount (Uint32)
+        const packetCount = view.getUint32(5, false);
+        
+        // Bytes 9-10: lookahead (Uint16)
+        const lookahead = view.getUint16(9, false);
+
+        // Byte 11 onwards: The Opus Packet
+        // We slice here because we need a separate buffer to 'transfer' to the worker
+        const packet = buffer.slice(11);
+
+        const uintview = new Uint8Array(packet);
+
+        this.#opusWorker.postMessage({
+            type: "decode",
+            packetCount,
+            recordingCount,
+            packet:uintview,
+            isRecording,
+            OPlookahead: lookahead,
+            last
+        }, [packet]); 
+    
+    };
+    
 
     #attachCallHandlers = (call:any)=> {
         call.on("stream", (incomingStream:MediaStream) => {

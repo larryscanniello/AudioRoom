@@ -1,3 +1,4 @@
+import type { DecodeAudioData } from "@/Types/AudioState";
 
 export class MediaProvider {
     #standaloneMode: boolean = false;
@@ -6,10 +7,22 @@ export class MediaProvider {
     #remoteStream: MediaStream | null = null; 
     #sourceNode: MediaStreamAudioSourceNode | null = null;
     #audioContext: AudioContext;
+    #handlePacket: ((data:DecodeAudioData) => void) | null = null;
 
     constructor(audioContext: AudioContext,standaloneMode:boolean) {
         this.#audioContext = audioContext;
         this.#standaloneMode = standaloneMode;
+    }
+
+    receivePacket(data: DecodeAudioData){
+        if(!this.#handlePacket){
+            throw new Error("No packet handler set for received audio packet");
+        }
+        this.#handlePacket(data);
+    }
+
+    setHandlePacket(handler: (data: DecodeAudioData) => void){
+        this.#handlePacket = handler;
     }
 
     setRemoteStream(stream: MediaStream|null) {

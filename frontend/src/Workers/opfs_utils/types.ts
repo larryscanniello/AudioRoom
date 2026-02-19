@@ -1,7 +1,6 @@
 
 
 interface Buffers {
-	// One Float32Array per logical buffer, or null before init
 	mix: Float32Array | null;
 	staging: Float32Array | null;
 	record: Float32Array | null;
@@ -12,10 +11,18 @@ interface PointerTuple {
 	write: Uint32Array | null;
 	isFull: Uint32Array | null;
 }
+
+interface RecordPointerTuple {
+	readOPFS: Uint32Array | null;
+	readStream: Uint32Array | null;
+	write: Uint32Array | null;
+	isFull: Uint32Array | null;
+}
+
 interface Pointers {
 	mix: PointerTuple;
 	staging: PointerTuple;
-	record: PointerTuple;
+	record: RecordPointerTuple;
 }
 
 interface Region {

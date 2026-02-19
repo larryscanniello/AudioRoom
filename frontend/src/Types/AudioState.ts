@@ -9,13 +9,20 @@ interface PointerEntries {
 interface Pointers {
     staging: PointerEntries,
     mix: PointerEntries,
-    record: PointerEntries,
+    record: {
+        readOPFS: Uint32Array,
+        readStream: Uint32Array,
+        write: Uint32Array,
+        isFull: Uint32Array,
+    },
+    opus: PointerEntries,
 }
 
 interface Buffers {
     staging: Float32Array,
     mix: Float32Array,
     record: Float32Array,
+    opus: Float32Array,
 }
 
 type TimeSignature = {
@@ -23,6 +30,15 @@ type TimeSignature = {
     denominator: number,    
 }
 
+export type DecodeAudioData = {
+    type: 'decode',
+    packet: Float32Array,
+    packetCount: number,
+    isRecording: boolean,
+    recordingCount: number,
+    lookahead: number,
+    last: boolean,
+}
 
 export interface Region {
     start: number;

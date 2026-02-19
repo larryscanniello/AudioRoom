@@ -4,6 +4,7 @@ import type { UIEngine } from "../UI/UIEngine";
 import type { SocketManager } from "../Sockets/SocketManager";
 import type { DispatchEvent } from "../Mediator";
 import type { TimelineState } from "@/Types/AudioState";
+import type { WebRTCManager } from "../WebRTC/WebRTCManager";
 
 export const EventTypes = {
     START_PLAYBACK: 'START_PLAYBACK',
@@ -47,6 +48,7 @@ export type EventParams = {
     [EventTypes.RECORDING_FINISHED]: TimelineState,
     [EventTypes.MIPMAPS_DONE]: null,
     [EventTypes.BOUNCE]: TimelineState,
+
 };
 
 /*
@@ -90,4 +92,6 @@ export type EventNamespace<K extends keyof EventParams> = {
     executeUI(engine: UIEngine, data: any): void;
     // Perform needed action over socket; will almost always be the same and use generic function
     executeSocket(socketManager: SocketManager, transactionData: TransactionData, data: any): void;
+    //Optional since this will only needed by a few events
+    executeRTC?(webRTCManager: WebRTCManager, data: any): void;
 }

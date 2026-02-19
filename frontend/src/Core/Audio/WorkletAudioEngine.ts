@@ -3,7 +3,7 @@ import { Mixer } from "./Mixer";
 import { Metronome } from "./Metronome";
 import { MediaProvider } from "../MediaProvider";
 
-import type { Pointers, Buffers } from "../../Types/AudioState";
+import type { Pointers, Buffers, DecodeAudioData } from "../../Types/AudioState";
 import type { AudioProcessorData,StopAudioProcessorData } from "../../Types/AudioState";
 import type { AudioEngine } from "./AudioEngine";
 import type { DispatchEvent, GlobalContext } from "../Mediator";
@@ -12,7 +12,6 @@ import timelineReducer from "../State/timelineReducer";
 import { RecordingFinished } from "../Events/Audio/RecordingFinished";
 
 import type { OPFSEventData } from "@/Workers/opfs_worker";
-import { data } from "react-router-dom";
 
 type Hardware = {
     audioContext: AudioContext,
@@ -49,7 +48,7 @@ export class WorkletAudioEngine implements AudioEngine{
         this.#metronome = new Metronome();
         this.#context = context;
     }
-
+    
     #workletOnMessage(e: MessageEvent){
         switch(e.data.type){
             case "add_region":
@@ -88,6 +87,10 @@ export class WorkletAudioEngine implements AudioEngine{
         return this.#metronome.getClickBuffer();
     }
 
+    public handlePacket(data: DecodeAudioData){
+        this.#hardware.opfsWorker.postMessage(data);
+    }
+
     public init(){
         if(this.#hardware.source){
             this.#hardware.source.connect(this.#hardware.processorNode);
@@ -97,5 +100,9 @@ export class WorkletAudioEngine implements AudioEngine{
         this.#hardware.processorNode.connect(this.#hardware.audioContext.destination);
         this.#hardware.processorNode.port.postMessage({type: "initAudio",memory: this.#hardware.memory});
         this.#hardware.opfsWorker.postMessage({type: "initAudio",memory: this.#hardware.memory});
+        if(!this.#mediaProvider){
+            throw new Error("Media provider is not set in WorkletAudioEngine. Cannot set packet handler for incoming audio packets.");
+        }
+        this.#mediaProvider.setHandlePacket(this.handlePacket.bind(this));
     }
 }

@@ -22,7 +22,7 @@ class AudioProcessor extends AudioWorkletProcessor {
   constructor() {
     super();
 
-    this.packetSize = 960;
+    this.packetSize = CONSTANTS.PACKET_SIZE;
     this.halfSecondInSamples = Math.round(0.5 * sampleRate);
     this.fiftymsInSamples = Math.round(.05 * sampleRate);
     this.maxTimelineSample = Math.round(60 * sampleRate);
@@ -181,14 +181,14 @@ class AudioProcessor extends AudioWorkletProcessor {
     
     if (this.state.isPlaying) readTo(this.readers.staging, this.pointers.staging, this.buffers.staging, 1);
     readTo(this.readers.mix,this.pointers.mix,this.buffers.mix,CONSTANTS.MIX_MAX_TRACKS);
-    
+
     const output = outputs[0];
     for (let i = 0; i < this.PROCESS_FRAMES; i++) {
       if (!this.state.isRecording && !this.state.isPlaying) break;
         for (let channel = 0; channel < 2; channel++) {
           output[channel][i] = (this.state.isPlaying ? this.readers.staging[i] : 0);
           
-          for(let track=0;track<this.buffers.mix.trackCount;track++){
+          for(let track=0;track<CONSTANTS.MIX_MAX_TRACKS;track++){
             output[channel][i] += this.readers.mix[track * this.PROCESS_FRAMES + i];
           }
           

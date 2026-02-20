@@ -17,7 +17,7 @@ export default function Metronome({audioControllerRef, compactMode}: MetronomePr
         }
     }
 
-    const isMetronomeOn = audioControllerRef.current ? audioControllerRef.current.query("metronomeOn") : false;
+    const isMetronomeOn = audioControllerRef.current ? audioControllerRef.current.query("isMetronomeOn") : false;
 
     return <Button variant="default" size={compactMode==1?"lg":"sm"} className="hover:bg-gray-800"
                     onClick={onMetronome}>

@@ -27,33 +27,35 @@ export class AudioController{
     }
 
     public play() {
-        this.#context.dispatch(Play.getDispatchEvent({emit:true, param: null}));
+        this.#context.dispatch(Play.getDispatchEvent({emit:true, param: null,serverMandated: false}));
     }
 
     public record() {
-        this.#context.dispatch(Record.getDispatchEvent({emit:true, param: null}));
+        this.#context.dispatch(Record.getDispatchEvent({emit:true, param: null,serverMandated: false}));
     }
 
     public stop() {
-        this.#context.dispatch(Stop.getDispatchEvent({emit:true, param: null}));
+        this.#context.dispatch(Stop.getDispatchEvent({emit:true, param: null,serverMandated: false}));
     }  
 
     public skipBack() {
-        this.#context.dispatch(Skipback.getDispatchEvent({emit:true, param: null}));
+        this.#context.dispatch(Skipback.getDispatchEvent({emit:true, param: null,serverMandated: false}));
     }
 
     public bounce(){
         const timeline = this.#context.query("timeline");
         const newTimeline = timelineReducer(timeline, { type: "bounce_to_mix" });
-        this.#context.dispatch(Bounce.getDispatchEvent({emit:true, param: newTimeline}));
+        this.#context.dispatch(Bounce.getDispatchEvent({emit:true, param: newTimeline,serverMandated: false}));
     }
 
     public toggleMetronome() {
-        this.#context.dispatch(Metronome.getDispatchEvent({emit:true, param: null}));
+        const isMetronomeOn = this.#context.query("isMetronomeOn");
+        this.#context.dispatch(Metronome.getDispatchEvent({emit:true, param: !isMetronomeOn,serverMandated: false}));
     }
 
     public toggleLooping() {
-        this.#context.dispatch(Loop.getDispatchEvent({emit:true, param: null}));
+        const isLooping = this.#context.query("isLooping");
+        this.#context.dispatch(Loop.getDispatchEvent({emit:true, param: !isLooping,serverMandated: false}));
     }
 
     public changeStagingVolume(volume: number) {

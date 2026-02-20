@@ -11,7 +11,7 @@ import type { TransactionData } from "@/Core/State/State";
 export const Loop: EventNamespace<typeof EventTypes.TOGGLE_LOOPING> = {
     sharedState: true,
 
-    getDispatchEvent: ({ emit, serverMandated }) => { return {
+    getDispatchEvent: ({ emit, param, serverMandated }) => { return {
             type: EventTypes.TOGGLE_LOOPING,
             emit,
             serverMandated,
@@ -21,7 +21,7 @@ export const Loop: EventNamespace<typeof EventTypes.TOGGLE_LOOPING> = {
                     { key: 'isPlaying', comparitor: '===', target: false },
                 ],
                 mutations: [
-                    { key: 'isLooping', value: 'toggle' },
+                    { key: 'isLooping', value: param },
                 ]
             },
             getEventNamespace: () => { return Loop; }

@@ -156,18 +156,8 @@ export class State {
             }
         }
     
-    public update<K extends keyof StateContainer>(key: K, value: StateContainer[K]|"++"): void {
-        console.log('update: ' , key, value);
-        let newvalue = value;
-        if(newvalue === "++"){ // Handle increment mutation
-            const currentVal = this.query(key);
-            if(typeof currentVal === "number"){
-                newvalue = currentVal + 1 as StateContainer[K];
-            }else{
-                throw new Error(`Cannot apply "++" mutation to non-number type. Current value type: ${typeof currentVal}`);
-            }
-        }
-        this.#state[key] = newvalue;
+    public update<K extends keyof StateContainer>(key: K, value: StateContainer[K]): void {
+        this.#state[key] = value;
         if(this.#reactState.has(key)) {
             if(!this.#render) { 
                 console.warn("Render function not set.");

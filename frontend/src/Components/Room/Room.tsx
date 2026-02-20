@@ -15,7 +15,7 @@ import RemoteVolumeSlider from "./VideoBox/VideoChatControls/RemoteVolumeSlider.
 import AudioBoard from "./AudioBoard/AudioBoard.tsx";
 
 export default function Room() {
-    const [_width,height] = useWindowSize();
+    const [width,height] = useWindowSize();
     const [validRoom, setValidRoom] = useState<boolean>(false);
     const [errorMessage, setErrorMessage] = useState<string>("");
     const [roomJoined, setRoomJoined] = useState<boolean>(false);
@@ -136,11 +136,15 @@ export default function Room() {
       }
     },[roomJoined])
 
-    
+    console.log("yo ", (width-1050)/2)
 
     return <div>
         {validRoom ? <div className="flex flex-col h-screen">
-         <div className="flex w-full justify-center">
+         <div className="flex w-full relative"
+          style={{
+          left: Math.max(0,(width-1050)/2)
+         }}
+         >
         <div className="relative flex justify-center">
         <VideoBox 
         webRTCManagerRef={webRTCManagerRef}

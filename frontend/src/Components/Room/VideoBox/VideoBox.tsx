@@ -37,7 +37,8 @@ export default function VideoBox({webRTCManagerRef,height,roomJoined}: VideoProp
                 style={{
                     width: 1050,
                     height: height - (height < 700 ? 235 * (4 / 7) : 235),
-                }}>
+                }}
+                >
     {remoteStream && (
               <video
                 ref={remoteStreamRef}

@@ -136,7 +136,6 @@ export default function Room() {
       }
     },[roomJoined])
 
-    console.log("yo ", (width-1050)/2)
 
     return <div>
         {validRoom ? <div className="flex flex-col h-screen">

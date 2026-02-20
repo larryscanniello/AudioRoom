@@ -6,6 +6,8 @@ import { DOMCommands } from "@/Constants/DOMElements";
 
 import type { EventNamespace } from "../EventNamespace";
 
+type Payload = {snapshot: StateContainer, sharedSnapshot: Partial<StateContainer>}
+
 export const PlayheadMoveMouseDown: EventNamespace<typeof EventTypes.PLAYHEAD_MOVE_MOUSE_DOWN> = {
     sharedState: true,
 
@@ -31,19 +33,19 @@ export const PlayheadMoveMouseDown: EventNamespace<typeof EventTypes.PLAYHEAD_MO
         return stateTransactionUtil(state, transactionData, this.sharedState);
     },
 
-    getLocalPayload(state: State): StateContainer {
-        return state.getSnapshot();
+    getLocalPayload(state: State): Payload {
+        return { snapshot: state.getSnapshot(), sharedSnapshot: state.getSharedStateSnapshot() };
     },
 
     executeAudio(_audioEngine: any, _data: any): void {
         //no audio action needed
     },
 
-    executeUI(engine: UIEngine, data: StateContainer ): void {
-        engine.draw([DOMCommands.DRAW_PLAYHEAD], data);
+    executeUI(engine: UIEngine, data: Payload ): void {
+        engine.draw([DOMCommands.DRAW_PLAYHEAD], data.snapshot);
     },
 
-    executeSocket(socketManager: any, transactionData: TransactionData): void {
-        executeSocketUtil(socketManager, {type: EventTypes.PLAYHEAD_MOVE_MOUSE_DOWN, transactionData});
+    executeSocket(socketManager: any, transactionData: TransactionData, data: Payload): void {
+        executeSocketUtil(socketManager, {transactionData, sharedSnapshot: data.sharedSnapshot, type: EventTypes.PLAYHEAD_MOVE_MOUSE_DOWN});
     },
 };

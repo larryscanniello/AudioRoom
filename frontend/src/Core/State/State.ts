@@ -60,7 +60,8 @@ export type TransactionData = {
 }
 
 export class State {
-    #reactState: Set<string>;
+    #reactState: Set<keyof StateContainer>;
+    #sharedState: Set<keyof StateContainer>;
     #commMessageTimeout: ReturnType<typeof setTimeout> | null = null;
     #state: StateContainer = {
             bpm: 100,
@@ -96,13 +97,21 @@ export class State {
         };
     #render: React.Dispatch<React.SetStateAction<number>> | null = null;
 
-    constructor() {
+    constructor(roomID: string | null = null) {
         this.#reactState = new Set([
-            "bpm","isLooping","isStreaming","metronomeOn",
+            "bpm","isLooping","isStreaming","isMetronomeOn",
             "snapToGrid","timeline","delayCompensation",
             "commMessage","stagingMasterVolume","mixMasterVolume",
             "stagingMuted","mixMuted","playheadTimeSeconds","remoteStreamAttached",
         ]);
+        this.#sharedState = new Set([
+            "bpm","isLooping","timeSignature","timeline",
+            "isPlaying","isRecording","bounce","take",
+            "playheadTimeSeconds","mouseDragStart","mouseDragEnd",
+            "numConnectedUsers","roomID","stagingMasterVolume",
+            "mixMasterVolume","stagingMuted","mixMuted",
+        ]);
+        this.#state.roomID = roomID;
     }
 
     public query<K extends keyof StateContainer>(key: K): StateContainer[K] {
@@ -174,6 +183,14 @@ export class State {
 
     public getSnapshot(): StateContainer {
         return { ...this.#state };
+    }
+
+    getSharedStateSnapshot(): Partial<StateContainer> {
+        const snapshot: Partial<StateContainer> = {};
+        this.#sharedState.forEach(key => {
+            snapshot[key] = this.query(key) as any;
+        });
+        return snapshot;
     }
 
     public commMessage(message:string,color:string,timeInMs:number = 5000): void{

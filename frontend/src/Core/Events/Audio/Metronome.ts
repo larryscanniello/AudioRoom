@@ -31,7 +31,7 @@ export const Metronome: EventNamespace<typeof EventTypes.TOGGLE_METRONOME> = {
     },
 
     getLocalPayload(state: State) {
-        return { type: EventTypes.TOGGLE_METRONOME, isMetronomeOn: state.query('isMetronomeOn') };
+        return state.getSharedStateSnapshot();
     },
 
     executeAudio(_audioEngine: AudioEngine, _data: any): void {
@@ -42,7 +42,7 @@ export const Metronome: EventNamespace<typeof EventTypes.TOGGLE_METRONOME> = {
         // No specific UI action required for toggling the metronome
     },
 
-    executeSocket(socketManager: SocketManager, transactionData: TransactionData): void {
-        executeSocketUtil(socketManager, transactionData);
+    executeSocket(socketManager: SocketManager, transactionData: TransactionData, data: any): void {
+        executeSocketUtil(socketManager, {transactionData, sharedSnapshot: data, type: EventTypes.TOGGLE_METRONOME});
     },
 };

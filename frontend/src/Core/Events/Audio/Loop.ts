@@ -32,7 +32,7 @@ export const Loop: EventNamespace<typeof EventTypes.TOGGLE_LOOPING> = {
     },
 
     getLocalPayload(state: State) {
-        return { type: EventTypes.TOGGLE_LOOPING, isLooping: state.query('isLooping') };
+        return state.getSharedStateSnapshot();
     },
 
     executeAudio(_engine: AudioEngine,_data:any): void {
@@ -43,7 +43,7 @@ export const Loop: EventNamespace<typeof EventTypes.TOGGLE_LOOPING> = {
         //No specific UI action required for toggling looping, as the playhead behavior will be updated through state changes
     },
 
-    executeSocket(socketManager: SocketManager, transactionData: TransactionData): void {
-        executeSocketUtil(socketManager, transactionData);
+    executeSocket(socketManager: SocketManager, transactionData: TransactionData,data:any): void {
+        executeSocketUtil(socketManager, {transactionData, sharedSnapshot: data, type: EventTypes.TOGGLE_LOOPING});
     },
 };

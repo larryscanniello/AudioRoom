@@ -30,7 +30,7 @@ export const ChangeBPM: EventNamespace<typeof EventTypes.CHANGE_BPM> = {
     },
 
     getLocalPayload(state: State): any {
-        return state.getSnapshot();
+        return state.getSharedStateSnapshot();
     },
 
     executeAudio(_audioEngine: any, _data: any): void {
@@ -41,7 +41,7 @@ export const ChangeBPM: EventNamespace<typeof EventTypes.CHANGE_BPM> = {
         // No specific UI engine action needed; handled by react state rerender
     },
 
-    executeSocket(socketManager: any, transactionData: TransactionData): void {
-        executeSocketUtil(socketManager, transactionData);
+    executeSocket(socketManager: any, transactionData: TransactionData, data: any): void {
+        executeSocketUtil(socketManager, {transactionData, sharedSnapshot: data, type: EventTypes.CHANGE_BPM});
     },
 };

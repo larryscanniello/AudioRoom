@@ -1,5 +1,5 @@
 import { EventTypes } from "../EventNamespace";
-import type { State } from "@/Core/State/State";
+import type { State, StateContainer } from "@/Core/State/State";
 import { CONSTANTS } from "@/Constants/constants";
 import type { AudioEngine } from "@/Core/Audio/AudioEngine";
 import { executeSocketUtil, stateTransactionUtil } from "../genericEventFunctions";
@@ -9,6 +9,8 @@ import type { UIEngine } from "@/Core/UI/UIEngine";
 import type { SocketManager } from "@/Core/Sockets/SocketManager";
 import type { EventNamespace } from "../EventNamespace";
 import type { TransactionData } from "@/Core/State/State";
+
+type Payload = {processordata: AudioProcessorData, sharedSnapshot: Partial<StateContainer>}
 
 export const Play:EventNamespace<typeof EventTypes.START_PLAYBACK> = {
     sharedState: true,
@@ -36,9 +38,9 @@ export const Play:EventNamespace<typeof EventTypes.START_PLAYBACK> = {
         return stateTransactionUtil(state, transactionData, this.sharedState);
     },
 
-    getLocalPayload(state: State): AudioProcessorData {
+    getLocalPayload(state: State): Payload {
         const mouseDragEnd = state.query('mouseDragEnd');
-        const data = { type: EventTypes.START_PLAYBACK,
+        const processordata = { type: EventTypes.START_PLAYBACK,
             state: {
                 isPlaying: state.query('isPlaying'),
                 isRecording: state.query('isRecording'),
@@ -59,19 +61,20 @@ export const Play:EventNamespace<typeof EventTypes.START_PLAYBACK> = {
             }
 
         }
-        return data;
+        const sharedSnapshot = state.getSharedStateSnapshot();
+        return { processordata, sharedSnapshot };
     },
 
-    executeAudio(audioEngine: AudioEngine,data:AudioProcessorData): void {
-        audioEngine.play(data);
+    executeAudio(audioEngine: AudioEngine,data:Payload): void {
+        audioEngine.play(data.processordata);
     },
 
-    executeUI(engine: UIEngine,data:AudioProcessorData): void {
-        engine.startPlayhead(data.timeline);
+    executeUI(engine: UIEngine,data:Payload): void {
+        engine.startPlayhead(data.processordata.timeline);
     },
 
-    executeSocket(socketManager: SocketManager, transactionData: TransactionData): void {
-        executeSocketUtil(socketManager, transactionData);
+    executeSocket(socketManager: SocketManager, transactionData: TransactionData, data: Payload): void {
+        executeSocketUtil(socketManager, {transactionData, sharedSnapshot: data.sharedSnapshot, type: EventTypes.START_PLAYBACK});
     },
 };
 

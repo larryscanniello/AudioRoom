@@ -28,7 +28,7 @@ export const SetMouseDragStart: EventNamespace<typeof EventTypes.SET_MOUSE_DRAG_
     },
 
     getLocalPayload(state: State): any {
-        return state.query("mouseDragStart");
+        return state.getSharedStateSnapshot();
     },
 
     executeAudio(_audioEngine: any, _data: any): void {
@@ -39,7 +39,7 @@ export const SetMouseDragStart: EventNamespace<typeof EventTypes.SET_MOUSE_DRAG_
         // No UI action needed for mouse drag start
     },
 
-    executeSocket(socketManager: any, transactionData: TransactionData): void {
-        executeSocketUtil(socketManager, transactionData);
+    executeSocket(socketManager: any, transactionData: TransactionData, data: any): void {
+        executeSocketUtil(socketManager, {transactionData, sharedSnapshot: data, type: EventTypes.SET_MOUSE_DRAG_START  });
     },
 };

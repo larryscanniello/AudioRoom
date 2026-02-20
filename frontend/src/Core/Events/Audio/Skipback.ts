@@ -33,8 +33,8 @@ export const Skipback: EventNamespace<typeof EventTypes.SKIPBACK> = {
         return stateTransactionUtil(state, transactionData, this.sharedState);
     },
 
-    getLocalPayload(_state: State) {
-        return { type: EventTypes.SKIPBACK };
+    getLocalPayload(state: State) {
+        return state.getSharedStateSnapshot();
     },
 
     executeAudio(_engine: AudioEngine, _data:any ): void {
@@ -45,7 +45,7 @@ export const Skipback: EventNamespace<typeof EventTypes.SKIPBACK> = {
         // No specific UI action required for Skipback, as the playhead position will be updated through state changes
     },
 
-    executeSocket(socketManager: SocketManager, transactionData: TransactionData): void {
-        executeSocketUtil(socketManager, transactionData);
+    executeSocket(socketManager: SocketManager, transactionData: TransactionData, data: any): void {
+        executeSocketUtil(socketManager, {transactionData, sharedSnapshot: data, type: EventTypes.SKIPBACK});
     },
 };

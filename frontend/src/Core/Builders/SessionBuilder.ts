@@ -203,7 +203,7 @@ export class SessionBuilder{
      };
 
     async buildRTC(){
-        const state = new State();
+        const state = new State(this.#config.roomID);
         if(this.#stateSetter){
             state.setRender(this.#stateSetter);
         }
@@ -216,7 +216,7 @@ export class SessionBuilder{
             this.#socketManager.initDAWConnection();
         }
         const opusWorker = new Worker(new URL("../../Workers/opus_worker.js", import.meta.url), {type: "module"});
-        this.#webRTCManager = this.#config.webRTCManager && this.#socketManager ? new PeerJSManager(this.#mediaProvider,globalContext,this.#socketManager.getSocket(), opusWorker) : null;
+        this.#webRTCManager = this.#config.webRTCManager && this.#socketManager ? new PeerJSManager(this.#mediaProvider,globalContext,this.#socketManager, opusWorker) : null;
         if(this.#webRTCManager){
             this.#mediator.attach(this.#webRTCManager);
         }

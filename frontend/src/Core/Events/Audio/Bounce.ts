@@ -14,7 +14,8 @@ import type { TransactionData } from "@/Core/State/State";
 export const Bounce: EventNamespace<typeof EventTypes.BOUNCE> = {
     sharedState: true,
 
-    getDispatchEvent: ({ emit,param,serverMandated }) => { return {
+    getDispatchEvent: ({ emit,param,serverMandated }) => { 
+        return {
             type: EventTypes.BOUNCE,
             emit,
             serverMandated,
@@ -37,14 +38,14 @@ export const Bounce: EventNamespace<typeof EventTypes.BOUNCE> = {
     },
 
     getLocalPayload(state: State) {
-        return state.getSnapshot();
+        return {snapshot: state.getSnapshot(), sharedSnapshot: state.getSharedStateSnapshot()};
     },
 
     executeAudio(engine: AudioEngine,data:any): void {
         engine.bounce({
             type: "bounce_to_mix",
-            mixTimelines: data.timeline.mix,
-            bounce: data.bounce,
+            mixTimelines: data.snapshot.timeline.mix,
+            bounce: data.snapshot.bounce,
         });
     },
 
@@ -54,10 +55,10 @@ export const Bounce: EventNamespace<typeof EventTypes.BOUNCE> = {
             DOMCommands.DRAW_TRACK_TWO_WAVEFORMS,
             DOMCommands.RENDER_TRACK_ONE_REGIONS,
             DOMCommands.RENDER_TRACK_TWO_REGIONS,
-        ],data)  
+        ],data.snapshot)  
     },
 
-    executeSocket(socketManager: SocketManager, transactionData: TransactionData): void {
-        executeSocketUtil(socketManager, transactionData);
+    executeSocket(socketManager: SocketManager, transactionData: TransactionData, data: any): void {
+        executeSocketUtil(socketManager, {transactionData, sharedSnapshot: data.sharedSnapshot, type: EventTypes.BOUNCE});
     },
 };

@@ -1,7 +1,7 @@
 import { EventTypes, type EventNamespace } from "../EventNamespace"
 import type { State, StateContainer, TransactionData } from "@/Core/State/State";
 import type { UIEngine } from "@/Core/UI/UIEngine";
-import { executeSocketUtil, stateTransactionUtil } from "../genericEventFunctions";
+import { stateTransactionUtil } from "../genericEventFunctions";
 import { DOMCommands } from "@/Constants/DOMElements";
 
 
@@ -42,7 +42,7 @@ export const MipMapsDone: EventNamespace<typeof EventTypes.MIPMAPS_DONE> = {
         ], data);
     },
 
-    executeSocket(socketManager: any, transactionData: TransactionData): void {
-        executeSocketUtil(socketManager, transactionData);
+    executeSocket(_socketManager: any, _transactionData: TransactionData): void {
+        //No action needed
     },
 };

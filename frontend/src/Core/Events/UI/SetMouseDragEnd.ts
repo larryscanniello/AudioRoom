@@ -28,7 +28,7 @@ export const SetMouseDragEnd: EventNamespace<typeof EventTypes.SET_MOUSE_DRAG_EN
     },
 
     getLocalPayload(state: State): any {
-        return state.query("mouseDragEnd");
+        return state.getSharedStateSnapshot();
     },
 
     executeAudio(_audioEngine: any, _data: any): void {
@@ -39,7 +39,7 @@ export const SetMouseDragEnd: EventNamespace<typeof EventTypes.SET_MOUSE_DRAG_EN
         // No UI action needed for mouse drag end
     },
 
-    executeSocket(socketManager: any, transactionData: TransactionData): void {
-        executeSocketUtil(socketManager, transactionData);
+    executeSocket(socketManager: any, transactionData: TransactionData, data: any): void {
+        executeSocketUtil(socketManager,{transactionData, sharedSnapshot: data, type: EventTypes.SET_MOUSE_DRAG_END});
     },
 };

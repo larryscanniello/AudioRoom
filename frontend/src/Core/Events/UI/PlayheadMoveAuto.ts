@@ -1,7 +1,7 @@
 import { EventTypes } from "../EventNamespace";
 import type { State, StateContainer, TransactionData } from "@/Core/State/State";
 import type { UIEngine } from "@/Core/UI/UIEngine";
-import { executeSocketUtil, stateTransactionUtil } from "../genericEventFunctions";
+import { stateTransactionUtil } from "../genericEventFunctions";
 import { DOMCommands } from "@/Constants/DOMElements";
 
 import type { EventNamespace } from "../EventNamespace";
@@ -10,7 +10,7 @@ import type { EventNamespace } from "../EventNamespace";
 // as opposed to when user manually moves playhead
 
 export const PlayheadMoveAuto: EventNamespace<typeof EventTypes.PLAYHEAD_MOVE_AUTO> = {
-    sharedState: true,
+    sharedState: false,
 
     getDispatchEvent: ({ param, emit,serverMandated }) => {
         return {
@@ -43,7 +43,7 @@ export const PlayheadMoveAuto: EventNamespace<typeof EventTypes.PLAYHEAD_MOVE_AU
         engine.draw([DOMCommands.DRAW_PLAYHEAD], data);
     },
 
-    executeSocket(socketManager: any, transactionData: TransactionData): void {
-        executeSocketUtil(socketManager, transactionData);
+    executeSocket(_socketManager: any, _transactionData: TransactionData, _data: any): void {
+        // No socket action needed
     },
 };

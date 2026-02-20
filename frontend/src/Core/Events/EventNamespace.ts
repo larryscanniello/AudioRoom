@@ -73,7 +73,7 @@ export type EventNamespace<K extends keyof EventParams> = {
         getDispatchEvent always takes arg emit, which indicates if the event should be emitted to the server
         But param is optional; it is there for events that need to pass data (like zoom level, playhead time, etc)
     */
-    getDispatchEvent: ({emit, param, serverMandated}:{emit: boolean, param?: EventParams[K], serverMandated?: boolean}) => DispatchEvent;
+    getDispatchEvent: ({emit, param, serverMandated}:{emit: boolean, param: EventParams[K], serverMandated?: boolean}) => DispatchEvent;
 
     /*
         This will determine if a server validation is needed for a state transaction.

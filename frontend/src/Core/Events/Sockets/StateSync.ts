@@ -14,10 +14,10 @@ export const StateSync: EventNamespace<typeof EventTypes.STATE_SYNC> = {
             type: EventTypes.STATE_SYNC,
             param,
             emit: false,
-            serverMandated: true,
+            serverMandated: false, //it is server mandated, but we need a state transaction. 
+                                    // note: the name of serverMandated should really be skipTransaction
             transactionData: {
                 transactionQueries: [],
-                //update state with all keys from param object
                 mutations: Object.keys(param).map(key => ({ key: key as keyof StateContainer, value: param[key as keyof StateContainer] }))
             },
             getEventNamespace: () => StateSync,

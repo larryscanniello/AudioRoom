@@ -2,11 +2,11 @@ import { MediaProvider } from "../MediaProvider";
 import type { DispatchEvent, GlobalContext } from "../Mediator";
 import { Peer } from "Peerjs"
 import type { DataConnection } from "Peerjs"; 
-import { Socket } from "socket.io-client";
 import { JoinSocketRoom } from "../Events/Sockets/JoinSocketRoom";
 import type { WebRTCManager } from "./WebRTCManager";
 import type { AudioProcessorData } from "@/Types/AudioState";
 import { RemoteStreamAttached } from "../Events/WebRTC/RemoteStreamAttached";
+import type { SocketManager } from "../Sockets/SocketManager";
 
 type GainContainer = {
     local: GainNode | null,
@@ -18,12 +18,12 @@ export class PeerJSManager implements WebRTCManager{
     //#gainNode: GainNode | null = null;
     #chatGains: GainContainer = {local:null,remote:null};
     #context: GlobalContext;
-    #socketManager: Socket;
+    #socketManager: SocketManager;
     #dataChannel: DataConnection | null = null;
     #peer: Peer|undefined = undefined;
     #opusWorker: Worker;
     
-    constructor(mediaProvider:MediaProvider,context:GlobalContext,socketManager: Socket,opusWorker: Worker) { 
+    constructor(mediaProvider:MediaProvider,context:GlobalContext,socketManager: SocketManager,opusWorker: Worker) { 
         this.#mediaProvider = mediaProvider;
         this.#context = context;
         this.#socketManager = socketManager;
@@ -130,6 +130,7 @@ export class PeerJSManager implements WebRTCManager{
             this.#dataChannel = conn;
             this.#dataChannel.on("data", (data:any) => this.#dataChannelOnCallback(data));
         });
+
     }
 
     #dataChannelOnCallback = (data: ArrayBuffer) => {

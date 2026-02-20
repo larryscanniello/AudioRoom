@@ -14,6 +14,7 @@ export type GlobalContext = {
 export type DispatchEvent = {
     [K in keyof EventParams]: {
         type: K;
+        emit: boolean;
         serverMandated?: boolean;
         transactionData: TransactionData;
         getEventNamespace: () => any; 

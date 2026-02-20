@@ -8,8 +8,9 @@ type ToggleMicButtonProps = {
 export default function ToggleMicButton({gainNodesRef,micsMuted,setMicsMuted}: ToggleMicButtonProps) {
     const toggleMic = () => {
           setMicsMuted(prev=>{
+            console.log("toggling mic, current state: ", prev);
             if(gainNodesRef.current.local){
-              gainNodesRef.current.local.gain.value = !prev ? 0.0 : 1.0;
+              gainNodesRef.current.local.gain.value = !prev.local ? 0.0 : 1.0;
             }
             return {...prev, local: !prev.local};
           }

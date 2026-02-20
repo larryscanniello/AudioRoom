@@ -1,5 +1,5 @@
 import { EventTypes } from "../EventNamespace";
-import type { State } from "@/Core/State/State";
+import type { State, StateContainer } from "@/Core/State/State";
 import type { AudioEngine } from "@/Core/Audio/AudioEngine";
 import { executeSocketUtil, stateTransactionUtil } from "../genericEventFunctions";
 
@@ -9,6 +9,8 @@ import type { SocketManager } from "@/Core/Sockets/SocketManager";
 import type { EventNamespace } from "../EventNamespace";
 import type { TransactionData } from "@/Core/State/State";
 import { CONSTANTS } from "@/Constants/constants";
+
+type LocalPayload = {sharedSnapshot: Partial<StateContainer>, audioProcessorData: AudioProcessorData}
 
 export const Record: EventNamespace<typeof EventTypes.START_RECORDING> = {
     sharedState: true,
@@ -34,9 +36,9 @@ export const Record: EventNamespace<typeof EventTypes.START_RECORDING> = {
         return stateTransactionUtil(state, transactionData, this.sharedState);
     },
 
-    getLocalPayload(state: State): AudioProcessorData {
+    getLocalPayload(state: State): LocalPayload {
         const mouseDragEnd = state.query('mouseDragEnd');
-        const data = { type: EventTypes.START_RECORDING,
+        const audioProcessorData = { type: EventTypes.START_RECORDING,
             state: {
                 isPlaying: state.query('isPlaying'),
                 isRecording: state.query('isRecording'),
@@ -56,18 +58,19 @@ export const Record: EventNamespace<typeof EventTypes.START_RECORDING> = {
                 mix: state.query('timeline').mix,
             }
         };
-        return data;
+        const sharedSnapshot = state.getSharedStateSnapshot();
+        return {sharedSnapshot,audioProcessorData};
     },
 
-    executeAudio(audioEngine: AudioEngine, data: AudioProcessorData): void {
-        audioEngine.record(data);
+    executeAudio(audioEngine: AudioEngine, data: LocalPayload): void {
+        audioEngine.record(data.audioProcessorData);
     },
 
-    executeUI(engine: UIEngine, data: AudioProcessorData): void {
-        engine.startPlayhead(data.timeline);
+    executeUI(engine: UIEngine, data: LocalPayload): void {
+        engine.startPlayhead(data.audioProcessorData.timeline);
     },
 
-    executeSocket(socketManager: SocketManager, transactionData: TransactionData): void {
-        executeSocketUtil(socketManager, transactionData);
+    executeSocket(socketManager: SocketManager, transactionData: TransactionData, data: LocalPayload): void {
+        executeSocketUtil(socketManager, {transactionData, sharedSnapshot: data.sharedSnapshot, type: EventTypes.START_RECORDING});
     },
 };

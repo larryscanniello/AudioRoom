@@ -54,12 +54,11 @@ const socketManager = async (server,sessionMiddleware) => {
         socket.to(socket.data.roomID).emit("call-peer",data.peerID);      
     })
 
-    socket.on('state_transaction',() => {
-      return;
+    socket.on('event',data => {
       if(!socket.data.roomID) return;
-      transaction(transactionData,socket.data.roomID);
-      const mutations = roomStates.get(socket.data.roomID);
-      socket.to(socket.data.roomID).emit('state_transaction',{mutations});
+      transaction(data.transactionData,socket.data.roomID);
+      const newState = roomStates.get(socket.data.roomID);
+      io.to(socket.data.roomID).emit('event',{type:data.type,state:newState});
     })
 
     socket.on("disconnect", () => {

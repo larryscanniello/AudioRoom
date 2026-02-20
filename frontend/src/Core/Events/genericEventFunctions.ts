@@ -7,5 +7,5 @@ export function stateTransactionUtil(state: State, transactionData: TransactionD
     };
 
 export function executeSocketUtil(socketManager: SocketManager, data: any): void {
-    socketManager.emit("state_transaction", data);
+    socketManager.emit("event", data);
 }

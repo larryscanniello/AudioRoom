@@ -11,9 +11,10 @@ import type { TransactionData } from "@/Core/State/State";
 export const Skipback: EventNamespace<typeof EventTypes.SKIPBACK> = {
     sharedState: true,
 
-    getDispatchEvent: ({ emit }) => { return {
+    getDispatchEvent: ({ emit,serverMandated }) => { return {
             type: EventTypes.SKIPBACK,
             emit,
+            serverMandated,
             transactionData: {
                 transactionQueries: [
                     { key: 'isRecording', comparitor: '===', target: false },

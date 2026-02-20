@@ -14,6 +14,7 @@ export type GlobalContext = {
 export type DispatchEvent = {
     [K in keyof EventParams]: {
         type: K;
+        serverMandated?: boolean;
         transactionData: TransactionData;
         getEventNamespace: () => any; 
     }
@@ -40,7 +41,8 @@ export class Mediator implements Subject {
 
     #dispatch(event: DispatchEvent): void {
         const namespace = event.getEventNamespace();
-        const successfulTransaction = namespace.stateTransaction(this.#state, event.transactionData, namespace.sharedState);
+        const successfulTransaction = event.serverMandated ? true :
+        namespace.stateTransaction(this.#state, event.transactionData, namespace.sharedState);
         if(successfulTransaction){this.#processEvent(event);}
     }
 

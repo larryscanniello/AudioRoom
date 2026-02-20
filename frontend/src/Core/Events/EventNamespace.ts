@@ -1,4 +1,4 @@
-import type { State, TransactionData } from "../State/State"
+import type { State, StateContainer, TransactionData } from "../State/State"
 import type { AudioEngine } from "../Audio/AudioEngine";
 import type { UIEngine } from "../UI/UIEngine";
 import type { SocketManager } from "../Sockets/SocketManager";
@@ -27,6 +27,7 @@ export const EventTypes = {
     BOUNCE: "BOUNCE",
     SET_NUMBER_OF_CONNECTED_USERS: "SET_NUMBER_OF_CONNECTED_USERS",
     REMOTE_STREAM_ATTACHED: "REMOTE_STREAM_ATTACHED",
+    STATE_SYNC: "STATE_SYNC",
 } as const;
 
 export type EventParams = {
@@ -50,6 +51,7 @@ export type EventParams = {
     [EventTypes.BOUNCE]: TimelineState,
     [EventTypes.SET_NUMBER_OF_CONNECTED_USERS]: number,
     [EventTypes.REMOTE_STREAM_ATTACHED]: boolean,
+    [EventTypes.STATE_SYNC]: StateContainer,
 };
 
 /*
@@ -71,7 +73,7 @@ export type EventNamespace<K extends keyof EventParams> = {
         getDispatchEvent always takes arg emit, which indicates if the event should be emitted to the server
         But param is optional; it is there for events that need to pass data (like zoom level, playhead time, etc)
     */
-    getDispatchEvent: ({emit, param}:{emit: boolean, param: EventParams[K]}) => DispatchEvent;
+    getDispatchEvent: ({emit, param, serverMandated}:{emit: boolean, param?: EventParams[K], serverMandated?: boolean}) => DispatchEvent;
 
     /*
         This will determine if a server validation is needed for a state transaction.

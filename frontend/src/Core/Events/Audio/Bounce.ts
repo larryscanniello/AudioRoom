@@ -14,9 +14,10 @@ import type { TransactionData } from "@/Core/State/State";
 export const Bounce: EventNamespace<typeof EventTypes.BOUNCE> = {
     sharedState: true,
 
-    getDispatchEvent: ({ emit,param }) => { return {
+    getDispatchEvent: ({ emit,param,serverMandated }) => { return {
             type: EventTypes.BOUNCE,
             emit,
+            serverMandated,
             transactionData: {
                 transactionQueries: [
                     { key: 'isRecording', comparitor: '===', target: false },

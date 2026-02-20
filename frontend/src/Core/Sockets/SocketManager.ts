@@ -3,12 +3,11 @@ import { Play } from "../Events/Audio/Play";
 
 import type { Observer } from "@/Types/Observer";
 import type { DispatchEvent, GlobalContext } from "../Mediator";
-import { EventTypes } from "../Events/EventNamespace";
 import type { Mutation, StateContainer } from "@/Core/State/State";
 import { Stop } from "../Events/Audio/Stop";
-
-import socketOns from "./socketOns";
-import { Slottable } from "@radix-ui/react-slot";
+import { StateSync } from "../Events/Sockets/StateSync";
+import { EventTypes } from "../Events/EventNamespace";
+import { PlayheadMoveMouseDown } from "../Events/UI/PlayheadMoveMouseDown";
 
 export class SocketManager implements Observer {
     #socket: Socket;
@@ -49,53 +48,22 @@ export class SocketManager implements Observer {
     }
 
     #initializeListeners() {
-        this.#socket.on("sync_state", ({mutations}:{mutations:Mutation<keyof StateContainer>[]}) => {
-            this.#handleStateSync(mutations);
+        this.#socket.on("event", ({type, state}:{type:keyof typeof EventTypes, state:StateContainer}) => {
+            this.#context.dispatch(StateSync.getDispatchEvent({emit: false,param:state}));
+            this.#handleSocketEvent(type, state);
         });
-
-        
-
-        socketOns(this.#socket, this.#context);
     }
 
-    #handleStateSync(mutations: Mutation<keyof StateContainer>[]) {
-        for(let mutation of mutations){
-            const currStateVal = this.#context.query(mutation.key);
-            if(currStateVal !== mutation.value){
-                this.#handleStateSyncMutation(mutation);
-            }
-        }
-        
-    }
-
-    #handleStateSyncMutation(mutation: Mutation<keyof StateContainer>) {
-        switch(mutation.key){
-            case "isPlaying":
-                if(mutation.value === false){
-                    this.#context.dispatch(Stop.getDispatchEvent());
-                    this.#context.commMessage("Partner stopped audio.","white");
-                }else{
-                    this.#context.dispatch(Play.getDispatchEvent());
-                    this.#context.commMessage("Partner played audio.","white");
-                }
+    #handleSocketEvent(type: keyof typeof EventTypes, state: StateContainer) {
+        switch(type){
+            case EventTypes.START_PLAYBACK:
+                this.#context.dispatch(Play.getDispatchEvent({emit: false, serverMandated: true}));
                 break;
-            case "isRecording":
-                if(mutation.value === false){
-                    this.#context.dispatch(Stop.getDispatchEvent()); 
-                    this.#context.commMessage("Partner stopped recording.","white");
-                }else{
-                    this.#context.dispatch(PartnerRecording.getDispatchEvent()); 
-                    this.#context.commMessage("Partner started recording.","white");
-                }
+            case EventTypes.STOP:
+                this.#context.dispatch(Stop.getDispatchEvent({emit: false, serverMandated: true}));
                 break;
-            case "playheadLocation":
-                this.#context.dispatch(SetPlayheadLocation.getDispatchEvent(mutation.value));
-                break;
-            case "numConnectedUsers":
-                this.#context.dispatch(SetNumConnectedUsers.getDispatchEvent(mutation.value));
-                break;
-            case "mouseDragEnd":
-                this.#context.dispatch(RegionSelection.getDispatchEvent(mutation.value));
+            case EventTypes.PLAYHEAD_MOVE_MOUSE_DOWN:
+                this.#context.dispatch(PlayheadMoveMouseDown.getDispatchEvent({emit: false, serverMandated: true}));
                 break;
         }
                 

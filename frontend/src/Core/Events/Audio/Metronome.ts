@@ -11,9 +11,10 @@ import type { TransactionData } from "@/Core/State/State";
 export const Metronome: EventNamespace<typeof EventTypes.TOGGLE_METRONOME> = {
     sharedState: true,
 
-    getDispatchEvent: ({ emit }) => { return {
+    getDispatchEvent: ({ emit,serverMandated }) => { return {
             type: EventTypes.TOGGLE_METRONOME,
             emit,
+            serverMandated,
             transactionData: {
                 transactionQueries: [
                     { key: 'isMetronomeOn', comparitor: '===', target: false },

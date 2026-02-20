@@ -14,10 +14,11 @@ export const Play:EventNamespace<typeof EventTypes.START_PLAYBACK> = {
     sharedState: true,
 
 
-    getDispatchEvent: ({emit}) => { 
+    getDispatchEvent: ({emit,serverMandated}) => { 
         return { 
             type: EventTypes.START_PLAYBACK,
             emit,
+            serverMandated,
             transactionData: {
                 transactionQueries: [
                     {key: 'isPlaying', comparitor: '===', target: false},
@@ -56,7 +57,7 @@ export const Play:EventNamespace<typeof EventTypes.START_PLAYBACK> = {
                 staging: state.query('timeline').staging,
                 mix: state.query('timeline').mix,
             }
-            
+
         }
         return data;
     },

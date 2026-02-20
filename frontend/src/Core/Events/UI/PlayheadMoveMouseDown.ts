@@ -9,10 +9,11 @@ import type { EventNamespace } from "../EventNamespace";
 export const PlayheadMoveMouseDown: EventNamespace<typeof EventTypes.PLAYHEAD_MOVE_MOUSE_DOWN> = {
     sharedState: true,
 
-    getDispatchEvent: ({ param, emit }) => {
+    getDispatchEvent: ({ param, emit, serverMandated }) => {
         return {
             type: EventTypes.PLAYHEAD_MOVE_MOUSE_DOWN,
             emit,
+            serverMandated,
             transactionData: {
                 transactionQueries: [
                     { key: 'isPlaying', comparitor: '===', target: false },
@@ -43,6 +44,6 @@ export const PlayheadMoveMouseDown: EventNamespace<typeof EventTypes.PLAYHEAD_MO
     },
 
     executeSocket(socketManager: any, transactionData: TransactionData): void {
-        executeSocketUtil(socketManager, transactionData);
+        executeSocketUtil(socketManager, {type: EventTypes.PLAYHEAD_MOVE_MOUSE_DOWN, transactionData});
     },
 };

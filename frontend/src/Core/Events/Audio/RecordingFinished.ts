@@ -10,10 +10,11 @@ import type { WorkletAudioEngine } from "@/Core/Audio/WorkletAudioEngine";
 export const RecordingFinished: EventNamespace<typeof EventTypes.RECORDING_FINISHED> = {
     sharedState: true,
 
-    getDispatchEvent: ({ param, emit }) => {
+    getDispatchEvent: ({ param, emit, serverMandated }) => {
         return {
             type: EventTypes.RECORDING_FINISHED,
             emit,
+            serverMandated,
             transactionData: {
                 transactionQueries: [],
                 mutations: [{ key: 'timeline', value: param }],

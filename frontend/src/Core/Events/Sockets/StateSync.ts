@@ -1,25 +1,26 @@
 import { EventTypes, type EventNamespace } from "../EventNamespace";
-import type { State, StateContainer, TransactionData } from "@/Core/State/State";
+import { State, type StateContainer, type TransactionData } from "@/Core/State/State";
 import { stateTransactionUtil } from "../genericEventFunctions";
 import type { AudioEngine } from "@/Core/Audio/AudioEngine";
 import type { AudioProcessorData } from "@/Types/AudioState";
 import type { UIEngine } from "@/Core/UI/UIEngine";
 import type { SocketManager } from "@/Core/Sockets/SocketManager";
 
-export const JoinSocketRoom: EventNamespace<typeof EventTypes.JOIN_SOCKET_ROOM> = {
-    sharedState: true,
+export const StateSync: EventNamespace<typeof EventTypes.STATE_SYNC> = {
+    sharedState: false,
 
-    getDispatchEvent: ({ emit, param,serverMandated }) => {
+    getDispatchEvent: ({ param }) => {
         return {
-            type: EventTypes.JOIN_SOCKET_ROOM,
+            type: EventTypes.STATE_SYNC,
             param,
-            emit,
-            serverMandated,
+            emit: false,
+            serverMandated: true,
             transactionData: {
                 transactionQueries: [],
-                mutations: [{ key: 'roomID', value: param }]
+                //update state with all keys from param object
+                mutations: Object.keys(param).map(key => ({ key: key as keyof StateContainer, value: param[key as keyof StateContainer] }))
             },
-            getEventNamespace: () => JoinSocketRoom,
+            getEventNamespace: () => StateSync,
         };
     },
 
@@ -27,8 +28,8 @@ export const JoinSocketRoom: EventNamespace<typeof EventTypes.JOIN_SOCKET_ROOM> 
         return stateTransactionUtil(state, transactionData, this.sharedState);
     },
 
-    getLocalPayload(state: State): StateContainer {
-        return state.getSnapshot();
+    getLocalPayload(_state: State): null {
+        return null;
     },
 
     executeAudio(_audioEngine: AudioEngine,_data:AudioProcessorData): void {
@@ -39,7 +40,7 @@ export const JoinSocketRoom: EventNamespace<typeof EventTypes.JOIN_SOCKET_ROOM> 
         // No action needed
     },
 
-    executeSocket(socketManager: SocketManager, data: any): void {
-        socketManager.emit(EventTypes.JOIN_SOCKET_ROOM, { roomID: data.roomID, state: data });
+    executeSocket(_socketManager: SocketManager, _data: any): void {
+       // No action needed - this event is only emitted from the socket, not sent to it
     },
 };

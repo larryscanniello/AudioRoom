@@ -8,10 +8,11 @@ import type { EventNamespace } from "../EventNamespace";
 export const SetMouseDragStart: EventNamespace<typeof EventTypes.SET_MOUSE_DRAG_START> = {
     sharedState: false,
 
-    getDispatchEvent: ({ param, emit }) => {
+    getDispatchEvent: ({ param, emit, serverMandated }) => {
         return {
             type: EventTypes.SET_MOUSE_DRAG_START,
             emit,
+            serverMandated,
             transactionData: {
                 transactionQueries: [],
                 mutations: [

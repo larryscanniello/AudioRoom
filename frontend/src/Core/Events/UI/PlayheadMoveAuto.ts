@@ -6,13 +6,17 @@ import { DOMCommands } from "@/Constants/DOMElements";
 
 import type { EventNamespace } from "../EventNamespace";
 
+// This event happens when playhead is automatically moved during playback/recording
+// as opposed to when user manually moves playhead
+
 export const PlayheadMoveAuto: EventNamespace<typeof EventTypes.PLAYHEAD_MOVE_AUTO> = {
     sharedState: true,
 
-    getDispatchEvent: ({ param, emit }) => {
+    getDispatchEvent: ({ param, emit,serverMandated }) => {
         return {
             type: EventTypes.PLAYHEAD_MOVE_AUTO,
             emit,
+            serverMandated,
             transactionData: {
                 transactionQueries: [],
                 mutations: [

@@ -9,11 +9,12 @@ import type { SocketManager } from "@/Core/Sockets/SocketManager";
 export const SetNumConnectedUsers: EventNamespace<typeof EventTypes.SET_NUMBER_OF_CONNECTED_USERS> = {
     sharedState: false,
 
-    getDispatchEvent: ({ emit, param }) => {
+    getDispatchEvent: ({ emit, param,serverMandated }) => {
         return {
             type: EventTypes.SET_NUMBER_OF_CONNECTED_USERS,
             param,
             emit,
+            serverMandated,
             transactionData: {
                 transactionQueries: [],
                 mutations: [{key: 'numConnectedUsers', value: param}]

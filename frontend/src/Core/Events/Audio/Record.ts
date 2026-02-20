@@ -13,9 +13,10 @@ import { CONSTANTS } from "@/Constants/constants";
 export const Record: EventNamespace<typeof EventTypes.START_RECORDING> = {
     sharedState: true,
 
-    getDispatchEvent: ({ emit }) => { return {
+    getDispatchEvent: ({ emit,serverMandated }) => { return {
             type: EventTypes.START_RECORDING,
             emit,
+            serverMandated,
             transactionData: {
                 transactionQueries: [
                     { key: 'isPlaying', comparitor: '===', target: false },

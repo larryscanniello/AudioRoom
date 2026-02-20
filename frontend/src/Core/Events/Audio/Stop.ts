@@ -12,10 +12,11 @@ import type { TransactionData } from "@/Core/State/State";
 export const Stop: EventNamespace<typeof EventTypes.STOP> = {
     sharedState: true,
 
-    getDispatchEvent: ({ emit }) => {
+    getDispatchEvent: ({ emit,serverMandated }) => {
          return {
             type: EventTypes.STOP,
             emit,
+            serverMandated,
             transactionData: {
                 transactionQueries: [],
                 mutations: [

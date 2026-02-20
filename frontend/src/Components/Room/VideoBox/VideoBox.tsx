@@ -27,8 +27,6 @@ export default function VideoBox({webRTCManagerRef,height,roomJoined}: VideoProp
   }, [localStream, remoteStream]);
 
   
-
-  
   if (!localStream && !remoteStream) {
     return <div>No streams available</div>;
   }

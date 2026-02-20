@@ -1,7 +1,7 @@
 import { EventTypes } from "../EventNamespace";
 import type { State, TransactionData } from "@/Core/State/State";
 import type { UIEngine } from "@/Core/UI/UIEngine";
-import { executeSocketUtil, stateTransactionUtil } from "../genericEventFunctions";
+import { stateTransactionUtil } from "../genericEventFunctions";
 import { DOMCommands } from "@/Constants/DOMElements";
 
 import type { EventNamespace } from "../EventNamespace";
@@ -39,8 +39,8 @@ export const Zoom: EventNamespace<typeof EventTypes.ZOOM> = {
         engine.draw(Object.values(DOMCommands),data);
     },
 
-    executeSocket(socketManager: any, transactionData: TransactionData): void {
-        executeSocketUtil(socketManager, transactionData);
+    executeSocket(_socketManager: any, _transactionData: TransactionData): void {
+        // No socket action needed
     },
 };
 

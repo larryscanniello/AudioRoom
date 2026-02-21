@@ -36,7 +36,6 @@ export class SocketManager implements Observer {
     }
 
     update(event: DispatchEvent, data:any): void {
-        console.log("SocketManager received event:", event.type, "with data:", data);
         if(!this.#isConnectedToDAW){
             throw new Error("Cannot process socket event before connection to DAW is initialized.");
         }

@@ -50,6 +50,10 @@ public timelineMouseDown(e: React.MouseEvent<HTMLCanvasElement>) {
     this.#DOMHandlers.timelineMouseDown(e);
 }
 
+public onBPMMouseDown(e: React.MouseEvent<HTMLButtonElement>) {
+    this.#DOMHandlers.bpmBoxMouseDown(e);
+}
+
 #getRef(ID: keyof typeof DOMCommands): React.RefObject<HTMLElement | null> | undefined{
     return this.#UIEngine.getRef(ID);
 }

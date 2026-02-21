@@ -1,20 +1,20 @@
 import { Button } from "@/Components/ui/button";
-import type { AudioController } from "@/Core/Audio/AudioController";
+import { UIController } from "@/Core/UI/UIController";
 
 type BPMProps = {
-    audioControllerRef: React.RefObject<AudioController|null>;
+    uiControllerRef: React.RefObject<UIController|null>;
     compactMode: number;
 }
 
-export default function BPM({ audioControllerRef, compactMode }: BPMProps){
+export default function BPM({ uiControllerRef, compactMode }: BPMProps){
 
     const onBPMMouseDown = (e:React.MouseEvent<HTMLButtonElement>) => {
-        if(audioControllerRef.current){
-            audioControllerRef.current.onBPMMouseDown(e);
+        if(uiControllerRef.current){
+            uiControllerRef.current.onBPMMouseDown(e);
         }
     }
 
-    const currentBPM = audioControllerRef.current ? audioControllerRef.current.query("bpm") : 90;
+    const currentBPM = uiControllerRef.current ? uiControllerRef.current.query("bpm") : 90;
 
     return <Button className={compactMode==1?"test-lg":"text-sm"} 
                     variant="default" size={compactMode==1?"lg":"sm"} onMouseDown={onBPMMouseDown}>

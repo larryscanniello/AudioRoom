@@ -121,7 +121,7 @@ export default function AudioBoard({uiControllerRef,audioControllerRef}:AudioBoa
                             <ButtonGroupSeparator/>
                             <Metronome audioControllerRef={audioControllerRef} compactMode={compactMode}/>
                             <ButtonGroupSeparator/>
-                            <BPM audioControllerRef={audioControllerRef} compactMode={compactMode}/>
+                            <BPM uiControllerRef={uiControllerRef} compactMode={compactMode}/>
                         </Transport>
                         <ZoomSlider uiControllerRef={uiControllerRef} compactMode={compactMode} timelinePxLen={timelinePxLen}/>
                         <Settings compactMode={compactMode}/>

@@ -8,6 +8,7 @@ import type { UIEngine } from "@/Core/UI/UIEngine";
 import type { SocketManager } from "@/Core/Sockets/SocketManager";
 import type { EventNamespace } from "../EventNamespace";
 import type { TransactionData } from "@/Core/State/State";
+import type { WebRTCManager } from "@/Core/WebRTC/WebRTCManager";
 
 type Payload = {type: typeof EventTypes.STOP, sharedSnapshot: Partial<StateContainer>}
 
@@ -43,6 +44,10 @@ export const Stop: EventNamespace<typeof EventTypes.STOP> = {
 
     executeUI(engine: UIEngine): void {
         engine.stopPlayhead();
+    },
+
+    executeRTC(webRTCManager: WebRTCManager): void {
+        webRTCManager.stop();
     },
 
     executeSocket(socketManager: SocketManager, transactionData: TransactionData, data: Payload): void {

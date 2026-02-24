@@ -53,7 +53,6 @@ export class Mediator implements Subject {
     }
 
     notify(event: DispatchEvent, data: any): void {
-        console.log("Notifying observers: " ,this.#observers);
         this.#observers.forEach(observer => observer.update(event, data));
     }
 

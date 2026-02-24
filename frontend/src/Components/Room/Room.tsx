@@ -62,7 +62,7 @@ export default function Room() {
           .withReact(setDawInternalState)
           .withAudEngine("worklet", {
             opfsFilePath: "../../Workers/opfs_worker.ts",
-            workletFilePath: "../../Workers/AudioProcessor",
+            workletFilePath: "../../Workers/AudioProcessor.ts",
           })
           .withMixTracks(16)
           .withSockets()
@@ -117,6 +117,7 @@ export default function Room() {
 
         if(webRTCManagerRef.current){
           webRTCManagerRef.current.initializePeer();
+          webRTCManagerRef.current.initializeOpus();
         }else{
           throw new Error("WebRTC manager not found in session builder result");
         }

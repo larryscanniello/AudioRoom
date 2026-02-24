@@ -1,3 +1,4 @@
+import type { AudioProcessorData } from "@/Types/AudioState";
 import type { Observer } from "@/Types/Observer";
 import type { DataConnection } from "Peerjs";
 
@@ -12,4 +13,6 @@ export interface WebRTCManager extends Observer {
     loadStream(): Promise<GainNode | null>;
     getAVStream(): MediaStream;
     terminate(): void;
+    record(data: AudioProcessorData): void;
+    stop(): void;
 }

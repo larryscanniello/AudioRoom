@@ -15,14 +15,12 @@ interface Pointers {
         write: Uint32Array,
         isFull: Uint32Array,
     },
-    opus: PointerEntries,
 }
 
 interface Buffers {
     staging: Float32Array,
     mix: Float32Array,
     record: Float32Array,
-    opus: Float32Array,
 }
 
 type TimeSignature = {

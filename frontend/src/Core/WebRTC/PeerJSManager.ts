@@ -4,13 +4,24 @@ import { Peer } from "Peerjs"
 import type { DataConnection } from "Peerjs"; 
 import { JoinSocketRoom } from "../Events/Sockets/JoinSocketRoom";
 import type { WebRTCManager } from "./WebRTCManager";
-import type { AudioProcessorData } from "@/Types/AudioState";
 import { RemoteStreamAttached } from "../Events/WebRTC/RemoteStreamAttached";
 import type { SocketManager } from "../Sockets/SocketManager";
+import type { Buffers, Pointers } from "@/Workers/opfs_utils/types";
+import { EventTypes } from "../Events/EventNamespace";
+import type { AudioProcessorData } from "@/Types/AudioState";
+
 
 type GainContainer = {
     local: GainNode | null,
     remote: GainNode | null,
+}
+
+type Hardware = {
+    opusWorker: Worker,
+    memory: {
+        pointers: Pointers,
+        buffers: Buffers,
+    }
 }
 
 export class PeerJSManager implements WebRTCManager{
@@ -21,14 +32,14 @@ export class PeerJSManager implements WebRTCManager{
     #socketManager: SocketManager;
     #dataChannel: DataConnection | null = null;
     #peer: Peer|undefined = undefined;
-    #opusWorker: Worker;
-    
-    constructor(mediaProvider:MediaProvider,context:GlobalContext,socketManager: SocketManager,opusWorker: Worker) { 
+    #hardware: Hardware;
+
+    constructor(mediaProvider:MediaProvider,context:GlobalContext,socketManager:SocketManager,hardware:Hardware) { 
         this.#mediaProvider = mediaProvider;
         this.#context = context;
         this.#socketManager = socketManager;
-        this.#opusWorker = opusWorker;
-        this.#opusWorker.onmessage = this.#opusWorkerOnMessage.bind(this);
+        this.#hardware = hardware;
+        this.#hardware.opusWorker.onmessage = this.#opusWorkerOnMessage.bind(this);
     }
 
     #opusWorkerOnMessage(e: MessageEvent){
@@ -48,8 +59,12 @@ export class PeerJSManager implements WebRTCManager{
         }
     }
 
-    record(data:AudioProcessorData){
-        this.#opusWorker.postMessage(data);
+    record(data: AudioProcessorData){
+        this.#hardware.opusWorker.postMessage(data);
+    }
+
+    stop(){
+        this.#hardware.opusWorker.postMessage({type:EventTypes.STOP});
     }
 
     getRemoteStream(): MediaStream | null {
@@ -73,8 +88,11 @@ export class PeerJSManager implements WebRTCManager{
     }
 
     joinSocketRoom(roomID: string){
-        console.log(' in webrtc manager, joining room', roomID);
       this.#context.dispatch(JoinSocketRoom.getDispatchEvent({emit:true, param:roomID}));
+    }
+
+    initializeOpus(){
+        this.#hardware.opusWorker.postMessage({type: "initAudio", memory: this.#hardware.memory});
     }
 
     initializePeer(){
@@ -157,7 +175,7 @@ export class PeerJSManager implements WebRTCManager{
 
         const uintview = new Uint8Array(packet);
 
-        this.#opusWorker.postMessage({
+        this.#hardware.opusWorker.postMessage({
             type: "decode",
             packetCount,
             recordingCount,
@@ -197,8 +215,12 @@ export class PeerJSManager implements WebRTCManager{
         });
       }
 
-    update(_event:DispatchEvent,_data?:any): void {
-        // Handle any events that need to be handled by PeerJSManager here
+    update(event:DispatchEvent,data:any): void {
+        const namespace = event.getEventNamespace();
+        if(namespace.executeRTC){   
+            namespace.executeRTC(this, data);
+        }
+        
     }
 
     loadStream = async (): Promise<GainNode|null> => {

@@ -9,6 +9,7 @@ import type { SocketManager } from "@/Core/Sockets/SocketManager";
 import type { EventNamespace } from "../EventNamespace";
 import type { TransactionData } from "@/Core/State/State";
 import { CONSTANTS } from "@/Constants/constants";
+import type { WebRTCManager } from "@/Core/WebRTC/WebRTCManager";
 
 type LocalPayload = {sharedSnapshot: Partial<StateContainer>, audioProcessorData: AudioProcessorData}
 
@@ -68,6 +69,10 @@ export const Record: EventNamespace<typeof EventTypes.START_RECORDING> = {
 
     executeUI(engine: UIEngine, data: LocalPayload): void {
         engine.startPlayhead(data.audioProcessorData.timeline);
+    },
+
+    executeRTC(webRTCManager: WebRTCManager, data: LocalPayload): void {
+        webRTCManager.record(data.audioProcessorData);
     },
 
     executeSocket(socketManager: SocketManager, transactionData: TransactionData, data: LocalPayload): void {

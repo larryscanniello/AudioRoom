@@ -1,11 +1,10 @@
-import type { Buffers, DecodeAudioData, Pointers, Region } from "@/Types/AudioState.ts";
+import type { Buffers, Pointers, Region } from "@/Types/AudioState.ts";
 import type { MipMap } from "../Core/UI/UIEngine.ts";
 
 import { getMixTimelineEndSample } from "./opfs_utils/getMixTimelineEndSample.ts";
 import { writeToMipMap } from "./opfs_utils/writeToMipMap.ts";
 import { fillPlaybackBufferUtil } from "./opfs_utils/fillPlaybackBufferUtil.ts";
 import { writeToOPFSUtil } from "./opfs_utils/writeToOPFSUtil.ts";
-import { RingSAB } from "@/Core/RingSAB.ts";
 
 import type { AudioProcessorData } from "../Types/AudioState.ts";
 
@@ -22,7 +21,6 @@ const buffers:Buffers = {
     staging: new Float32Array(),
     mix: new Float32Array(),
     record: new Float32Array(),
-    opus: new Float32Array(),
 }
 
 const pointers:Pointers = {
@@ -42,11 +40,6 @@ const pointers:Pointers = {
         write: new Uint32Array(),
         isFull: new Uint32Array(),
     },
-    opus: {
-        read: new Uint32Array(),
-        write: new Uint32Array(),
-        isFull: new Uint32Array(),
-    }
 }
 
 export type OPFS = {
@@ -128,7 +121,6 @@ const opfs:OPFS = {
     }
 }
 
-let opusSAB: RingSAB;
 
 let looping = false;
 
@@ -247,12 +239,6 @@ if (typeof self !== "undefined") { // for testing, otherwise in testing self is 
                     Object.assign(buffers, e.data.memory.buffers);
                     Object.assign(pointers, e.data.memory.pointers);
                     opfs.root = root;
-
-                    // initialize RingSAB for opus data transfer
-                    const opusBuffer = e.data.memory.buffers.opus;
-                    const opusPointers = e.data.memory.pointers.opus;
-                    const opusReadPtr = e.data.memory.pointers.opus.read;
-                    opusSAB = new RingSAB(opusBuffer, opusPointers, opusReadPtr);
                 };
 
                 init();
@@ -271,7 +257,7 @@ if (typeof self !== "undefined") { // for testing, otherwise in testing self is 
 
             case EventTypes.START_RECORDING:
                 const init_recording = async () => {
-                    if(!pointers.record.read || !pointers.record.write || !pointers.record.isFull ||
+                    if(!pointers.record.readOPFS || !pointers.record.readStream || !pointers.record.write || !pointers.record.isFull ||
                         !pointers.mix.read || !pointers.mix.write || !pointers.mix.isFull || !buffers.mix ||
                         !opfs.config.TRACK_COUNT || !opfs.bounces || !buffers.record
                     ){
@@ -302,7 +288,8 @@ if (typeof self !== "undefined") { // for testing, otherwise in testing self is 
                     opfs.timeline.posSample.staging = start;
 
                     looping = e.data.state.looping;
-                    Atomics.store(pointers.record.read,0,0);
+                    Atomics.store(pointers.record.readOPFS,0,0);
+                    Atomics.store(pointers.record.readStream,0,0);
                     Atomics.store(pointers.record.write,0,0);
                     Atomics.store(pointers.record.isFull,0,0);
                     Atomics.store(pointers.mix.read,0,0);
@@ -310,7 +297,7 @@ if (typeof self !== "undefined") { // for testing, otherwise in testing self is 
                     Atomics.store(pointers.mix.isFull,0,0);
                     proceed.record = "ready";
                     writeToOPFS(
-                        pointers.record.read,
+                        pointers.record.readOPFS,
                         pointers.record.write,
                         pointers.record.isFull,
                         buffers.record,

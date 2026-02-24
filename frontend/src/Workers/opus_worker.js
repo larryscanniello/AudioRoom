@@ -19,7 +19,7 @@ let recordReader;
 let recordSAB;
 let opfsReader;
 let opfsSAB;
-let packetCount = 0;
+let encodePacketCount = 0;
 
 self.onmessage = async (e) => {
     const { type, packet, packetCount, isRecording, recordingCount, OPlookahead, last } = e.data;
@@ -41,20 +41,22 @@ self.onmessage = async (e) => {
         lookahead = wasmInstance._wasm_opus_get_encoder_lookahead();
 
         const incomingAudioFloat32SAB = e.data.memory.buffers.record;
-        const pointers = e.data.memory.pointers.record;
+        const recordPointers = e.data.memory.pointers.record;
         recordReader = new Float32Array(CONSTANTS.PACKET_SIZE);
+        const pointers = {
+            read: recordPointers.readStream,
+            read2: recordPointers.readOPFS,
+            write: recordPointers.write,
+            isFull: recordPointers.isFull,
+        }
         recordSAB = new RingSAB(incomingAudioFloat32SAB,pointers,pointers.read);
-
-        const incomingOPFSSAB = e.data.memory.buffers.opus;
-        const opusPointers = e.data.memory.pointers.opus;
-        opfsReader = new Uint8Array(CONSTANTS.PACKET_SIZE);
-        opfsSAB = new RingSAB(incomingOPFSSAB, opusPointers);
-
+        
     }
 
     if (type === EventTypes.START_RECORDING) {
+        console.log("Starting recording in Opus Worker");
         proceed = "ready";
-        packetCount = 0;
+        encodePacketCount = 0;
         readTo(recordSAB, e.data);
     }
 
@@ -84,17 +86,17 @@ self.onmessage = async (e) => {
                 pcm = pcm.slice(lookahead);
             }
 
-            opfsSAB.write(packet, 0, packet.length);
-
             self.postMessage({ type: 'decode', packet: pcm, packetCount, isRecording, recordingCount, lookahead:OPlookahead,last  }, [pcm.buffer]);
         }
     }
 };
 
 function readTo(recordSAB,data){
+    console.log('reading TO',recordSAB);
     if(proceed!=="ready") return;
     proceed = "working";
-    const availableSamples = recordSAB.availableSamples();
+    const availableSamples = recordSAB.availableSamplesToRead();
+    console.log('available samples to read', availableSamples);
     if(availableSamples===0){
         if(proceed!=="off"){
             proceed = "ready";
@@ -102,11 +104,13 @@ function readTo(recordSAB,data){
         }
         return;
     }
+    let samplesToWrite = availableSamples;
     while(samplesToWrite>=CONSTANTS.PACKET_SIZE){
-        recordSAB.read(reader,0,CONSTANTS.PACKET_SIZE);
-        const encodedPacket = encode(reader,data);
+        recordSAB.read(recordReader,0,CONSTANTS.PACKET_SIZE);
+        const encodedPacket = encode(recordReader,data);
         self.postMessage({type: "encode", packet: encodedPacket}, [encodedPacket]);
-        packetCount++;
+        encodePacketCount++;
+        samplesToWrite -= CONSTANTS.PACKET_SIZE;
     }
     if(proceed!=="off"){proceed = "ready";}
     setTimeout(()=>readTo(recordSAB,data),15);
@@ -114,7 +118,7 @@ function readTo(recordSAB,data){
 
 function encode(packet,data){
 
-    const { isRecording, count } = data;
+    const { isRecording, count } = data.state;
     const { bounce, take } = count;
 
     wasmInstance.HEAPF32.set(packet, encodePCMPtr >> 2);
@@ -133,7 +137,7 @@ function encode(packet,data){
             In this version of the project, OPFS handles packets dynamically
             and this flag isn't really necessary. I'm leaving it for now.
         */
-        last = false;
+        let last = false;
         
         const encodedData = wasmInstance.HEAPU8.slice(encodeOutPtr, encodeOutPtr + encodedByteCount);
         uint8View[0] = 0;
@@ -142,7 +146,7 @@ function encode(packet,data){
 
         dataView.setUint16(1, bounce, false);
         dataView.setUint16(3, take,false);
-        dataView.setUint32(5, packetCount,false);
+        dataView.setUint32(5, encodePacketCount,false);
         dataView.setUint16(9, lookahead,false); 
         
         uint8View.set(encodedData, 11);

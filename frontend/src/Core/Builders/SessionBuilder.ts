@@ -50,6 +50,7 @@ export class SessionBuilder{
     #mediaProvider: MediaProvider | null = null;
     #socketManager: SocketManager | null = null;
     #opfsWorker: Worker | null = null;
+    #memory: {buffers: Buffers, pointers: Pointers} | null = null;
 
     constructor(roomID?:string){
         this.#config.standaloneMode = roomID ? false : true;
@@ -170,9 +171,11 @@ export class SessionBuilder{
                 this.#opfsWorker = new Worker(new URL(this.#config.opfsFilePath, import.meta.url), {type: "module"});
             }
             console.log("In builder: OPFS worker",this.#opfsWorker,this.#config.opfsFilePath);
-            memory = this.#allocateBuffersandPointers();
+            if(!this.#memory){
+                this.#memory = this.#allocateBuffersandPointers();
+            }
             const source = mediaProvider.getSourceNode();
-            const hardware = {audioContext, processorNode, source, memory, opfsWorker: this.#opfsWorker};
+            const hardware = {audioContext, processorNode, source, memory: this.#memory, opfsWorker: this.#opfsWorker};
             audioEngine = new WorkletAudioEngine({hardware,mixer,mediaProvider,context: globalContext});
         }
         const audioController = new AudioController(audioEngine, globalContext,mixer);
@@ -216,7 +219,11 @@ export class SessionBuilder{
             this.#socketManager.initDAWConnection();
         }
         const opusWorker = new Worker(new URL("../../Workers/opus_worker.js", import.meta.url), {type: "module"});
-        this.#webRTCManager = this.#config.webRTCManager && this.#socketManager ? new PeerJSManager(this.#mediaProvider,globalContext,this.#socketManager, opusWorker) : null;
+        if(!this.#memory){
+            this.#memory = this.#allocateBuffersandPointers();
+        }
+        const hardware = {opusWorker, memory: this.#memory};
+        this.#webRTCManager = this.#config.webRTCManager && this.#socketManager ? new PeerJSManager(this.#mediaProvider,globalContext,this.#socketManager, hardware) : null;
         if(this.#webRTCManager){
             this.#mediator.attach(this.#webRTCManager);
         }

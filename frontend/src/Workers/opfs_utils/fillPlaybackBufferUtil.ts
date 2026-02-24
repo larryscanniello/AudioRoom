@@ -1,6 +1,5 @@
 import type {
 	BounceEntry,
-	TimelineState,
     Region,
 } from "./types";
 
@@ -9,7 +8,7 @@ export function fillPlaybackBufferUtil(
     TRACK_COUNT:number,
     writePtr:number,
     readPtr:number,
-    timeline: Region[][],
+    timeline: readonly Region[][],
     tracks: BounceEntry[],
     looping:boolean,
     timelineStartPos:number,

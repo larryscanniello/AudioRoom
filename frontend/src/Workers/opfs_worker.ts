@@ -268,9 +268,12 @@ if (typeof self !== "undefined") { // for testing, otherwise in testing self is 
                         console.error("Expected START_RECORDING data");
                         return;
                     }
+
+
                     const bounce = e.data.state.count.bounce;
                     const take = e.data.state.count.take;   
                     const fileName = `bounce_${bounce}_take_${take}`
+                    console.log('filename',fileName);
                     const currTakeFile = await opfs.bounces[bounce].dirHandle.getFileHandle(fileName,{create:true});
                     const currTakeHandle = await (currTakeFile as any).createSyncAccessHandle();
                     opfs.bounces[bounce].takeHandles[fileName] = currTakeHandle;
@@ -286,6 +289,8 @@ if (typeof self !== "undefined") { // for testing, otherwise in testing self is 
                     opfs.timeline.endSample = end;
                     opfs.timeline.posSample.mix = start;
                     opfs.timeline.posSample.staging = start;
+
+                    
 
                     looping = e.data.state.looping;
                     proceed.record = "ready";
@@ -439,7 +444,6 @@ export async function writeStreamedPacketToOPFS(
 
     const fileName = `bounce_${bounce}_take_${take}`;
 
-    const lookaheadInBytes = Math.round(lookahead * CONSTANTS.SAMPLE_RATE * Float32Array.BYTES_PER_ELEMENT);
 
     if (!opfs.bounces[bounce].takeHandles[fileName]) {
         if (opfs.incomingStream.isInitializing){
@@ -453,21 +457,22 @@ export async function writeStreamedPacketToOPFS(
         opfs.bounces[bounce].takeHandles[fileName] = handle;
         opfs.curr.take = take;
         opfs.incomingStream.isInitializing = false;
-        handle.write(packet.slice(lookaheadInBytes), {at: 0});
+        handle.write(packet.slice(lookahead), {at: 0});
         return;
     }
 
+    const lookaheadInBytes = lookahead * Float32Array.BYTES_PER_ELEMENT;
     const handle = opfs.bounces[bounce].takeHandles[fileName];
     
     const writeToOPFS = (packet: ArrayBuffer,packetCount:number) => {
         const fileLengthInBytes = handle.getSize();
-        const indexToInsertPacket = packetCount * CONSTANTS.PACKET_SIZE * Float32Array.BYTES_PER_ELEMENT;
-        if(fileLengthInBytes < indexToInsertPacket){
-            const numOfZeroBytesToFill = Math.max(indexToInsertPacket - fileLengthInBytes, 0);
+        const byteIndexToInsertPacket = packetCount * CONSTANTS.PACKET_SIZE * Float32Array.BYTES_PER_ELEMENT - lookaheadInBytes;
+        if(fileLengthInBytes < byteIndexToInsertPacket){
+            const numOfZeroBytesToFill = Math.max(byteIndexToInsertPacket - fileLengthInBytes, 0);
             const zeroBuffer = new Float32Array(numOfZeroBytesToFill/Float32Array.BYTES_PER_ELEMENT);
             handle.write(zeroBuffer, {at: fileLengthInBytes - lookaheadInBytes});
         }
-        handle.write(packet, {at: indexToInsertPacket - lookaheadInBytes});
+        handle.write(packet, {at: byteIndexToInsertPacket});
     }
 
     if(opfs.incomingStream.queue.length > 0){

@@ -47,7 +47,9 @@ export class AudioController{
     public bounce(){
         const timeline = this.#context.query("timeline");
         const newTimeline = timelineReducer(timeline, { type: "bounce_to_mix" });
-        this.#context.dispatch(Bounce.getDispatchEvent({emit:true, param: newTimeline,serverMandated: false}));
+        const prevBounce = this.#context.query("bounce");
+        const bounceState = {timeline: newTimeline, bounce: prevBounce + 1};
+        this.#context.dispatch(Bounce.getDispatchEvent({emit:true, param: bounceState,serverMandated: false}));
     }
 
     public toggleMetronome() {

@@ -123,6 +123,7 @@ export class PeerJSManager implements WebRTCManager{
           conn.on("open", () => {
             console.log("Data channel open (callee)");
             this.#dataChannel = conn;
+            this.#dataChannel.on("data", (data:any) => this.#dataChannelOnCallback(data));
           });
 
           conn.on("close", () => {
@@ -146,46 +147,51 @@ export class PeerJSManager implements WebRTCManager{
               reliable: false,
             });
             this.#dataChannel = conn;
+            console.log("Data channel open (caller)");
             this.#dataChannel.on("data", (data:any) => this.#dataChannelOnCallback(data));
         });
 
     }
 
     #dataChannelOnCallback = (data: ArrayBuffer) => {
-        const buffer = data; // confirmed ArrayBuffer
-        const view = new DataView(buffer);
+    const buffer = data;
+    const view = new DataView(buffer);
 
-        // Byte 0: Flags (Uint8)
-        const flags = view.getUint8(0);
-        const isRecording = (flags & 0x01) !== 0;
-        const last = (flags & 0x02) !== 0;
+    // Byte 0: flags
+    const flags = view.getUint8(0);
+    const isRecording = (flags & 0x01) !== 0;
+    const last = (flags & 0x02) !== 0;
 
-        // Bytes 1-4: recordingCount (Uint32)
-        const recordingCount = view.getUint32(1, false); 
-        
-        // Bytes 5-8: packetCount (Uint32)
-        const packetCount = view.getUint32(5, false);
-        
-        // Bytes 9-10: lookahead (Uint16)
-        const lookahead = view.getUint16(9, false);
+    // Bytes 1-2: bounce (Uint16, BE)
+    const bounce = view.getUint16(1, false);
 
-        // Byte 11 onwards: The Opus Packet
-        // We slice here because we need a separate buffer to 'transfer' to the worker
-        const packet = buffer.slice(11);
+    // Bytes 3-4: take (Uint16, BE)
+    const take = view.getUint16(3, false);
 
-        const uintview = new Uint8Array(packet);
+    // Bytes 5-8: packetCount (Uint32, BE)
+    const packetCount = view.getUint32(5, false);
 
-        this.#hardware.opusWorker.postMessage({
+    // Bytes 9-10: lookahead (Uint16, BE)
+    const lookahead = view.getUint16(9, false);
+
+    // Byte 11+: opus packet (copy so transfer is safe)
+    const packetBuffer = buffer.slice(11);
+    const packet = new Uint8Array(packetBuffer);
+
+    this.#hardware.opusWorker.postMessage(
+        {
             type: "decode",
             packetCount,
-            recordingCount,
-            packet:uintview,
+            bounce,
+            take,
+            packet,
             isRecording,
             OPlookahead: lookahead,
-            last
-        }, [packet]); 
-    
-    };
+            last,
+        },
+        [packetBuffer]
+    );
+};
     
 
     #attachCallHandlers = (call:any)=> {

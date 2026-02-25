@@ -34,7 +34,6 @@ export const MipMapsDone: EventNamespace<typeof EventTypes.MIPMAPS_DONE> = {
     },
 
     executeUI(engine: UIEngine, data: StateContainer ): void {
-        console.log("Executing MipMapsDone event, drawing updated waveforms and regions",data);
         engine.draw([
             DOMCommands.RENDER_TRACK_ONE_REGIONS,
             DOMCommands.RENDER_TRACK_TWO_REGIONS,

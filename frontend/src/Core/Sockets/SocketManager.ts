@@ -10,6 +10,7 @@ import { EventTypes } from "../Events/EventNamespace";
 import { PlayheadMoveMouseDown } from "../Events/UI/PlayheadMoveMouseDown";
 import { Skipback } from "../Events/Audio/Skipback";
 import { Bounce } from "../Events/Audio/Bounce";
+import { RecordingFinished } from "../Events/Audio/RecordingFinished";
 
 export class SocketManager implements Observer {
     #socket: Socket;
@@ -65,7 +66,10 @@ export class SocketManager implements Observer {
                 // big task to do later
                 break;
             case EventTypes.STOP:
-                this.#context.dispatch(Stop.getDispatchEvent({emit: false, param: null, serverMandated: true}));
+                this.#context.dispatch(Stop.getDispatchEvent({emit: false, param: state.playheadTimeSeconds, serverMandated: true}));
+                break;
+            case EventTypes.RECORDING_FINISHED:
+                this.#context.dispatch(RecordingFinished.getDispatchEvent({emit: false,param:state.timeline,serverMandated: true}));
                 break;
             case EventTypes.SKIPBACK:
                 this.#context.dispatch(Skipback.getDispatchEvent({emit: false, param:null, serverMandated: true}));

@@ -56,8 +56,6 @@ export class UIEngine implements Observer{
     opfsOnMessage(e: MessageEvent){
         switch(e.data.type){
             case "staging_mipmap_done":
-                const timeline = this.#context.query("timeline");
-                console.log("Received staging mipmap from OPFS worker",timeline);
                 this.#context.dispatch(MipMapsDone.getDispatchEvent({emit: false, param: null}));
                 break;
             case "bounce_to_mix_done":
@@ -73,7 +71,6 @@ export class UIEngine implements Observer{
         const bounce = this.#context.query("bounce");
         const take = this.#context.query("take");
         const regionStack = timeline.regionStack;
-        console.log('Rendering new region with timeline:', timeline, 'bounce:', bounce, 'take:', take, 'regionStack:', regionStack);
         this.#opfsWorker.postMessage({
             type: "fill_staging_mipmap", 
             timeline,bounce,take,

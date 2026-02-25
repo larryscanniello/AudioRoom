@@ -48,7 +48,7 @@ export type EventParams = {
     [EventTypes.SET_MOUSE_DRAG_END]: {t: number, trounded: number} | null,
     [EventTypes.RECORDING_FINISHED]: TimelineState,
     [EventTypes.MIPMAPS_DONE]: null,
-    [EventTypes.BOUNCE]: TimelineState,
+    [EventTypes.BOUNCE]: {timeline: TimelineState, bounce: number},
     [EventTypes.SET_NUMBER_OF_CONNECTED_USERS]: number,
     [EventTypes.REMOTE_STREAM_ATTACHED]: boolean,
     [EventTypes.STATE_SYNC]: StateContainer,

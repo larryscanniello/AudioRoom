@@ -26,8 +26,8 @@ export const Bounce: EventNamespace<typeof EventTypes.BOUNCE> = {
                 ],
                 mutations: [
                     { key: 'take', value: 0 },
-                    { key: 'bounce', value: "++" },
-                    { key: 'timeline', value: param },
+                    { key: 'bounce', value: param.bounce },
+                    { key: 'timeline', value: param.timeline },
                 ]
             },
             getEventNamespace: () => { return Bounce; }

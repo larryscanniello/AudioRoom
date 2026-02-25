@@ -22,73 +22,79 @@ let opfsSAB;
 let encodePacketCount = 0;
 
 self.onmessage = async (e) => {
-    const { type, packet, packetCount, isRecording, recordingCount, OPlookahead, last } = e.data;
+    const { type } = e.data;
 
-    if (type === 'initAudio') {
-        wasmInstance = await initOpusWasm();
+    switch(type){
+        case 'initAudio':
+            wasmInstance = await initOpusWasm();
 
-        wasmInstance._wasm_opus_init_encoder(CONSTANTS.SAMPLE_RATE,128000);
-        wasmInstance._wasm_opus_init_decoder(CONSTANTS.SAMPLE_RATE);
-        
-        encodePCMPtr = wasmInstance._malloc(FRAME_SIZE * 4);
-        decodePCMPtr = wasmInstance._malloc(FRAME_SIZE * 4);
-        encodeOutPtr = wasmInstance._malloc(MAX_PACKET_SIZE);
-        decodeInPtr = wasmInstance._malloc(MAX_PACKET_SIZE);
-        encoderBuffer = new ArrayBuffer(4008);
-        uint8View  = new Uint8Array(encoderBuffer);
-        dataView = new DataView(encoderBuffer);
+            wasmInstance._wasm_opus_init_encoder(CONSTANTS.SAMPLE_RATE,128000);
+            wasmInstance._wasm_opus_init_decoder(CONSTANTS.SAMPLE_RATE);
+            
+            encodePCMPtr = wasmInstance._malloc(FRAME_SIZE * 4);
+            decodePCMPtr = wasmInstance._malloc(FRAME_SIZE * 4);
+            encodeOutPtr = wasmInstance._malloc(MAX_PACKET_SIZE);
+            decodeInPtr = wasmInstance._malloc(MAX_PACKET_SIZE);
+            encoderBuffer = new ArrayBuffer(4008);
+            uint8View  = new Uint8Array(encoderBuffer);
+            dataView = new DataView(encoderBuffer);
 
-        lookahead = wasmInstance._wasm_opus_get_encoder_lookahead();
+            lookahead = wasmInstance._wasm_opus_get_encoder_lookahead();
 
-        const incomingAudioFloat32SAB = e.data.memory.buffers.record;
-        const recordPointers = e.data.memory.pointers.record;
-        recordReader = new Float32Array(CONSTANTS.PACKET_SIZE);
-        const pointers = {
-            read: recordPointers.readStream,
-            read2: recordPointers.readOPFS,
-            write: recordPointers.write,
-            isFull: recordPointers.isFull,
-        }
-        recordSAB = new RingSAB(incomingAudioFloat32SAB,pointers,pointers.read);
-        
-    }
-
-    if (type === EventTypes.START_RECORDING) {
-        proceed = "ready";
-        encodePacketCount = 0;
-        readTo(recordSAB, e.data);
-    }
-
-    if (type === EventTypes.STOP) {
-        proceed = "off";
-    }
-
-    if (type === 'decode') {
-        // payload is the compressed Uint8Array (the packet)        
-        // 1. Copy compressed bytes into the outPtr loading dock
-        wasmInstance.HEAPU8.set(packet, decodeInPtr);
-
-        // 2. Decode into the pcmPtr loading dock
-        const samplesDecoded = wasmInstance._wasm_opus_decode_float(
-            decodeInPtr, 
-            packet.length, 
-            decodePCMPtr, 
-            FRAME_SIZE,
-        );
-
-
-        if (samplesDecoded > 0) {
-            // 3. Extract the raw PCM floats
-            // Note: we slice from pcmPtr using HEAPF32
-            let pcm = wasmInstance.HEAPF32.slice(decodePCMPtr >> 2, (decodePCMPtr >> 2) + samplesDecoded);
-            if(packetCount===0){
-                pcm = pcm.slice(lookahead);
+            const incomingAudioFloat32SAB = e.data.memory.buffers.record;
+            const recordPointers = e.data.memory.pointers.record;
+            recordReader = new Float32Array(CONSTANTS.PACKET_SIZE);
+            const pointers = {
+                read: recordPointers.readStream,
+                read2: recordPointers.readOPFS,
+                write: recordPointers.write,
+                isFull: recordPointers.isFull,
             }
+            recordSAB = new RingSAB(incomingAudioFloat32SAB,pointers,pointers.read);
+            break;
 
-            self.postMessage({ type: 'decode', packet: pcm, packetCount, isRecording, recordingCount, lookahead:OPlookahead,last  }, [pcm.buffer]);
-        }
+        case EventTypes.START_RECORDING:
+            proceed = "ready";
+            encodePacketCount = 0;
+            readTo(recordSAB, e.data);
+            break;
+
+        case EventTypes.STOP:
+            proceed = "off";
+            break;
+
+        case 'decode':
+            const { packet, packetCount, isRecording, bounce, take, OPlookahead, last } = e.data;
+
+            wasmInstance.HEAPU8.set(packet, decodeInPtr);
+
+            const samplesDecoded = wasmInstance._wasm_opus_decode_float(
+                decodeInPtr,
+                packet.length,
+                decodePCMPtr,
+                FRAME_SIZE,
+            );
+
+            if (samplesDecoded > 0) {
+                let pcm = wasmInstance.HEAPF32.slice(decodePCMPtr >> 2, (decodePCMPtr >> 2) + samplesDecoded);
+                if (packetCount === 0) {
+                    pcm = pcm.slice(lookahead);
+                }
+
+                self.postMessage({
+                    type: 'decode',
+                    packet: pcm,
+                    packetCount,
+                    isRecording,
+                    bounce,
+                    take,
+                    lookahead: OPlookahead,
+                    last
+                }, [pcm.buffer]);
+            
+            }
+        };
     }
-};
 
 function readTo(recordSAB,data){
     if(proceed!=="ready") return;

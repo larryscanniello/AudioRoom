@@ -32,7 +32,7 @@ export const EventTypes = {
 
 export type EventParams = {
     [EventTypes.START_PLAYBACK]: null;
-    [EventTypes.START_RECORDING]: null;
+    [EventTypes.START_RECORDING]: number;
     [EventTypes.STOP]: null;
     [EventTypes.SKIPBACK]: null,
     [EventTypes.CHANGE_BPM]: number,

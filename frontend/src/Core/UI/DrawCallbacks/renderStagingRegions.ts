@@ -17,6 +17,8 @@ export function renderStagingRegions(
             return
         };
 
+        console.log("Inside renderStagingRegions with data:", data,'children:',ref.current.children);
+
         const {viewport} = data;
 
         const stagingHeight = Number(ref.current.dataset.stagingheight);
@@ -35,6 +37,14 @@ export function renderStagingRegions(
 
         const stagingChildren = ref.current.children;
         const elements: Element[] = Array.from(stagingChildren);
+
+        if(elements.length < data.timeline.staging[0].length){
+            setTimeout(() => {
+                renderStagingRegions(ref, data, _mipMap);
+            }, 100);
+            return;
+        }
+
         elements.forEach((child:Element) => {
             if(!(child instanceof HTMLElement)){
                 console.error("Child of staging regions was not an HTMLElement");

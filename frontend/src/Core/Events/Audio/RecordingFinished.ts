@@ -1,7 +1,7 @@
 import { EventTypes } from "../EventNamespace";
 import type { State, TransactionData } from "@/Core/State/State";
 import type { UIEngine } from "@/Core/UI/UIEngine";
-import { stateTransactionUtil } from "../genericEventFunctions";
+import { executeSocketUtil, stateTransactionUtil } from "../genericEventFunctions";
 
 import type { EventNamespace } from "../EventNamespace";
 import type { WorkletAudioEngine } from "@/Core/Audio/WorkletAudioEngine";
@@ -35,8 +35,8 @@ export const RecordingFinished: EventNamespace<typeof EventTypes.RECORDING_FINIS
         return stateTransactionUtil(state, transactionData, this.sharedState);
     },
 
-    getLocalPayload(_state: State): any {
-        return null;
+    getLocalPayload(state: State): any {
+        return state.getSharedStateSnapshot();
     },
 
     executeAudio(_audioEngine: WorkletAudioEngine, _data: any): void {
@@ -47,7 +47,7 @@ export const RecordingFinished: EventNamespace<typeof EventTypes.RECORDING_FINIS
         engine.renderNewRegion();
     },
 
-    executeSocket(_socketManager: any, _transactionData: TransactionData, _data: any): void {
-        //No socket action
+    executeSocket(socketManager: any, transactionData: TransactionData, data: any): void {
+        executeSocketUtil(socketManager, {transactionData, sharedSnapshot: data, type: EventTypes.RECORDING_FINISHED});
     },
 };

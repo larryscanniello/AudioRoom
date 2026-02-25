@@ -31,7 +31,6 @@ const socketManager = async (server,sessionMiddleware) => {
     
     // Listen for a 'join_room' event
     socket.on('JOIN_SOCKET_ROOM', async (state) => {
-      console.log(`Received request to join room: ${state.roomID} with state`, state);
       socket.data.roomID = state.roomID;
       await socket.join(state.roomID);
 
@@ -83,7 +82,6 @@ function transaction(transaction,roomID){
     if(canExecute){
       const currentState = roomStates.get(roomID);
         for(let mutation of transaction.mutations){
-          console.log(`Applying mutation: setting ${mutation.key} to ${mutation.value} in room ${roomID}`);
             currentState[mutation.key] = mutation.value;
         }
         return transaction.mutations;

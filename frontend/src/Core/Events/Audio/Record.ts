@@ -16,7 +16,7 @@ type LocalPayload = {sharedSnapshot: Partial<StateContainer>, audioProcessorData
 export const Record: EventNamespace<typeof EventTypes.START_RECORDING> = {
     sharedState: true,
 
-    getDispatchEvent: ({ emit,serverMandated }) => { return {
+    getDispatchEvent: ({ emit,param,serverMandated }) => { return {
             type: EventTypes.START_RECORDING,
             emit,
             serverMandated,
@@ -27,7 +27,7 @@ export const Record: EventNamespace<typeof EventTypes.START_RECORDING> = {
                 ],
                 mutations: [
                     { key: 'isRecording', value: true },
-                    { key: 'take', value: "++" },
+                    { key: 'take', value: param },
                 ]
             },
             getEventNamespace: () => { return Record; }

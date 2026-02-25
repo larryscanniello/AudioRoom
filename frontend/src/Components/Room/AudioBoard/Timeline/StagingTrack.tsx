@@ -23,6 +23,8 @@ export default function StagingTrack({timelinePxLen,trackHeights,uiControllerRef
     
     const timeline = uiControllerRef.current ? uiControllerRef.current.query("timeline") : {staging: [[]]};
 
+    console.log("Rendering StagingTrack with timeline:", timeline);
+
     if(uiControllerRef.current){
         uiControllerRef.current.registerRef(DOMElements.TRACK_ONE, stagingWaveformsRef);
         uiControllerRef.current.registerRef(DOMElements.TRACK_ONE_REGIONS, stagingRegionsRef);

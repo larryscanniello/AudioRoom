@@ -31,7 +31,8 @@ export class AudioController{
     }
 
     public record() {
-        this.#context.dispatch(Record.getDispatchEvent({emit:true, param: null,serverMandated: false}));
+        const prevTakeNum = this.#context.query("take");
+        this.#context.dispatch(Record.getDispatchEvent({emit:true, param: prevTakeNum + 1,serverMandated: false}));
     }
 
     public stop() {

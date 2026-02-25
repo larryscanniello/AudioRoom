@@ -54,7 +54,6 @@ self.onmessage = async (e) => {
     }
 
     if (type === EventTypes.START_RECORDING) {
-        console.log("Starting recording in Opus Worker");
         proceed = "ready";
         encodePacketCount = 0;
         readTo(recordSAB, e.data);
@@ -92,11 +91,9 @@ self.onmessage = async (e) => {
 };
 
 function readTo(recordSAB,data){
-    console.log('reading TO',recordSAB);
     if(proceed!=="ready") return;
     proceed = "working";
     const availableSamples = recordSAB.availableSamplesToRead();
-    console.log('available samples to read', availableSamples);
     if(availableSamples===0){
         if(proceed!=="off"){
             proceed = "ready";
@@ -117,6 +114,7 @@ function readTo(recordSAB,data){
 }
 
 function encode(packet,data){
+
 
     const { isRecording, count } = data.state;
     const { bounce, take } = count;

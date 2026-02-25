@@ -53,9 +53,11 @@ const socketManager = async (server,sessionMiddleware) => {
 
     socket.on('event',data => {
       if(!socket.data.roomID) return;
-      transaction(data.transactionData,socket.data.roomID);
+      const stateChanged = transaction(data.transactionData,socket.data.roomID);
       const newState = roomStates.get(socket.data.roomID);
-      io.to(socket.data.roomID).emit('event',{type:data.type,state:newState});
+      if(stateChanged){
+        socket.to(socket.data.roomID).emit('event',{type:data.type,state:newState});
+      }
     })
 
     socket.on("disconnect", () => {
@@ -84,10 +86,8 @@ function transaction(transaction,roomID){
         for(let mutation of transaction.mutations){
             currentState[mutation.key] = mutation.value;
         }
-        return transaction.mutations;
-    }else{
-        return [];
     }
+    return canExecute;
 }
 
 

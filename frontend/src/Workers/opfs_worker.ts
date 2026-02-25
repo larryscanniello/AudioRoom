@@ -288,13 +288,6 @@ if (typeof self !== "undefined") { // for testing, otherwise in testing self is 
                     opfs.timeline.posSample.staging = start;
 
                     looping = e.data.state.looping;
-                    Atomics.store(pointers.record.readOPFS,0,0);
-                    Atomics.store(pointers.record.readStream,0,0);
-                    Atomics.store(pointers.record.write,0,0);
-                    Atomics.store(pointers.record.isFull,0,0);
-                    Atomics.store(pointers.mix.read,0,0);
-                    Atomics.store(pointers.mix.write,0,0);
-                    Atomics.store(pointers.mix.isFull,0,0);
                     proceed.record = "ready";
                     writeToOPFS(
                         pointers.record.readOPFS,
@@ -335,12 +328,6 @@ if (typeof self !== "undefined") { // for testing, otherwise in testing self is 
                 opfs.timeline.posSample.staging = start;
 
                 looping = e.data.state.looping;
-                Atomics.store(pointers.staging.read,0,0);
-                Atomics.store(pointers.staging.write,0,0);
-                Atomics.store(pointers.staging.isFull,0,0);
-                Atomics.store(pointers.mix.read,0,0);
-                Atomics.store(pointers.mix.write,0,0);
-                Atomics.store(pointers.mix.isFull,0,0);
                 proceed.staging = "ready";
                 fillStagingPlaybackBuffer(
                     pointers.staging.read,
@@ -367,6 +354,7 @@ if (typeof self !== "undefined") { // for testing, otherwise in testing self is 
                 proceed.record = "off";
                 proceed.staging = "off";
                 proceed.mix = "off";
+                
                 break;
 
             case "bounce_to_mix":
@@ -420,7 +408,6 @@ if (typeof self !== "undefined") { // for testing, otherwise in testing self is 
                     opfs.bounces,
                 );
                 
-                Atomics.store(opfs.mipMap.staging,0,0);
                 postMessage({type:'staging_mipmap_done'})
                 break;
             case "decode":
@@ -557,7 +544,6 @@ export function fillStagingPlaybackBuffer(
         }
         return;
     };
-
     let writePtr = Atomics.load(write, 0);
     let readPtr = Atomics.load(read,0);
     const {newWritePtr,timelinePos} = fillPlaybackBufferUtil(

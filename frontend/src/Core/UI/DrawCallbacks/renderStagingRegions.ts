@@ -17,8 +17,6 @@ export function renderStagingRegions(
             return
         };
 
-        console.log("Inside renderStagingRegions with data:", data,'children:',ref.current.children);
-
         const {viewport} = data;
 
         const stagingHeight = Number(ref.current.dataset.stagingheight);

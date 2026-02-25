@@ -36,7 +36,8 @@ export class AudioController{
     }
 
     public stop() {
-        this.#context.dispatch(Stop.getDispatchEvent({emit:true, param: null,serverMandated: false}));
+        const stopTime = this.#context.query("playheadTimeSeconds");
+        this.#context.dispatch(Stop.getDispatchEvent({emit:true, param: stopTime,serverMandated: false}));
     }  
 
     public skipBack() {

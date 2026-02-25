@@ -212,6 +212,9 @@ class AudioProcessor extends AudioWorkletProcessor {
     }
     if (data.type === "START_RECORDING" || data.type === "START_PLAYBACK") {
       console.log("starting recording or playback with data", data);
+      this.buffers.mix?.resetPointers();
+      this.buffers.record?.resetPointers();
+      this.buffers.staging?.resetPointers();  
       Object.assign(this.state, data.state);
       Object.assign(this.timeline, {
         start: Math.round(sampleRate * data.timeline.start),
@@ -225,9 +228,7 @@ class AudioProcessor extends AudioWorkletProcessor {
         end: this.timeline.end && !looping ? absStart + this.timeline.end! - this.timeline.start! : null,
         packetPos: 0,
       });
-      this.buffers.mix?.resetPointers();
-      this.buffers.record?.resetPointers();
-      this.buffers.staging?.resetPointers();  
+      
     }
     if (data.type === "STOP") {
       if (this.state.isRecording) {

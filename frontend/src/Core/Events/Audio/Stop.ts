@@ -15,7 +15,7 @@ type Payload = {type: typeof EventTypes.STOP, sharedSnapshot: Partial<StateConta
 export const Stop: EventNamespace<typeof EventTypes.STOP> = {
     sharedState: true,
 
-    getDispatchEvent: ({ emit,serverMandated }) => {
+    getDispatchEvent: ({ emit,param,serverMandated }) => {
          return {
             type: EventTypes.STOP,
             emit,
@@ -25,6 +25,8 @@ export const Stop: EventNamespace<typeof EventTypes.STOP> = {
                 mutations: [
                     { key: 'isPlaying', value: false },
                     { key: 'isRecording', value: false },
+                    //Since playhead isnt updated over sockets during playback/recording, we need to resync it
+                    { key: 'playheadTimeSeconds', value: param },
                 ]
             },
             getEventNamespace: () => { return Stop; }

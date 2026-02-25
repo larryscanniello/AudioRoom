@@ -28,13 +28,15 @@ export class KeydownManager {
                 const isPlaying = this.#context.query("isPlaying");
                 const isRecording = this.#context.query("isRecording");
                 if(isPlaying || isRecording){
-                    this.#context.dispatch(Stop.getDispatchEvent({param: null, emit: true}));
+                    const stopTime = this.#context.query("playheadTimeSeconds");
+                    this.#context.dispatch(Stop.getDispatchEvent({emit:true, param: stopTime,serverMandated: false}));
                 }else{
                     this.#context.dispatch(Play.getDispatchEvent({param: null, emit: true}));
                 }
                 break;
             case"r":
-                this.#context.dispatch(Record.getDispatchEvent({param: null, emit: true}));
+                const prevTake = this.#context.query("take");
+                this.#context.dispatch(Record.getDispatchEvent({param: prevTake + 1, emit: true}));
                 break;
         }
         

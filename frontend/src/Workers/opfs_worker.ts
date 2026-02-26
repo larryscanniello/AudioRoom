@@ -135,8 +135,8 @@ export const proceed: Proceed = {
     staging: null,
     mix: null
 }
-/*
-async function listFiles(dir:any,dirstr:any) {
+
+/*async function listFiles(dir:any,dirstr:any) {
     let root;
     if(!dir){
         root = await navigator.storage.getDirectory();
@@ -273,7 +273,6 @@ if (typeof self !== "undefined") { // for testing, otherwise in testing self is 
                     const bounce = e.data.state.count.bounce;
                     const take = e.data.state.count.take;   
                     const fileName = `bounce_${bounce}_take_${take}`
-                    console.log('filename',fileName);
                     const currTakeFile = await opfs.bounces[bounce].dirHandle.getFileHandle(fileName,{create:true});
                     const currTakeHandle = await (currTakeFile as any).createSyncAccessHandle();
                     opfs.bounces[bounce].takeHandles[fileName] = currTakeHandle;
@@ -371,7 +370,7 @@ if (typeof self !== "undefined") { // for testing, otherwise in testing self is 
                 const mixTimelines = e.data.mixTimelines;
                 opfs.timeline.mix = mixTimelines;
                 const endSample = getMixTimelineEndSample(mixTimelines);
-                Atomics.store(opfs.mipMap.mix,0,0);
+                Atomics.load(opfs.mipMap.mix,0); //synchronize memory to ensure we have the latest mipmap data from the worker before writing new data
                 writeToMipMap(
                     0,
                     endSample,
@@ -382,13 +381,13 @@ if (typeof self !== "undefined") { // for testing, otherwise in testing self is 
                     opfs.mipMap.mix,
                     opfs.bounces,
                 );
-                Atomics.store(opfs.mipMap.mix,0,0);
+                Atomics.load(opfs.mipMap.mix,0); //synchronize memory to ensure we have the latest mipmap data from the worker before writing new data
                 const createNewTrack = async () => {
                     const newTrack = await opfs.sessionDir!.getDirectoryHandle(`bounce_${bounce}`,{create:true});
                     opfs.bounces.push({dirHandle:newTrack,takeHandles:{}});
+                    postMessage({type:'bounce_to_mix_done'})
                 }
                 createNewTrack();
-                postMessage({type:'bounce_to_mix_done'})
                 break;
 
             case "fill_staging_mipmap":
@@ -412,7 +411,6 @@ if (typeof self !== "undefined") { // for testing, otherwise in testing self is 
                     opfs.mipMap.staging,
                     opfs.bounces,
                 );
-                
                 postMessage({type:'staging_mipmap_done'})
                 break;
             case "decode":
@@ -438,7 +436,7 @@ export async function writeStreamedPacketToOPFS(
     const {packet, packetCount, bounce, take, lookahead } = data;
     
     if(bounce !== opfs.curr.bounce){
-        console.error("Bounces are unsyncrhonized. Something is wrong.")
+        console.error("Bounces are unsynchronized. Something is wrong.")
         opfs.curr.bounce = bounce;
     }
 
@@ -514,7 +512,7 @@ export function fillMixPlaybackBuffer(
         writePtr,
         readPtr,
         opfs.timeline.mix,
-        bounces.slice(0,bounces.length-1),
+        opfs.bounces.slice(0, opfs.bounces.length-1),
         looping,
         opfs.timeline.posSample.mix,
         {start:opfs.timeline.startSample, end:opfs.timeline.endSample},
@@ -557,7 +555,7 @@ export function fillStagingPlaybackBuffer(
         writePtr,
         readPtr,
         opfs.timeline.staging,
-        bounces.slice(bounces.length-1),
+        opfs.bounces.slice(opfs.bounces.length-1),
         looping,
         opfs.timeline.posSample.staging,
         {start:opfs.timeline.startSample, end:opfs.timeline.endSample},

@@ -102,7 +102,7 @@ export class RingSAB {
         }
         const writePtr = this.getWritePointer();
         if (readPtr === writePtr && !this.isFull()) return false;
-        const trackBufferLen = this.#sab.length / trackCount;
+        const trackBufferLen = Math.floor(this.#sab.length / trackCount);
         let available = (writePtr - readPtr + trackBufferLen) % trackBufferLen;
         if (readPtr === writePtr) { available = trackBufferLen; }
         const readLength = Math.min(available, framesPerTrack);

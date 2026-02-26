@@ -14,9 +14,9 @@ export function writeToMipMap(
     const iterateAmount = totalTimelineSamples / resolutions[0];
     const TRACK_COUNT = timelines.length;
     const halfLength = CONSTANTS.MIPMAP_HALF_SIZE;
-    const MIPMAP_BUFFER_SIZE_PER_TRACK = buffer.length / TRACK_COUNT;
+    const MIPMAP_BUFFER_SIZE_PER_TRACK = Math.floor(buffer.length / TRACK_COUNT);
     let currBucket = 0;
-    let bufferIndex = buffer.length/TRACK_COUNT;
+    let bufferIndex = Math.floor(buffer.length / TRACK_COUNT);
     let max = -1;
     let min = 1;
     buffer.fill(0);
@@ -63,10 +63,7 @@ export function writeToMipMap(
             lowIndex += 2;
         }
         count += 1;
-    }
-
-    
-    
+    }    
 }
 
 
@@ -77,7 +74,7 @@ function readTo(
     buffer: Float32Array,
     tracks: BounceEntry[],
 ){
-        const MIPMAP_BUFFER_SIZE_PER_TRACK = buffer.length/timelines.length
+        const MIPMAP_BUFFER_SIZE_PER_TRACK = Math.floor(buffer.length/timelines.length)
         for(let i=0;i<timelines.length;i++){
             let currPos = startSample;
             

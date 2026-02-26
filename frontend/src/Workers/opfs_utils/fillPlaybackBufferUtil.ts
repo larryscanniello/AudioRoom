@@ -17,11 +17,11 @@ export function fillPlaybackBufferUtil(
         end:number,
     }
 ): {newWritePtr:number,timelinePos:number} {
-    const trackBufferLen = buffer.length/TRACK_COUNT
+    const trackBufferLen = Math.floor(buffer.length / TRACK_COUNT);
     const available = writePtr === readPtr ? trackBufferLen : (readPtr - writePtr + trackBufferLen) % (trackBufferLen);
     let writePtrPerTrack = writePtr;
     let timelinePos:number = timelineStartPos;
-    for(let track=0;track<tracks.length;track++){
+    for(let track=0;track<timeline.length;track++){
         let samplesToFill = available;
         writePtrPerTrack = writePtr;
         const length = timeline[track].length;
@@ -89,7 +89,7 @@ function writeToRingBuffer(
     let writePtr = write;
     let samplesWritten = 0;
     let timelinePos = pos;
-    const trackBufferLen = buffer.length / TRACK_COUNT;
+    const trackBufferLen = Math.floor(buffer.length / TRACK_COUNT);
     while (samplesWritten < samplesToFill) {
         const remainingInPhysicalBuffer = trackBufferLen - writePtr;
         const chunkLength = Math.min(samplesToFill - samplesWritten, remainingInPhysicalBuffer);
@@ -113,7 +113,7 @@ function writeSilenceToRingBuffer(
 ):number{
     let writePtr = write;
     let samplesWritten = 0;
-    const trackBufferLen = buffer.length / TRACK_COUNT;
+    const trackBufferLen = Math.floor(buffer.length / TRACK_COUNT);
     while(samplesWritten < samplesToFill){
         const remainingInPhysicalBuffer = trackBufferLen - writePtr;
         const chunkLength = Math.min(samplesToFill - samplesWritten, remainingInPhysicalBuffer);

@@ -23,6 +23,7 @@ export const Bounce: EventNamespace<typeof EventTypes.BOUNCE> = {
                 transactionQueries: [
                     { key: 'isRecording', comparitor: '===', target: false },
                     { key: 'isPlaying', comparitor: '===', target: false },
+                    { key: 'take', comparitor: '>', target: 0 },
                 ],
                 mutations: [
                     { key: 'take', value: 0 },

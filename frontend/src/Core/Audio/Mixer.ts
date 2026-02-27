@@ -24,16 +24,14 @@ export class Mixer {
 
     setStagingMasterVolume(volume: number) {
        if(!this.#stagingMasterVolume.muted){
-            this.#stagingMasterVolume.param.value = volume; //this changes actual audio gain
+            this.#stagingMasterVolume.param.value = volume;
        }
-       this.#context.dispatch(new StagingMasterVolChange(volume)); //this updates state for UI
     }
 
     setMixMasterVolume(volume: number) {
         if(!this.#mixMasterVolume.muted){
             this.#mixMasterVolume.param.value = volume;
         }
-        this.#context.dispatch(new MixMasterVolChange(volume));
     }
 
     muteStagingToggle() {

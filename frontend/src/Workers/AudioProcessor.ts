@@ -321,14 +321,16 @@ class AudioProcessor extends AudioWorkletProcessor {
       this.buffers.mix.readMultiTrack(this.readers.mix, CONSTANTS.MIX_MAX_TRACKS, this.PROCESS_FRAMES);
     }
 
+    const stagingGain = parameters["STAGING_MASTER_VOLUME"][0];
+    const mixGain = parameters["MIX_MASTER_VOLUME"][0];
     const output = outputs[0];
     for (let i = 0; i < this.PROCESS_FRAMES; i++) {
       if (!this.state.isRecording && !this.state.isPlaying) break;
       for (let channel = 0; channel < 2; channel++) {
-        output[channel][i] = (this.state.isPlaying ? this.readers.staging![i] : 0);
+        output[channel][i] = (this.state.isPlaying ? this.readers.staging![i] * stagingGain : 0);
 
         for (let track = 0; track < CONSTANTS.MIX_MAX_TRACKS; track++) {
-          output[channel][i] += this.readers.mix![track * this.PROCESS_FRAMES + i];
+          output[channel][i] += this.readers.mix![track * this.PROCESS_FRAMES + i] * mixGain;
         }
       }
     }

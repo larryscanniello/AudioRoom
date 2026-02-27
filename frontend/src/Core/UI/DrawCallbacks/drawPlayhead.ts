@@ -75,4 +75,19 @@ export function drawPlayhead(
     ctx.moveTo(playheadPx, playheadTop);
     ctx.lineTo(playheadPx, playheadTop + playheadHeight);
     ctx.stroke();
+
+    const regions = data.timeline.staging[0];
+    if (liveStartSec !== null && liveEndSec !== null) {
+        ctx.fillStyle = "rgb(10, 138, 74, 0.5)";
+        for (const region of regions) {
+            const rStart = region.start / CONSTANTS.SAMPLE_RATE;
+            const rEnd = region.end / CONSTANTS.SAMPLE_RATE;
+            // Only care about middle-split case
+            if (liveStartSec > rStart && liveEndSec < rEnd) {
+                const left = Math.max(0, timeToPx(liveEndSec));
+                const right = Math.min(containerWidth, timeToPx(rEnd));
+                ctx.fillRect(left, regionTop, right - left, stagingHeight);
+            }
+        }
+    }
 }

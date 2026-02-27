@@ -60,6 +60,10 @@ const socketManager = async (server,sessionMiddleware) => {
       }
     })
 
+    socket.on('event_acknowledgement', data => {
+      socket.to(socket.data.roomID).emit('event_acknowledgement', data);
+    })
+
     socket.on("disconnect", () => {
       if (!socket.data.roomID) return;
 

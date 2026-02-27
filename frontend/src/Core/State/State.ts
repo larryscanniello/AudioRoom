@@ -87,7 +87,7 @@ export class State {
             playheadTimeSeconds: 0,
             mouseDragStart: { t: 0, trounded: 0 },
             mouseDragEnd: null,
-            numConnectedUsers: 0,
+            numConnectedUsers: 1,
             roomID: null,
             commMessage: {text:"",color:""},
             stagingMasterVolume: 1.0,

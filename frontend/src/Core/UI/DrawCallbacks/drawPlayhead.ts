@@ -15,7 +15,7 @@ export function drawPlayhead(
         return;
     }
 
-    const { viewport, playheadTimeSeconds } = data;
+    const { viewport, playheadTimeSeconds, liveRecording } = data;
     const canvas = ref.current;
     const ctx = canvas.getContext("2d");
 
@@ -31,34 +31,47 @@ export function drawPlayhead(
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    if (playheadTimeSeconds < startTime || playheadTimeSeconds >= endTime) {
-        return;
-    }
-
-    const playheadViewportTime = (playheadTimeSeconds - startTime) / (endTime - startTime);
-    const playheadPx = playheadViewportTime * containerWidth;
-
     const stagingHeight = Number(canvas.dataset.stagingheight);
     const mixHeight = Number(canvas.dataset.mixheight);
     if(isNaN(stagingHeight) || isNaN(mixHeight)){
         console.error("Failed to parse track heights from canvas dataset in drawPlayhead");
         return;
     }
-    const playheadHeight = stagingHeight + mixHeight;
 
     const containerHeight = canvas.height;
-    const playheadTop = containerHeight - stagingHeight - mixHeight;
+    const regionTop = containerHeight - stagingHeight - mixHeight;
+    const playheadHeight = stagingHeight + mixHeight;
+
+    const timeToPx = (t: number) => (t - startTime) / (endTime - startTime) * containerWidth;
+
+    const liveStartSec = liveRecording ? liveRecording.start / CONSTANTS.SAMPLE_RATE : null;
+    const liveEndSec = liveRecording ? playheadTimeSeconds : null;
+
+    // Draw live recording region in red
+    //Need condition of liveRecording.start < liveRecording.end, since that is the condition in which there is no live region
+    if (liveStartSec !== null && liveEndSec !== null && liveRecording.start < liveRecording.end && (liveEndSec > startTime || liveStartSec < endTime)) {
+        const left = Math.max(0, timeToPx(liveStartSec));
+        const right = Math.min(containerWidth, timeToPx(liveEndSec));
+        ctx.fillStyle = "rgb(180, 30, 30, 0.5)";
+        ctx.fillRect(left, regionTop, right - left, stagingHeight);
+    }
+
+    // Draw playhead
+    if (playheadTimeSeconds < startTime || playheadTimeSeconds >= endTime) {
+        return;
+    }
+
+    const playheadPx = timeToPx(playheadTimeSeconds);
+    const playheadTop = regionTop;
 
     ctx.strokeStyle = "red";
     ctx.lineWidth = 2;
     ctx.fillStyle = "red";
 
-
     ctx.beginPath();
-
-    ctx.arc(playheadPx, playheadTop-3.5, 3.5, 0, 2 * Math.PI);
+    ctx.arc(playheadPx, playheadTop - 3.5, 3.5, 0, 2 * Math.PI);
     ctx.fill();
-    
+
     ctx.moveTo(playheadPx, playheadTop);
     ctx.lineTo(playheadPx, playheadTop + playheadHeight);
     ctx.stroke();

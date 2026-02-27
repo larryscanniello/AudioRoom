@@ -1,8 +1,7 @@
 import type { Buffers, Pointers, Region } from "@/Types/AudioState.ts";
-import type { MipMap } from "../Core/UI/UIEngine.ts";
+import type { MipMap } from "./opfs_utils/types.ts";
 
 import { getMixTimelineEndSample } from "./opfs_utils/getMixTimelineEndSample.ts";
-import { writeToMipMap } from "./opfs_utils/writeToMipMap.ts";
 import { fillPlaybackBufferUtil } from "./opfs_utils/fillPlaybackBufferUtil.ts";
 import { writeToOPFSUtil } from "./opfs_utils/writeToOPFSUtil.ts";
 
@@ -11,6 +10,8 @@ import type { AudioProcessorData } from "../Types/AudioState.ts";
 import { EventTypes } from "../Core/Events/EventNamespace";
 
 import {CONSTANTS} from "../Constants/constants"
+
+import { MipMapManager } from "./opfs_utils/MipMapManager";
 
 /*
     Initializing all of these with empty arrays,
@@ -64,13 +65,7 @@ export type OPFS = {
             mix: number;
         }
     },
-    mipMap: MipMap;
-    mipMapBuffer: Float32Array;
-    mipMapConfig: {
-        halfSize: number;
-        resolutions: number[];
-        totalTimelineSamples: number;
-    },
+    mipMapManager: MipMapManager | null;
     curr:{
         bounce: number;
         take: number;
@@ -100,17 +95,7 @@ const opfs:OPFS = {
             mix: 0,
         }
      },
-    mipMap: {
-        staging: new Int8Array(),
-        mix: new Int8Array(),
-        empty: new Int8Array()
-    },
-    mipMapBuffer: new Float32Array(),
-    mipMapConfig: {
-        halfSize: 0,
-        resolutions: [],
-        totalTimelineSamples: 0,
-    },
+    mipMapManager: null,
     curr:{
         bounce: 0,
         take: 0,
@@ -246,13 +231,7 @@ if (typeof self !== "undefined") { // for testing, otherwise in testing self is 
 
             case "initUI":
                 console.log('opfs worker UI inited');
-                Object.assign(opfs.mipMap, e.data.mipMap);
-                opfs.mipMapBuffer = new Float32Array(2 ** 16);
-                Object.assign(opfs.mipMapConfig, {
-                    halfSize: CONSTANTS.MIPMAP_HALF_SIZE,
-                    resolutions: CONSTANTS.MIPMAP_RESOLUTIONS,
-                    totalTimelineSamples: CONSTANTS.SAMPLE_RATE * CONSTANTS.TIMELINE_LENGTH_IN_SECONDS,
-                });
+                opfs.mipMapManager = new MipMapManager(e.data.mipMap);
                 break;
 
             case EventTypes.START_RECORDING:
@@ -362,7 +341,7 @@ if (typeof self !== "undefined") { // for testing, otherwise in testing self is 
                 break;
 
             case "bounce_to_mix":
-                if( !opfs.mipMapConfig.totalTimelineSamples || !opfs.mipMapConfig.resolutions || !opfs.mipMapBuffer.length || !opfs.mipMap.mix){
+                if (!opfs.mipMapManager) {
                     console.error("Can't fill mipmap - not initialized");
                     return;
                 }
@@ -370,18 +349,14 @@ if (typeof self !== "undefined") { // for testing, otherwise in testing self is 
                 const mixTimelines = e.data.mixTimelines;
                 opfs.timeline.mix = mixTimelines;
                 const endSample = getMixTimelineEndSample(mixTimelines);
-                Atomics.load(opfs.mipMap.mix,0); //synchronize memory to ensure we have the latest mipmap data from the worker before writing new data
-                writeToMipMap(
-                    0,
-                    endSample,
+                opfs.mipMapManager.synchronize();
+                opfs.mipMapManager.write(
+                    { startSample: 0, endSample },
                     mixTimelines,
-                    opfs.mipMapConfig.totalTimelineSamples,
-                    opfs.mipMapConfig.resolutions,
-                    opfs.mipMapBuffer,
-                    opfs.mipMap.mix,
                     opfs.bounces,
+                    "mix",
                 );
-                Atomics.load(opfs.mipMap.mix,0); //synchronize memory to ensure we have the latest mipmap data from the worker before writing new data
+                opfs.mipMapManager.synchronize();
                 const createNewTrack = async () => {
                     const newTrack = await opfs.sessionDir!.getDirectoryHandle(`bounce_${bounce}`,{create:true});
                     opfs.bounces.push({dirHandle:newTrack,takeHandles:{}});
@@ -391,25 +366,17 @@ if (typeof self !== "undefined") { // for testing, otherwise in testing self is 
                 break;
 
             case "fill_staging_mipmap":
-                if(!opfs.mipMapConfig.totalTimelineSamples || !opfs.mipMapConfig.resolutions || !opfs.mipMapBuffer || !opfs.mipMap.staging){
-                    console.error("Can't fill staging mipmap - not initialized",
-                        "mipMapConfig:", opfs.mipMapConfig,
-                        "mipMapBuffer:", opfs.mipMapBuffer,
-                        "mipMap:", opfs.mipMap
-                    );
+                if (!opfs.mipMapManager) {
+                    console.error("Can't fill staging mipmap - not initialized");
                     return;
                 }
                 const newTake = e.data.newTake;
                 opfs.timeline.staging = e.data.timeline.staging;
-                writeToMipMap(
-                    newTake.start,
-                    newTake.end,
+                opfs.mipMapManager.write(
+                    { startSample: newTake.start, endSample: newTake.end },
                     opfs.timeline.staging,
-                    opfs.mipMapConfig.totalTimelineSamples,
-                    opfs.mipMapConfig.resolutions,
-                    opfs.mipMapBuffer,
-                    opfs.mipMap.staging,
                     opfs.bounces,
+                    "staging",
                 );
                 postMessage({type:'staging_mipmap_done'})
                 break;
@@ -577,6 +544,7 @@ function writeToOPFS(
     write:Uint32Array,
     isFullArr:Uint32Array,
     buffer:Float32Array,
+    mipMapManager: MipMapManager,
 ){
     if(proceed.record!=="ready") return;
     proceed.record = "working";
@@ -588,17 +556,27 @@ function writeToOPFS(
     if(samplesToWrite===0){
         if((proceed as Proceed).record!=="off"){
             proceed.record = "ready";
-            setTimeout(()=>writeToOPFS(read,write,isFullArr,buffer),15);
+            setTimeout(()=>writeToOPFS(read,write,isFullArr,buffer,mipMapManager),15);
         }
         return;
     }
     const handle = opfs.bounces[opfs.curr.bounce].takeHandles[`bounce_${opfs.curr.bounce}_take_${opfs.curr.take}`];
-    readPtr = writeToOPFSUtil(samplesToWrite,buffer,readPtr,writePtr,handle);
-    
+    let oldReadPtr = readPtr;
+    readPtr = writeToOPFSUtil(
+        samplesToWrite,
+        buffer,
+        readPtr,
+        handle,
+        opfs.mipMapManager,
+        opfs.timeline.startSample,
+    );
+    if(readPtr !== oldReadPtr){
+        postMessage({type:"staging_mipmap_done"})
+    }
     Atomics.store(read,0,readPtr);
     Atomics.store(isFullArr,0,0);
     if((proceed as Proceed).record!=="off"){proceed.record = "ready";}
-    setTimeout(()=>writeToOPFS(read,write,isFullArr,buffer),15);
+    setTimeout(()=>writeToOPFS(read,write,isFullArr,buffer,mipMapManager),15);
 }
 
 export { opfs };

@@ -32,6 +32,7 @@ export interface StateContainer {
     stagingMuted: boolean;
     mixMuted: boolean;
     remoteStreamAttached: boolean;
+    liveRecording: {start: number, end:number};
 }
 
 export type TransactionQuery<K extends keyof StateContainer> = {
@@ -94,6 +95,7 @@ export class State {
             stagingMuted: false,
             mixMuted: false,
             remoteStreamAttached: false,
+            liveRecording: {start: 0, end: 0},
         };
     #render: React.Dispatch<React.SetStateAction<number>> | null = null;
 
@@ -109,7 +111,7 @@ export class State {
             "isPlaying","isRecording","bounce","take",
             "playheadTimeSeconds","mouseDragStart","mouseDragEnd",
             "numConnectedUsers","roomID","stagingMasterVolume",
-            "mixMasterVolume","stagingMuted","mixMuted",
+            "mixMasterVolume","stagingMuted","mixMuted","liveRecording",
         ]);
         this.#state.roomID = roomID;
     }

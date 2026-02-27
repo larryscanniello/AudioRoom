@@ -62,7 +62,7 @@ export function writeToMipMap(
             mipMap[j + halfLength] = Math.min(minOption1,minOption2);
             lowIndex += 2;
         }
-        count += 1;
+        count += 1;-
     }    
 }
 

@@ -18,13 +18,12 @@ export function renderStagingWaveforms(ref: React.RefObject<HTMLElement|null>, d
     canvasCtx.clearRect(0,0,WIDTH,HEIGHT);
 
     const timeline = data.timeline.staging;
-    if(timeline[0].length === 0){
-        return;
-    };
 
     Atomics.load(mipMap,0);
 
     const {startTime, samplesPerPx} = data.viewport;
+
+    const liveRecording = data.liveRecording;
 
     const endTime = startTime + WIDTH * samplesPerPx / CONSTANTS.SAMPLE_RATE;
     
@@ -51,9 +50,7 @@ export function renderStagingWaveforms(ref: React.RefObject<HTMLElement|null>, d
     while(j<timeline[0].length && timeline[0][j].end <= vpStartSamples){
         j += 1;
     }
-    if(j===timeline[0].length || timeline[0][j].start >= vpEndSamples){
-        return;
-    }
+
 
 
     const halfLength = CONSTANTS.MIPMAP_HALF_SIZE;
@@ -73,7 +70,7 @@ export function renderStagingWaveforms(ref: React.RefObject<HTMLElement|null>, d
         let k = 0; //k iterates through vertical lines to be drawn
 
         //skip lines until we reach the start of the region
-        while((k+1)*pxGap  < WIDTH * (startSamples - vpStartSamples)/(vpEndSamples - vpStartSamples)){ 
+        while(k*pxGap  < WIDTH * (startSamples - vpStartSamples)/(vpEndSamples - vpStartSamples)){ 
             k+=1;
         }
 
@@ -88,8 +85,33 @@ export function renderStagingWaveforms(ref: React.RefObject<HTMLElement|null>, d
             mipMapIndex += 1; k+=1;
         }
         j+=1
-
     }
+
+    // Draw live recording region
+    if(liveRecording && liveRecording.end > vpStartSamples && liveRecording.start < vpEndSamples){
+        const regionStartSamples = liveRecording.start;
+        const regionEndSamples = liveRecording.end;
+        const startSamples = Math.max(regionStartSamples, vpStartSamples);
+
+        let startBucket = Math.floor(startSamples / iterateAmount);
+        let mipMapIndex = mipMapStart + Math.floor(startBucket / 2**(currRes+1));
+        let k = 0;
+
+        while(k*pxGap < WIDTH * (startSamples - vpStartSamples) / (vpEndSamples - vpStartSamples)){
+            k += 1;
+        }
+
+        while(k*pxGap < WIDTH * (regionEndSamples - vpStartSamples) / (vpEndSamples - vpStartSamples)){
+            const max = mipMap[mipMapIndex] / 127;
+            const min = mipMap[halfLength + mipMapIndex] / 127;
+            const y1 = ((1 + min) * HEIGHT) / 2;
+            const y2 = ((1 + max) * HEIGHT) / 2;
+            canvasCtx.moveTo(k * pxGap, y1);
+            canvasCtx.lineTo(k * pxGap, y2);
+            mipMapIndex += 1; k += 1;
+        }
+    }
+
     canvasCtx.stroke();
 
         

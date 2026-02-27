@@ -12,6 +12,7 @@ import timelineReducer from "../State/timelineReducer";
 import { RecordingFinished } from "../Events/Audio/RecordingFinished";
 
 import type { OPFSEventData } from "@/Workers/opfs_worker";
+import { RecordingProgress } from "../Events/Audio/RecordingProgress";
 
 type Hardware = {
     audioContext: AudioContext,
@@ -51,6 +52,10 @@ export class WorkletAudioEngine implements AudioEngine{
     
     #workletOnMessage(e: MessageEvent){
         switch(e.data.type){
+            case "recording_progress":
+                const {start, end} = e.data;
+                this.#context.dispatch(RecordingProgress.getDispatchEvent({emit: true, param: {start, end}, serverMandated: false}));
+                break;
             case "add_region":
                 const prevTimeline = this.#context.query("timeline");
                 const newTimeline = timelineReducer(prevTimeline, {type: "add_region", data: e.data});

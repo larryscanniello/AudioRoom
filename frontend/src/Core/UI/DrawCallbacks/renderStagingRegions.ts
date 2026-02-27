@@ -17,6 +17,8 @@ export function renderStagingRegions(
             return
         };
 
+        const liveRecording = data.liveRecording;
+
         const {viewport} = data;
 
         const stagingHeight = Number(ref.current.dataset.stagingheight);
@@ -52,8 +54,23 @@ export function renderStagingRegions(
                 console.error("Region element was missing start or end data attributes");
                 return;
             }
-            const start = Number(child.dataset.start) / CONSTANTS.SAMPLE_RATE;
-            const end = Number(child.dataset.end) / CONSTANTS.SAMPLE_RATE;
+            let start = Number(child.dataset.start) / CONSTANTS.SAMPLE_RATE;
+            let end = Number(child.dataset.end) / CONSTANTS.SAMPLE_RATE;
+
+            const liveStartSec = liveRecording.start / CONSTANTS.SAMPLE_RATE;
+            const liveEndSec = liveRecording.end / CONSTANTS.SAMPLE_RATE;
+
+            if (liveStartSec < end && liveEndSec > start) {
+                if (liveStartSec <= start && liveEndSec >= end) {
+                    child.style.display = "none";
+                    return;
+                } else if (liveEndSec > start && liveStartSec <= start) {
+                    start = liveEndSec;
+                } else {
+                    end = liveStartSec;
+                }
+            }
+
             if (end < startTime || start > endTime){
                 child.style.display = "none";
                 return;

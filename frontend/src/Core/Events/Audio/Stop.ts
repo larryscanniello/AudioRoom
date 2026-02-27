@@ -27,6 +27,7 @@ export const Stop: EventNamespace<typeof EventTypes.STOP> = {
                     { key: 'isRecording', value: false },
                     //Since playhead isnt updated over sockets during playback/recording, we need to resync it
                     { key: 'playheadTimeSeconds', value: param },
+                    { key: 'liveRecording', value: {start: 0, end: 0} },
                 ]
             },
             getEventNamespace: () => { return Stop; }

@@ -55,6 +55,7 @@ interface ProcessorState {
   isStreaming: boolean;
   looping: boolean;
   packetCount: number;
+  bpm: number;
   count: {
     bounce: number;
     take: number;
@@ -91,7 +92,12 @@ interface BounceMessage {
   type: "bounce_to_mix";
 }
 
-type ProcessorMessage = InitAudioMessage | AudioProcessorData | StopMessage | BounceMessage;
+interface InitMetronomeMessage {
+  type: "initMetronome";
+  clickBuffer: Float32Array;
+}
+
+type ProcessorMessage = InitAudioMessage | AudioProcessorData | StopMessage | BounceMessage | InitMetronomeMessage;
 
 class AudioProcessor extends AudioWorkletProcessor {
   packetSize: number = CONSTANTS.PACKET_SIZE;
@@ -105,6 +111,9 @@ class AudioProcessor extends AudioWorkletProcessor {
   state: ProcessorState;
   timeline: Timeline;
   absolute: Absolute;
+  clickBuffer: Float32Array | null;
+  clickPlaybackPos: number;
+  nextClickSample: number;
 
   static get parameterDescriptors(): AudioParamDescriptor[] {
     return [
@@ -118,6 +127,13 @@ class AudioProcessor extends AudioWorkletProcessor {
       {
         name: "STAGING_MASTER_VOLUME",
         defaultValue: 1.0,
+        minValue: 0,
+        maxValue: 1.0,
+        automationRate: "k-rate",
+      },
+      {
+        name: "METRONOME_GAIN",
+        defaultValue: 0,
         minValue: 0,
         maxValue: 1.0,
         automationRate: "k-rate",
@@ -151,11 +167,16 @@ class AudioProcessor extends AudioWorkletProcessor {
       isStreaming: false,
       looping: false,
       packetCount: 0,
+      bpm: 100,
       count: {
         bounce: 0,
         take: -1,
       },
     };
+
+    this.clickBuffer = null;
+    this.clickPlaybackPos = -1;
+    this.nextClickSample = 0;
 
     this.timeline = {
       start: null,
@@ -173,6 +194,9 @@ class AudioProcessor extends AudioWorkletProcessor {
   }
 
   handleMessage(data: ProcessorMessage): void {
+    if (data.type === "initMetronome") {
+      this.clickBuffer = data.clickBuffer;
+    }
     if (data.type === "initAudio") {
       console.log("Audio Worklet inited");
       const mem = data.memory;
@@ -228,7 +252,10 @@ class AudioProcessor extends AudioWorkletProcessor {
         end: this.timeline.end && !looping ? absStart + this.timeline.end! - this.timeline.start! : null,
         packetPos: 0,
       });
-      
+      const samplesPerBeat = Math.round(sampleRate * 60 / this.state.bpm);
+      const samplesToNextBeat = samplesPerBeat - (this.timeline.pos! % samplesPerBeat);
+      this.nextClickSample = absStart + (samplesToNextBeat % samplesPerBeat);
+      this.clickPlaybackPos = -1;
     }
     if (data.type === "STOP") {
       if (this.state.isRecording) {
@@ -255,7 +282,7 @@ class AudioProcessor extends AudioWorkletProcessor {
   process(
     inputs: Float32Array[][],
     outputs: Float32Array[][],
-    _parameters: Record<string, Float32Array>
+    parameters: Record<string, Float32Array>
   ): boolean {
     if (!this.state.isRecording && !this.state.isPlaying) return true;
     if (currentFrame + this.PROCESS_FRAMES < this.absolute.start!) return true;
@@ -305,6 +332,30 @@ class AudioProcessor extends AudioWorkletProcessor {
         }
       }
     }
+
+    if (this.clickBuffer) {
+      const metrGain = parameters["METRONOME_GAIN"][0];
+      const samplesPerBeat = Math.round(sampleRate * 60 / this.state.bpm);
+      for (let i = 0; i < this.PROCESS_FRAMES; i++) {
+        const absFrame = currentFrame + i;
+        if (absFrame >= this.nextClickSample && this.clickPlaybackPos === -1) {
+          this.clickPlaybackPos = 0;
+          this.nextClickSample += samplesPerBeat;
+        }
+        if (this.clickPlaybackPos >= 0 && this.clickPlaybackPos < this.clickBuffer.length) {
+          if (metrGain > 0) {
+            const s = this.clickBuffer[this.clickPlaybackPos] * metrGain;
+            output[0][i] += s;
+            output[1][i] += s;
+          }
+          this.clickPlaybackPos++;
+        }
+        if (this.clickPlaybackPos >= this.clickBuffer.length) {
+          this.clickPlaybackPos = -1;
+        }
+      }
+    }
+
     return true;
   }
 }

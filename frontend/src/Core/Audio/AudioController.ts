@@ -92,6 +92,7 @@ export class AudioController{
 
     public initAudioEngine(){
         this.#audioEngine.init();
+        this.#audioEngine.toggleMetronome(this.#context.query("isMetronomeOn"));
     }
 
 }

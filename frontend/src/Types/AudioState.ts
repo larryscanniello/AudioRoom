@@ -89,6 +89,7 @@ interface AudioProcessorData {
             take: number,
         },
         packetCount: number,
+        bpm: number,
     },
     timeline: {
         start: number,

@@ -4,8 +4,8 @@ export class Metronome {
     #clickBuffer: Float32Array = new Float32Array();
 
     constructor(sampleRate: number = 48000) {
-        this.#offlineAudioContext = new OfflineAudioContext(1, sampleRate, sampleRate); // 1 channel, 1 second length, sampleRate frames/sec
-        
+        const CLICK_DURATION_SAMPLES = Math.round(0.015 * sampleRate);
+        this.#offlineAudioContext = new OfflineAudioContext(1, CLICK_DURATION_SAMPLES, sampleRate);
     }
 
     async loadMetronomeClickBuffer(): Promise<Float32Array> {

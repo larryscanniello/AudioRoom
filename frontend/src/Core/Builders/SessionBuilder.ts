@@ -1,6 +1,7 @@
 import { AudioController } from "../Audio/AudioController";
 import type { AudioEngine } from "../Audio/AudioEngine"
 import { Mixer } from "../Audio/Mixer";
+import { Metronome } from "../Audio/Metronome";
 import { CONSTANTS } from "@/Constants/constants";
 import { SocketManager } from "../Sockets/SocketManager";
 import { MediaProvider } from "../MediaProvider";
@@ -174,8 +175,10 @@ export class SessionBuilder{
             if(!this.#memory){
                 this.#memory = this.#allocateBuffersandPointers();
             }
+            const metronome = new Metronome(audioContext.sampleRate);
+            const clickBuffer = await metronome.loadMetronomeClickBuffer();
             const source = mediaProvider.getSourceNode();
-            const hardware = {audioContext, processorNode, source, memory: this.#memory, opfsWorker: this.#opfsWorker};
+            const hardware = {audioContext, processorNode, source, memory: this.#memory, opfsWorker: this.#opfsWorker, clickBuffer};
             audioEngine = new WorkletAudioEngine({hardware,mixer,mediaProvider,context: globalContext});
         }
         const audioController = new AudioController(audioEngine, globalContext,mixer);

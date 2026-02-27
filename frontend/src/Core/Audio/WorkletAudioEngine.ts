@@ -1,7 +1,7 @@
 
 import { Mixer } from "./Mixer";
-import { Metronome } from "./Metronome";
 import { MediaProvider } from "../MediaProvider";
+import { MIXER_PARAMS } from "@/Constants/MixerParams";
 
 import type { Pointers, Buffers, DecodeAudioData } from "../../Types/AudioState";
 import type { AudioProcessorData,StopAudioProcessorData } from "../../Types/AudioState";
@@ -19,6 +19,7 @@ type Hardware = {
     opfsWorker: Worker,
     source: MediaStreamAudioSourceNode|null,
     memory: Memory,
+    clickBuffer: Float32Array,
 }
 
 type WorkletAudioEngineDependencies = {
@@ -36,7 +37,6 @@ type Memory = {
 export class WorkletAudioEngine implements AudioEngine{
     #mixer: Mixer;
     #hardware: Hardware;
-    #metronome: Metronome;
     #mediaProvider: MediaProvider|undefined;
     #context: GlobalContext;
 
@@ -45,7 +45,6 @@ export class WorkletAudioEngine implements AudioEngine{
         hardware.processorNode.port.onmessage = this.#workletOnMessage.bind(this);
         this.#mixer = mixer;
         this.#mediaProvider = mediaProvider;
-        this.#metronome = new Metronome();
         this.#context = context;
     }
     
@@ -87,8 +86,10 @@ export class WorkletAudioEngine implements AudioEngine{
         this.#hardware.opfsWorker.postMessage(data);
     }
 
-    public getMetronomeClickSound(): Float32Array{
-        return this.#metronome.getClickBuffer();
+    public toggleMetronome(): void {
+        const isMetronomeOn = this.#context.query("isMetronomeOn");
+        const param = this.#hardware.processorNode.parameters.get(MIXER_PARAMS.METRONOME_GAIN);
+        if(param) param.value = isMetronomeOn ? 1 : 0;
     }
 
     public handlePacket(data: DecodeAudioData){
@@ -104,6 +105,10 @@ export class WorkletAudioEngine implements AudioEngine{
         this.#hardware.processorNode.connect(this.#hardware.audioContext.destination);
         this.#hardware.processorNode.port.postMessage({type: "initAudio",memory: this.#hardware.memory});
         this.#hardware.opfsWorker.postMessage({type: "initAudio",memory: this.#hardware.memory});
+        this.#hardware.processorNode.port.postMessage(
+            {type: "initMetronome", clickBuffer: this.#hardware.clickBuffer},
+            [this.#hardware.clickBuffer.buffer]
+        );
         if(!this.#mediaProvider){
             throw new Error("Media provider is not set in WorkletAudioEngine. Cannot set packet handler for incoming audio packets.");
         }

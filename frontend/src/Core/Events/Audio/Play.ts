@@ -51,6 +51,7 @@ export const Play:EventNamespace<typeof EventTypes.START_PLAYBACK> = {
                     take: state.query('take'),
                 },
                 packetCount: 0,
+                bpm: state.query('bpm'),
             },
             timeline: {
                 start: state.query('playheadTimeSeconds'),

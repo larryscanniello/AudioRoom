@@ -50,6 +50,7 @@ export const Record: EventNamespace<typeof EventTypes.START_RECORDING> = {
                     take: state.query('take'),
                 },
                 packetCount: 0,
+                bpm: state.query('bpm'),
             },
             timeline: {
                 start: state.query('playheadTimeSeconds'),

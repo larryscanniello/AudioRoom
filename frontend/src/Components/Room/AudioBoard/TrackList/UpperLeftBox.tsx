@@ -1,23 +1,43 @@
 import { CONSTANTS } from "@/Constants/constants.ts";
+import type { AudioController } from "@/Core/Audio/AudioController";
+import { ArrowDownToLine, CassetteTape, KeyboardMusic, Redo, Undo } from "lucide-react";
 
 type UpperLeftBoxProps = {
     compactMode: number;
+    audioControllerRef: React.RefObject<AudioController|null>;
 
 }   
 
-export default function UpperLeftBox({compactMode}: UpperLeftBoxProps){
-    return <div className="bg-[rgb(86,86,133)] flex flex-col justify-center items-center text-xs text-white"
+export default function UpperLeftBox({compactMode, audioControllerRef}: UpperLeftBoxProps){
+
+    const handleBounce = () => {
+            if(!audioControllerRef.current){
+                console.error("AudioController is null in UpperLeftBox handleBounce");
+                return;
+            }
+            audioControllerRef.current.bounce();
+    }
+
+    return <div className="bg-[rgb(86,86,133)] flex flex-col justify-center items-center text-xs text-black"
                 style={{width:`${CONSTANTS.LEFT_CONTROLS_WIDTH}px`,height:Math.floor(35*compactMode)}}
             >
-                <button /*className={"border-1 border-black rounded-2xl px-1 " + (monitoringOn?"bg-amber-600":"bg-[rgb(106,106,133)")}
-                onClick={()=>setMonitoringOn(prev=>{
-                    if(numConnectedUsersRef.current >= 2 && !currentlyPlayingAudio.current && !currentlyRecording.current){ 
-                        socket.current.emit("monitoring_change_client_to_server",{roomID,status:!prev});
-                        return !prev;
-                    }
-                    return prev;})}*/
-                >Partner Monitor
+                <div>
+                <button className="pr-2">
+                    <Undo className="scale-75"/>
                 </button>
+                <button className="pr-2">
+                    <Redo className="scale-75"/>
+                </button>
+                <button className="pr-3.5">
+                    <KeyboardMusic className="scale-75"/>
+                </button>
+                <button className="relative w-8 h-5"
+                onClick={handleBounce}
+                >
+                        <ArrowDownToLine className="absolute scale-50 -top-2.5 -left-1"/>
+                        <CassetteTape className="absolute scale-75 top-0 -left-1"/>
+                </button>      
+                </div>
             </div>
 
 }

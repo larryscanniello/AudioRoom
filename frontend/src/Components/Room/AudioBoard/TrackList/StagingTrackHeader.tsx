@@ -30,29 +30,16 @@ export default function StagingTrackHeader({audioControllerRef,compactMode}: Sta
         }
     }
 
-    const handleBounce = () => {
-        if(!audioControllerRef.current){
-            console.error("AudioController is null in StagingTrackHeader handleBounce");
-            return;
-        }
-        audioControllerRef.current.bounce();
-    }
+    
 
     const isStagingMuted = audioController ? audioController.isStagingTrackMuted() : false;
 
     return <div style={{width:`${CONSTANTS.LEFT_CONTROLS_WIDTH}`,height:Math.floor(58*compactMode)}} className="border-b border-black flex flex-row items-center">
-                <button>
-                    <Undo className="scale-75"/>
-                </button>
-                <button>
-                    <Redo className="scale-75"/>
-                </button>
+                
                 <button>
                     <Trash2 className="scale-75"/>
                 </button>
-                <button>
-                    <KeyboardMusic className="scale-75"/>
-                </button>
+                
                 <button className={"border-1 border-black text-white text-xs w-8 h-5 ml-1 pr-1 pl-1 rounded-sm " 
                 + (isStagingMuted ? "bg-amber-600" : "")}
                     onClick={handleMuteToggle}
@@ -64,11 +51,6 @@ export default function StagingTrackHeader({audioControllerRef,compactMode}: Sta
                     onValueChange={(value:number[]) => handleVolSlider(value)} 
                 >
                 </Slider>
-                <button className="mr-3 relative w-8 h-5"
-                onClick={handleBounce}
-                >
-                        <ArrowDownToLine className="absolute scale-75 -top-2.5 -left-1"/>
-                        <CassetteTape className="absolute scale-75 top-1.5 -left-1"/>
-                </button>       
+                 
         </div>
 }

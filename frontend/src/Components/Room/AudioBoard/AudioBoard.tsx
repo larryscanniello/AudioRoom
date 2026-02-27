@@ -78,11 +78,11 @@ export default function AudioBoard({uiControllerRef,audioControllerRef}:AudioBoa
                         width: `${Math.max(1050,width)}px`, 
                         height: Math.floor(232*compactMode) 
                     }}>
-                    <div className={`relative row-start-2 grid pt-3 grid-cols-[20px_250px_0px]`}
+                    <div className={`relative row-start-2 grid pt-3 grid-cols-[20px_${CONSTANTS.LEFT_CONTROLS_WIDTH}px_0px]`}
                     style={{height:Math.floor(172*compactMode)}}
                     >
                     <TrackList compactMode={compactMode}>
-                        <UpperLeftBox compactMode={compactMode}/>
+                        <UpperLeftBox compactMode={compactMode} audioControllerRef={audioControllerRef}/>
                         <div className="bg-[rgb(114,120,155)]"
                             style={{width:`${CONSTANTS.LEFT_CONTROLS_WIDTH}px`,height:Math.floor(115*compactMode)}}
                         >

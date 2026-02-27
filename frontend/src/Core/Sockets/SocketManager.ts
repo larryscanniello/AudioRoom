@@ -3,7 +3,7 @@ import { Play } from "../Events/Audio/Play";
 
 import type { Observer } from "@/Types/Observer";
 import type { DispatchEvent, GlobalContext } from "../Mediator";
-import { State, type Mutation, type StateContainer } from "@/Core/State/State";
+import { type StateContainer } from "@/Core/State/State";
 import { Stop } from "../Events/Audio/Stop";
 import { StateSync } from "../Events/Sockets/StateSync";
 import { EventTypes } from "../Events/EventNamespace";
@@ -11,6 +11,7 @@ import { PlayheadMoveMouseDown } from "../Events/UI/PlayheadMoveMouseDown";
 import { Skipback } from "../Events/Audio/Skipback";
 import { Bounce } from "../Events/Audio/Bounce";
 import { RecordingFinished } from "../Events/Audio/RecordingFinished";
+import { OtherPersonRecording } from "../Events/Audio/OtherPersonRecording";
 
 export class SocketManager implements Observer {
     #socket: Socket;
@@ -63,7 +64,8 @@ export class SocketManager implements Observer {
                 this.#context.dispatch(Play.getDispatchEvent({emit: false, param: null,serverMandated: true}));
                 break;
             case EventTypes.START_RECORDING:
-                // big task to do later
+                const newTake = state.take;
+                this.#context.dispatch(OtherPersonRecording.getDispatchEvent({emit: false, param: newTake, serverMandated: true}));
                 break;
             case EventTypes.STOP:
                 this.#context.dispatch(Stop.getDispatchEvent({emit: false, param: state.playheadTimeSeconds, serverMandated: true}));
@@ -98,7 +100,8 @@ export class SocketManager implements Observer {
                 break;
             case EventTypes.BOUNCE:
                 const newTimeline = state.timeline;
-                this.#context.dispatch(Bounce.getDispatchEvent({emit: false, param: newTimeline, serverMandated: true}));
+                const bounce = state.bounce;
+                this.#context.dispatch(Bounce.getDispatchEvent({emit: false, param: {timeline: newTimeline, bounce}, serverMandated: true}));
                 break;
             default:
                 console.warn("Received unhandled socket event type:", type);

@@ -277,6 +277,7 @@ if (typeof self !== "undefined") { // for testing, otherwise in testing self is 
                         pointers.record.write,
                         pointers.record.isFull,
                         buffers.record,
+                        opfs.mipMapManager!,
                     );
                     proceed.mix = "ready";
                     fillMixPlaybackBuffer(
@@ -333,6 +334,10 @@ if (typeof self !== "undefined") { // for testing, otherwise in testing self is 
                 );
                 break;
 
+            case EventTypes.OTHER_PERSON_RECORDING:
+                opfs.timeline.startSample = Math.round(e.data.timeline.start * CONSTANTS.SAMPLE_RATE);
+                break;
+                
             case EventTypes.STOP:
                 proceed.record = "off";
                 proceed.staging = "off";
@@ -421,23 +426,49 @@ export async function writeStreamedPacketToOPFS(
         const handle = await (currTakeFile as any).createSyncAccessHandle();
         opfs.bounces[bounce].takeHandles[fileName] = handle;
         opfs.curr.take = take;
-        opfs.incomingStream.isInitializing = false;
-        handle.write(packet.slice(lookahead), {at: 0});
+        opfs.incomingStream.isInitializing = false;const slicedPacket = packet.slice(lookahead * Float32Array.BYTES_PER_ELEMENT);
+        handle.write(slicedPacket, {at: 0});
+        opfs.mipMapManager?.write(
+            { startSample: opfs.timeline.startSample, endSample: opfs.timeline.startSample + (slicedPacket.byteLength / Float32Array.BYTES_PER_ELEMENT) },
+            [], [], "staging",
+            new Float32Array(slicedPacket)
+        )
+        postMessage({type:"staging_mipmap_done"})
         return;
     }
 
     const lookaheadInBytes = lookahead * Float32Array.BYTES_PER_ELEMENT;
     const handle = opfs.bounces[bounce].takeHandles[fileName];
     
-    const writeToOPFS = (packet: ArrayBuffer,packetCount:number) => {
+    const writeToOPFS = (packet: ArrayBuffer, packetCount: number) => {
         const fileLengthInBytes = handle.getSize();
-        const byteIndexToInsertPacket = packetCount * CONSTANTS.PACKET_SIZE * Float32Array.BYTES_PER_ELEMENT - lookaheadInBytes;
-        if(fileLengthInBytes < byteIndexToInsertPacket){
+        const byteIndexToInsertPacket =
+            packetCount * CONSTANTS.PACKET_SIZE * Float32Array.BYTES_PER_ELEMENT - lookaheadInBytes;
+
+        if (fileLengthInBytes < byteIndexToInsertPacket) {
             const numOfZeroBytesToFill = Math.max(byteIndexToInsertPacket - fileLengthInBytes, 0);
-            const zeroBuffer = new Float32Array(numOfZeroBytesToFill/Float32Array.BYTES_PER_ELEMENT);
-            handle.write(zeroBuffer, {at: fileLengthInBytes - lookaheadInBytes});
+            const zeroBuffer = new Float32Array(numOfZeroBytesToFill / Float32Array.BYTES_PER_ELEMENT);
+            handle.write(zeroBuffer, { at: fileLengthInBytes });
         }
-        handle.write(packet, {at: byteIndexToInsertPacket});
+
+        handle.write(packet, { at: byteIndexToInsertPacket });
+
+        const mipPacket = packetCount === 0 ? packet.slice(lookaheadInBytes) : packet;
+
+        const packetStartSample =
+            opfs.timeline.startSample + byteIndexToInsertPacket / Float32Array.BYTES_PER_ELEMENT;
+        const packetEndSample =
+            packetStartSample + mipPacket.byteLength / Float32Array.BYTES_PER_ELEMENT;
+
+        opfs.mipMapManager?.write(
+            { startSample: packetStartSample, endSample: packetEndSample },
+            [],
+            [],
+            "staging",
+            new Float32Array(mipPacket)
+        );
+
+        postMessage({ type: "staging_mipmap_done" });
     }
 
     if(opfs.incomingStream.queue.length > 0){

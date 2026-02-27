@@ -30,7 +30,6 @@ export class MipMapManager {
         target: "staging" | "mix",
         data?: Float32Array,
     ): void {
-        
         const {startSample, endSample} = rangeOnTimeline;
         const mipMap = this[target];
         const { resolutions, totalTimelineSamples, buffer, halfSize } = this;
@@ -88,6 +87,8 @@ export class MipMapManager {
             }
             count += 1;
         }
+
+        Atomics.store(mipMap, 0, mipMap[0]);
     }
 
     private _readTo(

@@ -1,5 +1,7 @@
 import type { GlobalContext } from "../Mediator";
 import { PlayheadMoveAuto } from "../Events/UI/PlayheadMoveAuto";
+import { RecordingProgress } from "../Events/Audio/RecordingProgress";
+import { CONSTANTS } from "@/Constants/constants";
 
 export class PlayheadManager {
     playheadData: {isMoving:boolean, startTime:number} = {isMoving:false, startTime:0};
@@ -34,6 +36,10 @@ export class PlayheadManager {
             }
 
             this.#context.dispatch(PlayheadMoveAuto.getDispatchEvent({ param: newPlayheadTime, emit: false }));
+            if(this.#context.query("isRecording")){
+                const param = {start: timeline.start * CONSTANTS.SAMPLE_RATE, end: newPlayheadTime * CONSTANTS.SAMPLE_RATE};
+                this.#context.dispatch(RecordingProgress.getDispatchEvent({ param, emit: false }));
+            }
 
             if(isMoving){
                 requestAnimationFrame(() => this.playheadLoop(playheadRef, waveformRef,timeline));

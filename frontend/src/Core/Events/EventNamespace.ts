@@ -29,6 +29,7 @@ export const EventTypes = {
     REMOTE_STREAM_ATTACHED: "REMOTE_STREAM_ATTACHED",
     STATE_SYNC: "STATE_SYNC",
     RECORDING_PROGRESS: "RECORDING_PROGRESS",
+    OTHER_PERSON_RECORDING: "OTHER_PERSON_RECORDING",
 } as const;
 
 export type EventParams = {
@@ -54,6 +55,7 @@ export type EventParams = {
     [EventTypes.REMOTE_STREAM_ATTACHED]: boolean,
     [EventTypes.STATE_SYNC]: StateContainer,
     [EventTypes.RECORDING_PROGRESS]: {start: number, end: number},
+    [EventTypes.OTHER_PERSON_RECORDING]: number,
 };
 
 /*

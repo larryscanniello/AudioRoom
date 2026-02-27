@@ -275,11 +275,11 @@ class AudioProcessor extends AudioWorkletProcessor {
 
       if (this.absolute.packetPos >= this.packetSize) {
         this.buffers.record!.write(this.readers.record!, 0, this.packetSize);
-        this.port.postMessage({
+        /*this.port.postMessage({
                 type: "recording_progress",
                 start: this.timeline.start,
                 end: this.timeline.start! + currentFrame - this.absolute.start!,
-            });
+            });*/
         this.absolute.packetPos = 0;
       }
       this.readers.record![this.absolute.packetPos] = input[0][j];

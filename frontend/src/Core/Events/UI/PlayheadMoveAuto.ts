@@ -12,7 +12,7 @@ import type { EventNamespace } from "../EventNamespace";
 export const PlayheadMoveAuto: EventNamespace<typeof EventTypes.PLAYHEAD_MOVE_AUTO> = {
     sharedState: false,
 
-    getDispatchEvent: ({ param, emit,serverMandated }) => {
+    getDispatchEvent: ({ param, emit,serverMandated }) => {;
         return {
             type: EventTypes.PLAYHEAD_MOVE_AUTO,
             emit,

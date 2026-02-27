@@ -78,7 +78,7 @@ interface Absolute {
 }
 
 interface AudioProcessorData {
-    type: typeof EventTypes.START_RECORDING | typeof EventTypes.START_PLAYBACK;
+    type: typeof EventTypes.START_RECORDING | typeof EventTypes.START_PLAYBACK | typeof EventTypes.OTHER_PERSON_RECORDING;
     state: {
         isPlaying: boolean,
         isRecording: boolean,

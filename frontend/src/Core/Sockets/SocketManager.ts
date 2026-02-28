@@ -12,6 +12,9 @@ import { Skipback } from "../Events/Audio/Skipback";
 import { Bounce } from "../Events/Audio/Bounce";
 import { RecordingFinished } from "../Events/Audio/RecordingFinished";
 import { OtherPersonRecording } from "../Events/Audio/OtherPersonRecording";
+import { MoveRegion } from "../Events/Audio/MoveRegion";
+import { UndoTimeline } from "../Events/Audio/UndoTimeline";
+import { RedoTimeline } from "../Events/Audio/RedoTimeline";
 
 export class SocketManager implements Observer {
     #socket: Socket;
@@ -120,6 +123,22 @@ export class SocketManager implements Observer {
                 this.#context.dispatch(Bounce.getDispatchEvent({emit: false, param: {timeline: newTimeline, bounce}, serverMandated: true}));
                 this.#context.commMessage(`Partner bounced to mix`,"white");
                 break;
+            case EventTypes.UNDO_TIMELINE:
+                this.#context.dispatch(UndoTimeline.getDispatchEvent({emit: false,param:state.timeline,serverMandated: true}));
+                this.#context.commMessage(`Partner undid timeline edit`,"white");
+                break;
+            case EventTypes.REDO_TIMELINE:
+                this.#context.dispatch(RedoTimeline.getDispatchEvent({emit: false,param:state.timeline,serverMandated: true}));
+                this.#context.commMessage(`Partner redid timeline edit`,"white");
+                break;
+            case EventTypes.TRIM_REGION:
+                // Handled by state change
+                this.#context.commMessage(`Partner trimmed a region`,"white");
+                break;
+            case EventTypes.MOVE_REGION:
+                this.#context.dispatch(MoveRegion.getDispatchEvent({emit: false,param:state.timeline,serverMandated: true}));
+                this.#context.commMessage(`Partner moved a region`,"white");
+                break;
             default:
                 console.warn("Received unhandled socket event type:", type);
         }
@@ -164,6 +183,18 @@ export class SocketManager implements Observer {
                 break;
             case EventTypes.BOUNCE:
                 this.#context.commMessage(`Partner bounced to mix`,"white");
+                break;
+            case EventTypes.UNDO_TIMELINE:
+                this.#context.commMessage(`Partner timeline edit undone`,"white");
+                break;
+            case EventTypes.REDO_TIMELINE:
+                this.#context.commMessage(`Partner timeline edit redone`,"white");
+                break;
+            case EventTypes.TRIM_REGION:
+                this.#context.commMessage(`Partner region trimmed`,"white");
+                break;
+            case EventTypes.MOVE_REGION:
+                this.#context.commMessage(`Partner region moved`,"white");
                 break;
             default:
                 console.warn("Received unhandled event acknowledgement type:", type);

@@ -39,17 +39,23 @@ export type DecodeAudioData = {
 }
 
 export interface Region {
+    id: string;
     start: number;
     end: number;
     take: number;
-    bounce:number,
+    bounce: number;
     name: string;
     offset: number;
+    clipStart: number;   
+    clipEnd: number;  
 }
+
+export type MipmapRange = { start: number; end: number };
 
 export type TimelineSnapshot = {
     readonly staging: readonly Region[][];
     readonly mix: readonly Region[][];
+    readonly mipmapRanges: readonly MipmapRange[];
 }
 
 export interface TimelineState {
@@ -58,6 +64,7 @@ export interface TimelineState {
     readonly undoStack: readonly TimelineSnapshot[];
     readonly redoStack: readonly TimelineSnapshot[];
     readonly lastRecordedRegion: Region | null;
+    readonly lastMipmapRanges: readonly MipmapRange[];
 }
 
 interface Absolute {

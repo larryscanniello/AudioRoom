@@ -4,6 +4,7 @@ import { HandleTimelineMouseDown } from "./HandleTimelineMouseDown";
 import { HandlePlayheadMouseDown } from "./HandlePlayheadMouseDown";
 import { HandleBPMBoxMouseDown } from "./HandleBPMBoxMouseDown";
 import { HandleTimelineScroll } from "./HandleTimelineScroll";
+import { HandleRegionEdit } from "./HandleRegionEdit";
 
 
 export class DOMHandlers {
@@ -11,6 +12,7 @@ export class DOMHandlers {
     #handlePlayheadMouseDown: HandlePlayheadMouseDown;
     #handleBPMBoxMouseDown: HandleBPMBoxMouseDown;
     #handleTimelineScroll: HandleTimelineScroll;
+    #handleRegionEdit: HandleRegionEdit;
     #refs: Map<keyof typeof DOMElements, React.RefObject<HTMLElement|null>>;
 
     constructor(context: GlobalContext) {
@@ -18,14 +20,19 @@ export class DOMHandlers {
         this.#handleTimelineMouseDown = new HandleTimelineMouseDown(context);
         this.#handlePlayheadMouseDown = new HandlePlayheadMouseDown(context);
         this.#handleBPMBoxMouseDown = new HandleBPMBoxMouseDown(context);
-        this.#handleTimelineScroll = new HandleTimelineScroll(context);    
+        this.#handleTimelineScroll = new HandleTimelineScroll(context);
+        this.#handleRegionEdit = new HandleRegionEdit(context);
     }
 
     public registerRef(ID: keyof typeof DOMElements, ref: React.RefObject<HTMLElement|null>) {
         this.#refs.set(ID, ref);
+        this.#handleRegionEdit.registerRef(ID, ref);
     }
 
     timelineMouseDown(e: React.MouseEvent<HTMLCanvasElement>) {
+        // Region editing intercepts first; if it handles the event, don't proceed to playhead logic.
+        if (this.#handleRegionEdit.mouseDown(e)) return;
+
         const ref = this.#refs.get(DOMElements.CANVAS_CONTAINER);
         if(!ref || !ref.current){
             console.error("Reference for canvas container was not found when handling timeline mouse down");

@@ -28,7 +28,7 @@ export const UndoTimeline: EventNamespace<typeof EventTypes.UNDO_TIMELINE> = {
     },
 
     getLocalPayload(state: State): any {
-        return { snapshot: state.getSnapshot(), sharedSnapshot: state.getSharedStateSnapshot() };
+        return { snapshot: state.getSnapshot(), sharedSnapshot: state.getSharedStateSnapshot(), lastMipmapRanges: state.query('timeline').lastMipmapRanges };
     },
 
     executeAudio(_audioEngine: WorkletAudioEngine, _data: any): void {
@@ -36,6 +36,7 @@ export const UndoTimeline: EventNamespace<typeof EventTypes.UNDO_TIMELINE> = {
     },
 
     executeUI(engine: UIEngine, data: any): void {
+        for (const r of data.lastMipmapRanges) engine.renderNewRegion(r.start, r.end);
         engine.draw([
             DOMCommands.DRAW_TRACK_ONE_WAVEFORMS,
             DOMCommands.DRAW_TRACK_TWO_WAVEFORMS,

@@ -34,6 +34,8 @@ export const EventTypes = {
     DELETE_MIX_REGIONS: "DELETE_MIX_REGIONS",
     UNDO_TIMELINE: "UNDO_TIMELINE",
     REDO_TIMELINE: "REDO_TIMELINE",
+    TRIM_REGION: "TRIM_REGION",
+    MOVE_REGION: "MOVE_REGION",
 } as const;
 
 export type EventParams = {
@@ -64,6 +66,8 @@ export type EventParams = {
     [EventTypes.DELETE_MIX_REGIONS]: TimelineState,
     [EventTypes.UNDO_TIMELINE]: TimelineState,
     [EventTypes.REDO_TIMELINE]: TimelineState,
+    [EventTypes.TRIM_REGION]: TimelineState,
+    [EventTypes.MOVE_REGION]: TimelineState,
 }
 /*
     I decided to go with a fat event model. Everything you need to know about an event

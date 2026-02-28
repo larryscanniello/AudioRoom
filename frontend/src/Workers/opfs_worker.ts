@@ -176,7 +176,8 @@ type OPFSFillStagingMipMapData = {
         staging: readonly Region[][];
         mix: readonly Region[][];
     },
-    newTake: Region;
+    start: number;
+    end: number;
 }
 
 type OPFSBounceToMixData = {
@@ -375,10 +376,9 @@ if (typeof self !== "undefined") { // for testing, otherwise in testing self is 
                     console.error("Can't fill staging mipmap - not initialized");
                     return;
                 }
-                const newTake = e.data.newTake;
                 opfs.timeline.staging = e.data.timeline.staging;
                 opfs.mipMapManager.write(
-                    { startSample: newTake.start, endSample: newTake.end },
+                    { startSample: e.data.start, endSample: e.data.end },
                     opfs.timeline.staging,
                     opfs.bounces,
                     "staging",

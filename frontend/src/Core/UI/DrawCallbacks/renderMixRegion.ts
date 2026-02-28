@@ -64,7 +64,7 @@ export function renderMixRegion(
         const leftOverflow = Math.max(0, startTime - start);
         const rightOverflow = Math.max(0, end - endTime)
         const regionWidth = Math.min(1,(end - start - leftOverflow - rightOverflow) / (endTime-startTime)) * Number(ref.current.dataset.timelinepxlen);
-        let borderRadius;
+        /*let borderRadius;
             if(start < startTime && end > endTime){
                 borderRadius = "0px";
             }else if(start < startTime){
@@ -73,7 +73,7 @@ export function renderMixRegion(
                 borderRadius = "7px 0px 0px 7px";
             }else{
                 borderRadius = "7px";
-            }
+            }*/
         regionToDisplay.style.display = "block"
         regionToDisplay.style.left = "0";
         regionToDisplay.style.top = "93px";
@@ -82,7 +82,7 @@ export function renderMixRegion(
         regionToDisplay.style.width = `${regionWidth}px`;
         regionToDisplay.style.height = '57px';
         regionToDisplay.style.background = "rgb(10, 138, 74,.5)";
-        regionToDisplay.style.borderRadius = borderRadius;
-        regionToDisplay.style.border = "2px solid rgb(220,220,2020,.8)";
+        //regionToDisplay.style.borderRadius = borderRadius;
+        //regionToDisplay.style.border = "2px solid rgb(220,220,2020,.8)";
         regionToDisplay.style.pointerEvents = "none";
     }

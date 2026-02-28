@@ -17,6 +17,8 @@ import { DeleteStagingRegions } from "../Events/Audio/DeleteStagingRegions";
 import { DeleteMixRegions } from "../Events/Audio/DeleteMixRegions";
 import { UndoTimeline } from "../Events/Audio/UndoTimeline";
 import { RedoTimeline } from "../Events/Audio/RedoTimeline";
+import { TrimRegion } from "../Events/Audio/TrimRegion";
+import { MoveRegion } from "../Events/Audio/MoveRegion";
 
 
 export class AudioController{
@@ -114,6 +116,17 @@ export class AudioController{
         if (timeline.redoStack.length === 0) return;
         const newTimeline = timelineReducer(timeline, { type: "redo" });
         this.#context.dispatch(RedoTimeline.getDispatchEvent({emit:true, param: newTimeline, serverMandated: false}));
+    }
+
+    //trimRegion and moveRegion are not currently actually used in the code, but they are implemented in case future use is needed
+    public trimRegion(id: string, newStart: number, newEnd: number) {
+        const newTimeline = timelineReducer(this.#context.query("timeline"), { type: "trim_region", id, newStart, newEnd });
+        this.#context.dispatch(TrimRegion.getDispatchEvent({ emit: true, param: newTimeline, serverMandated: false }));
+    }
+
+    public moveRegion(id: string, deltaSamples: number) {
+        const newTimeline = timelineReducer(this.#context.query("timeline"), { type: "move_region", id, deltaSamples });
+        this.#context.dispatch(MoveRegion.getDispatchEvent({ emit: true, param: newTimeline, serverMandated: false }));
     }
 
     public query<K extends keyof StateContainer>(query: K): StateContainer[K] {

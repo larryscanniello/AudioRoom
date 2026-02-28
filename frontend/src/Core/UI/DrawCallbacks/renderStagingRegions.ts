@@ -45,17 +45,21 @@ export function renderStagingRegions(
             return;
         }
 
+        const regionById = new Map(data.timeline.staging[0].map(r => [r.id, r]));
+
         elements.forEach((child:Element) => {
             if(!(child instanceof HTMLElement)){
                 console.error("Child of staging regions was not an HTMLElement");
                 return;
             }
-            if(!child.dataset.start || !child.dataset.end){
-                console.error("Region element was missing start or end data attributes");
+            const regionId = child.dataset.id;
+            const region = regionId ? regionById.get(regionId) : undefined;
+            if(!region){
+                child.style.display = "none";
                 return;
             }
-            let start = Number(child.dataset.start) / CONSTANTS.SAMPLE_RATE;
-            let end = Number(child.dataset.end) / CONSTANTS.SAMPLE_RATE;
+            let start = region.start / CONSTANTS.SAMPLE_RATE;
+            let end = region.end / CONSTANTS.SAMPLE_RATE;
 
             const liveStartSec = liveRecording.start / CONSTANTS.SAMPLE_RATE;
             const liveEndSec = liveRecording.end / CONSTANTS.SAMPLE_RATE;
@@ -82,6 +86,7 @@ export function renderStagingRegions(
             const rightOverflow = Math.max(0, end - endTime)
             const regionWidth = Math.min(1,(end - start - leftOverflow - rightOverflow) / (endTime-startTime)) * timelinePxLen;
 
+            /*
             let borderRadius;
             if(start < startTime && end > endTime){
                 borderRadius = "0px";
@@ -91,7 +96,7 @@ export function renderStagingRegions(
                 borderRadius = "7px 0px 0px 7px";
             }else{
                 borderRadius = "7px";
-            }
+            }*/
 
 
             child.style.left = "0";
@@ -100,9 +105,11 @@ export function renderStagingRegions(
             child.style.transform = `translateX(${left}px)`;
             child.style.width = `${regionWidth}px`;
             child.style.height = `${stagingHeight}px`;
-            child.style.background = "rgb(10, 138, 74,.5)";
-            child.style.borderRadius = borderRadius;
-            child.style.border = "2px solid rgb(220,220,2020,.8)";
+            child.style.background = "rgb(214, 127, 56,.5)";
+            //child.style.borderRadius = borderRadius;
+            //child.style.border = "2px solid rgb(220,220,2020,.8)";
+            child.style.borderLeft = "1px solid rgb(220,220,2020,.3)";
+            child.style.borderRight = "1px solid rgb(220,220,2020,.3)";
             child.style.pointerEvents = "none";
         });
     }

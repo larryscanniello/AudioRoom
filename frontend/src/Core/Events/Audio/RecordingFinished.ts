@@ -36,18 +36,19 @@ export const RecordingFinished: EventNamespace<typeof EventTypes.RECORDING_FINIS
     },
 
     getLocalPayload(state: State): any {
-        return state.getSharedStateSnapshot();
+        const timeline = state.query('timeline');
+        return { sharedSnapshot: state.getSharedStateSnapshot(), lastRecordedRegion: timeline.lastRecordedRegion, lastMipmapRanges: timeline.lastMipmapRanges };
     },
 
     executeAudio(_audioEngine: WorkletAudioEngine, _data: any): void {
         //No audio action
     },
 
-    executeUI(engine: UIEngine, _data: any): void {
-        engine.renderNewRegion();
+    executeUI(engine: UIEngine, data: any): void {
+        for (const r of data.lastMipmapRanges) engine.renderNewRegion(r.start, r.end);
     },
 
     executeSocket(socketManager: any, transactionData: TransactionData, data: any): void {
-        executeSocketUtil(socketManager, {transactionData, sharedSnapshot: data, type: EventTypes.RECORDING_FINISHED});
+        executeSocketUtil(socketManager, {transactionData, sharedSnapshot: data.sharedSnapshot, type: EventTypes.RECORDING_FINISHED});
     },
 };

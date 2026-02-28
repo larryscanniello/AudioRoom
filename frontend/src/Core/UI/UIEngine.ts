@@ -66,14 +66,11 @@ export class UIEngine implements Observer{
         }
     }
 
-    renderNewRegion(){
+    renderNewRegion(start:number,end:number){
         const timeline = this.#context.query("timeline");
-        const bounce = this.#context.query("bounce");
-        const take = this.#context.query("take");
         this.#opfsWorker.postMessage({
             type: "fill_staging_mipmap",
-            timeline, bounce, take,
-            newTake: timeline.lastRecordedRegion,
+            timeline,start,end
         });
     }
 

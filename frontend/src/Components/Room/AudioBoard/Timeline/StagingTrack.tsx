@@ -1,4 +1,3 @@
-import { CONSTANTS } from "@/Constants/constants";
 import type { Region } from "@/Types/AudioState";
 import { useRef } from "react"; 
 import { DOMElements } from "@/Constants/DOMElements";
@@ -16,10 +15,6 @@ export default function StagingTrack({timelinePxLen,trackHeights,uiControllerRef
 
     const stagingWaveformsRef = useRef<HTMLCanvasElement>(null);
     const stagingRegionsRef = useRef<HTMLDivElement>(null);
-
-
-
-    
     
     const timeline = uiControllerRef.current ? uiControllerRef.current.query("timeline") : {staging: [[]]};
 
@@ -27,7 +22,6 @@ export default function StagingTrack({timelinePxLen,trackHeights,uiControllerRef
         uiControllerRef.current.registerRef(DOMElements.TRACK_ONE, stagingWaveformsRef);
         uiControllerRef.current.registerRef(DOMElements.TRACK_ONE_REGIONS, stagingRegionsRef);
     }
-
 
     return <div><canvas 
             ref={stagingWaveformsRef}
@@ -46,7 +40,8 @@ export default function StagingTrack({timelinePxLen,trackHeights,uiControllerRef
             className="">
                 {timeline.staging[0].map((region:Region) => {
                     return <div
-                    key={region.name}
+                    key={region.id}
+                    data-id={region.id}
                     data-start={region.start}
                     data-end={region.end}
                     className="region"

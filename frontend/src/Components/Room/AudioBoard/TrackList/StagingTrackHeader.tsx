@@ -1,8 +1,13 @@
-import { Trash2, Undo, Redo, KeyboardMusic, ArrowDownToLine, CassetteTape} from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { Slider } from "@/Components/ui/slider"
 import { CONSTANTS } from "@/Constants/constants.ts";
 import type { AudioController } from "@/Core/Audio/AudioController";
 import type React from "react";
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/Components/ui/hover-card"
 
 type StagingTrackHeaderProps = {
     audioControllerRef:React.RefObject<AudioController|null>,
@@ -31,14 +36,33 @@ export default function StagingTrackHeader({audioControllerRef,compactMode}: Sta
     }
 
     
+    const handleDelete = () => {
+        if(audioController){
+            audioController.deleteStagingRegions();
+        }else{
+            console.error("AudioController is null in StagingTrackHeader handleDelete");
+        }
+    }
 
     const isStagingMuted = audioController ? audioController.isStagingTrackMuted() : false;
 
     return <div style={{width:`${CONSTANTS.LEFT_CONTROLS_WIDTH}`,height:Math.floor(58*compactMode)}} className="border-b border-black flex flex-row items-center">
                 
-                <button>
-                    <Trash2 className="scale-75"/>
-                </button>
+                <HoverCard>
+                    <HoverCardTrigger className="flex flex-row items-center">
+                        <button>
+                            <Trash2 className="scale-75"/>
+                        </button>
+                    </HoverCardTrigger>
+                    <HoverCardContent className="">
+                        <button className="b-1 border-black text-white text-xs w-full h-5 pr-1 pl-1 rounded-sm bg-black"
+                            onClick={handleDelete}
+                        >
+                            Delete All Staging Regions
+                        </button>
+                    </HoverCardContent>
+                </HoverCard>
+                
                 
                 <button className={"border-1 border-black text-white text-xs w-8 h-5 ml-1 pr-1 pl-1 rounded-sm " 
                 + (isStagingMuted ? "bg-amber-600" : "")}

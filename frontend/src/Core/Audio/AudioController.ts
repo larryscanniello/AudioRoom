@@ -13,6 +13,10 @@ import type { Mixer } from "./Mixer";
 
 import timelineReducer from "../State/timelineReducer";
 import { Bounce } from "../Events/Audio/Bounce";
+import { DeleteStagingRegions } from "../Events/Audio/DeleteStagingRegions";
+import { DeleteMixRegions } from "../Events/Audio/DeleteMixRegions";
+import { UndoTimeline } from "../Events/Audio/UndoTimeline";
+import { RedoTimeline } from "../Events/Audio/RedoTimeline";
 
 
 export class AudioController{
@@ -86,13 +90,39 @@ export class AudioController{
         return this.#context.query("mixMuted");
     }
 
+    public deleteStagingRegions() {
+        const timeline = this.#context.query("timeline");
+        const newTimeline = timelineReducer(timeline, { type: "delete_staging_regions" });
+        this.#context.dispatch(DeleteStagingRegions.getDispatchEvent({emit:true, param: newTimeline,serverMandated: false}));
+    }
+
+    public deleteMixRegions() {
+        const timeline = this.#context.query("timeline");
+        const newTimeline = timelineReducer(timeline, { type: "delete_mix_regions" });
+        this.#context.dispatch(DeleteMixRegions.getDispatchEvent({emit:true, param: newTimeline, serverMandated: false}));
+    }
+
+    public undo() {
+        const timeline = this.#context.query("timeline");
+        if (timeline.undoStack.length === 0) return;
+        const newTimeline = timelineReducer(timeline, { type: "undo" });
+        this.#context.dispatch(UndoTimeline.getDispatchEvent({emit:true, param: newTimeline, serverMandated: false}));
+    }
+
+    public redo() {
+        const timeline = this.#context.query("timeline");
+        if (timeline.redoStack.length === 0) return;
+        const newTimeline = timelineReducer(timeline, { type: "redo" });
+        this.#context.dispatch(RedoTimeline.getDispatchEvent({emit:true, param: newTimeline, serverMandated: false}));
+    }
+
     public query<K extends keyof StateContainer>(query: K): StateContainer[K] {
         return this.#context.query(query);
     }
 
     public initAudioEngine(){
         this.#audioEngine.init();
-        this.#audioEngine.toggleMetronome(this.#context.query("isMetronomeOn"));
+        this.#audioEngine.toggleMetronome();
     }
 
 }

@@ -78,7 +78,7 @@ export class State {
                 denominator: 4
             },
             snapToGrid: true,
-            timeline: { staging: [[]], mix: [], regionStack: [], redoStack: [] },
+            timeline: { staging: [[]], mix: [], undoStack: [], redoStack: [], lastRecordedRegion: null },
             delayCompensation: [0],
             isPlaying: false,
             isRecording: false,

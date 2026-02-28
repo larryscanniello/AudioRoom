@@ -47,28 +47,17 @@ export interface Region {
     offset: number;
 }
 
-export interface TimelineState {
-    readonly regionStack: readonly Region[];
+export type TimelineSnapshot = {
     readonly staging: readonly Region[][];
     readonly mix: readonly Region[][];
-    readonly redoStack: readonly Region[];
 }
 
-interface AddRegionAction {
-    type: 'add_region';
-    data: {
-        timelineStart: number;
-        timelineEnd: number;
-        takeNumber: number;
-        bounceNumber: number;
-        fileName: string;
-        delayCompensation: number[];
-    };
-    
-}
-
-interface BounceToMixAction {
-    type: 'bounce_to_mix';
+export interface TimelineState {
+    readonly staging: readonly Region[][];
+    readonly mix: readonly Region[][];
+    readonly undoStack: readonly TimelineSnapshot[];
+    readonly redoStack: readonly TimelineSnapshot[];
+    readonly lastRecordedRegion: Region | null;
 }
 
 interface Absolute {
@@ -103,9 +92,6 @@ interface AudioProcessorData {
 interface StopAudioProcessorData {
     type:string,
 }
-
-
-export type Action = AddRegionAction | BounceToMixAction;
 
 
 export type { Pointers, Buffers, TimeSignature, Absolute, AudioProcessorData, StopAudioProcessorData};

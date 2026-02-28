@@ -1,86 +1,128 @@
-import type { Region, TimelineState, Action } from '../../Types/AudioState';
+import type { Region, TimelineSnapshot, TimelineState } from '../../Types/AudioState';
 
-export default function timelineReducer(state:TimelineState, action: any): TimelineState {
-        switch(action.type){
-            case "add_region":
-                const {timelineStart,timelineEnd,takeNumber,fileName,bounceNumber,delayCompensation} = action.data;
-                if(timelineEnd <= timelineStart){
-                    console.error("Invalid region: end must be greater than start");
-                    return state;
-                }
-                const newRegion = {
-                    start:timelineStart,
-                    end:timelineEnd,
-                    bounce:bounceNumber,
-                    take:takeNumber,
-                    name:fileName,
-                    offset: delayCompensation[0],
-                }
-                if(state.regionStack.length === 0){ 
-                    return {
-                    regionStack: [newRegion],
-                    staging:[[newRegion]],
-                    mix: state.mix,
-                    redoStack: [],
-                }};
-                const regionStack = [...state.regionStack,newRegion];
-                const timeline: Region[] = [];
-                for(const r of regionStack.reverse()){ 
-                    const shards: (Region|null)[] = [r];
-                    for(let i=timeline.length-1;i>=0;i--){
-                        for(let j=0;j<shards.length;j++){
-                            const s = shards[j];
-                            if(!s) continue;
-                            const startCollision = timeline[i].start <= s.start && s.start < timeline[i].end;
-                            const endCollision = timeline[i].start < s.end && s.end <= timeline[i].end;
-                            const shardContainsRegion = s.start <= timeline[i].start && timeline[i].end < s.end;
-                            if(shardContainsRegion){
-                                const newShard1:Region = {...s,end:timeline[i].start};
-                                const newShard2:Region = {...s,start:timeline[i].end};
-                                shards[j] = null;
-                                shards.push(newShard1); shards.push(newShard2);
-                            }else if(startCollision && endCollision){
-                                shards[j] = null;
-                            }else if(startCollision){
-                                const newStart = timeline[i].end;
-                                if(newStart < s.end){
-                                    shards[j] = {...s,start:newStart}
-                                }else{
-                                    shards[j] = null;
-                                }
-                            }else if(endCollision){
-                                const newEnd = timeline[i].start;
-                                if(newEnd > s.start){
-                                    shards[j] = {...s,end:newEnd}
-                                }else{
-                                    shards[j] = null;
-                                }
-                            }
-                        }
-                    }
-                    for(const s of shards){
-                        if(s) timeline.push(s);
-                    }
-                }
-                timeline.sort((a, b) => a.start - b.start);
-                regionStack.reverse();
-                const toReturn = {regionStack,staging:[timeline],mix:state.mix,redoStack:[]};
-                 //there's another return earlier in the function... lol
-                return toReturn;
-            case "bounce_to_mix":
-                const newState = {
-                    staging: [[]],
-                    mix: [...state.mix,[...state.staging[0]]],
-                    regionStack: [],
-                    redoStack: [],
-                };
-                return newState
-            default:
-                if(import.meta.env.PRODUCTION){
-                    return state;
-                }else{
-                    throw new Error(`Unhandled action type: ${(action as any).type}`);    
-                }
-            
-        }
+const MAX_UNDO_DEPTH = 20;
+
+function snapshot(state: TimelineState): TimelineSnapshot {
+    return { staging: state.staging, mix: state.mix };
+}
+
+function pushUndo(state: TimelineState): readonly TimelineSnapshot[] {
+    const next = [...state.undoStack, snapshot(state)];
+    return next.length > MAX_UNDO_DEPTH ? next.slice(next.length - MAX_UNDO_DEPTH) : next;
+}
+
+function clipAgainst(existing: Region, newRegion: Region): Region[] {
+    if (existing.end <= newRegion.start || existing.start >= newRegion.end) {
+        return [existing];
     }
+    const parts: Region[] = [];
+    if (existing.start < newRegion.start) {
+        parts.push({ ...existing, end: newRegion.start });
+    }
+    if (existing.end > newRegion.end) {
+        parts.push({ ...existing, start: newRegion.end });
+    }
+    return parts;
+}
+
+function addRegionToStaging(staging: readonly Region[], newRegion: Region): Region[] {
+    const result: Region[] = [];
+    for (const r of staging) {
+        result.push(...clipAgainst(r, newRegion));
+    }
+    result.push(newRegion);
+    result.sort((a, b) => a.start - b.start);
+    return result;
+}
+
+export default function timelineReducer(state: TimelineState, action: any): TimelineState {
+    switch (action.type) {
+
+        case 'add_region': {
+            const { timelineStart, timelineEnd, takeNumber, fileName, bounceNumber, delayCompensation } = action.data;
+            if (timelineEnd <= timelineStart) {
+                console.error('Invalid region: end must be greater than start');
+                return state;
+            }
+            const newRegion: Region = {
+                start: timelineStart,
+                end: timelineEnd,
+                bounce: bounceNumber,
+                take: takeNumber,
+                name: fileName,
+                offset: delayCompensation[0],
+            };
+            const newStaging = addRegionToStaging(state.staging[0] ?? [], newRegion);
+            return {
+                staging: [newStaging],
+                mix: state.mix,
+                undoStack: pushUndo(state),
+                redoStack: [],
+                lastRecordedRegion: newRegion,
+            };
+        }
+
+        case 'bounce_to_mix': {
+            // Bounce is intentionally NOT undoable — it triggers OPFS audio rendering.
+            // Clear both stacks so the user cannot undo past a bounce.
+            return {
+                staging: [[]],
+                mix: [...state.mix, [...(state.staging[0] ?? [])]],
+                undoStack: [],
+                redoStack: [],
+                lastRecordedRegion: null,
+            };
+        }
+
+        case 'delete_staging_regions': {
+            return {
+                staging: [[]],
+                mix: state.mix,
+                undoStack: pushUndo(state),
+                redoStack: [],
+                lastRecordedRegion: null,
+            };
+        }
+
+        case 'delete_mix_regions': {
+            return {
+                staging: state.staging,
+                mix: [],
+                undoStack: pushUndo(state),
+                redoStack: [],
+                lastRecordedRegion: null,
+            };
+        }
+
+        case 'undo': {
+            if (state.undoStack.length === 0) return state;
+            const prev = state.undoStack[state.undoStack.length - 1];
+            return {
+                staging: prev.staging,
+                mix: prev.mix,
+                undoStack: state.undoStack.slice(0, -1),
+                redoStack: [...state.redoStack, snapshot(state)],
+                lastRecordedRegion: null,
+            };
+        }
+
+        case 'redo': {
+            if (state.redoStack.length === 0) return state;
+            const next = state.redoStack[state.redoStack.length - 1];
+            return {
+                staging: next.staging,
+                mix: next.mix,
+                undoStack: [...state.undoStack, snapshot(state)],
+                redoStack: state.redoStack.slice(0, -1),
+                lastRecordedRegion: null,
+            };
+        }
+
+        default:
+            if (import.meta.env.PRODUCTION) {
+                return state;
+            } else {
+                throw new Error(`Unhandled action type: ${(action as any).type}`);
+            }
+    }
+}

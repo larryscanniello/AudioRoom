@@ -30,6 +30,10 @@ export const EventTypes = {
     STATE_SYNC: "STATE_SYNC",
     RECORDING_PROGRESS: "RECORDING_PROGRESS",
     OTHER_PERSON_RECORDING: "OTHER_PERSON_RECORDING",
+    DELETE_STAGING_REGIONS: "DELETE_STAGING_REGIONS",
+    DELETE_MIX_REGIONS: "DELETE_MIX_REGIONS",
+    UNDO_TIMELINE: "UNDO_TIMELINE",
+    REDO_TIMELINE: "REDO_TIMELINE",
 } as const;
 
 export type EventParams = {
@@ -56,8 +60,11 @@ export type EventParams = {
     [EventTypes.STATE_SYNC]: StateContainer,
     [EventTypes.RECORDING_PROGRESS]: {start: number, end: number},
     [EventTypes.OTHER_PERSON_RECORDING]: number,
-};
-
+    [EventTypes.DELETE_STAGING_REGIONS]: TimelineState,
+    [EventTypes.DELETE_MIX_REGIONS]: TimelineState,
+    [EventTypes.UNDO_TIMELINE]: TimelineState,
+    [EventTypes.REDO_TIMELINE]: TimelineState,
+}
 /*
     I decided to go with a fat event model. Everything you need to know about an event
     is encapsulated in its event object. Each event class is an object that conforms to the 

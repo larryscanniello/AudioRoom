@@ -70,11 +70,10 @@ export class UIEngine implements Observer{
         const timeline = this.#context.query("timeline");
         const bounce = this.#context.query("bounce");
         const take = this.#context.query("take");
-        const regionStack = timeline.regionStack;
         this.#opfsWorker.postMessage({
-            type: "fill_staging_mipmap", 
-            timeline,bounce,take,
-            newTake: regionStack[regionStack.length-1]
+            type: "fill_staging_mipmap",
+            timeline, bounce, take,
+            newTake: timeline.lastRecordedRegion,
         });
     }
 

@@ -35,7 +35,12 @@ export class PlayheadManager {
                 newPlayheadTime = Math.min(timeline.start + elapsed, timeline.end);
             }
 
-            this.#context.dispatch(PlayheadMoveAuto.getDispatchEvent({ param: newPlayheadTime, emit: false }));
+            // I put this guard in because during regional playback with no looping, the playhead was getting overwritten by this
+            // and sent to the end of the region, when it should have stayed at the beginning
+
+            if(this.#context.query("isPlaying") || this.#context.query("isRecording")){
+                this.#context.dispatch(PlayheadMoveAuto.getDispatchEvent({ param: newPlayheadTime, emit: false }));
+            }
             if(this.#context.query("isRecording")){
                 const param = {start: timeline.start * CONSTANTS.SAMPLE_RATE, end: newPlayheadTime * CONSTANTS.SAMPLE_RATE};
                 this.#context.dispatch(RecordingProgress.getDispatchEvent({ param, emit: false }));

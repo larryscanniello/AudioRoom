@@ -2,25 +2,25 @@ import { EventTypes } from "../EventNamespace";
 import type { State, TransactionData } from "@/Core/State/State";
 import type { UIEngine } from "@/Core/UI/UIEngine";
 import { executeSocketUtil, stateTransactionUtil } from "../genericEventFunctions";
-import { DOMCommands } from "@/Constants/DOMElements";
 
 import type { EventNamespace } from "../EventNamespace";
+import type { WorkletAudioEngine } from "@/Core/Audio/WorkletAudioEngine";
 
-export const SetMouseDragEnd: EventNamespace<typeof EventTypes.SET_MOUSE_DRAG_END> = {
+export const RecordingFinished: EventNamespace<typeof EventTypes.RECORDING_FINISHED> = {
     sharedState: false,
 
     getDispatchEvent: ({ param, emit, serverMandated }) => {
         return {
-            type: EventTypes.SET_MOUSE_DRAG_END,
+            type: EventTypes.RECORDING_FINISHED,
             emit,
             serverMandated,
             transactionData: {
                 transactionQueries: [],
                 mutations: [
-                    { key: 'mouseDragEnd', value: param }
+                    { key: 'timeline', value: param },
                 ],
             },
-            getEventNamespace: () => { return SetMouseDragEnd; }
+            getEventNamespace: () => { return RecordingFinished; }
         };
     },
 
@@ -29,21 +29,19 @@ export const SetMouseDragEnd: EventNamespace<typeof EventTypes.SET_MOUSE_DRAG_EN
     },
 
     getLocalPayload(state: State): any {
-        return { snapshot: state.getSnapshot(), sharedSnapshot: state.getSharedStateSnapshot() };
+        const timeline = state.query('timeline');
+        return { sharedSnapshot: state.getSharedStateSnapshot(), lastRecordedRegion: timeline.lastRecordedRegion, lastMipmapRanges: timeline.lastMipmapRanges };
     },
 
-    executeAudio(_audioEngine: any, _data: any): void {
-        // No audio action needed for mouse drag end
+    executeAudio(_audioEngine: WorkletAudioEngine, _data: any): void {
+        //No audio action
     },
 
     executeUI(engine: UIEngine, data: any): void {
-        engine.draw([
-            DOMCommands.DRAW_MEASURE_TICK_CONTAINER,
-            DOMCommands.FILL_SELECTED_REGION_MEASURE_TICKS,
-        ], data.snapshot);
+        for (const r of data.lastMipmapRanges) engine.renderNewRegion(r.start, r.end);
     },
 
     executeSocket(socketManager: any, transactionData: TransactionData, data: any): void {
-        executeSocketUtil(socketManager, { transactionData, sharedSnapshot: data.sharedSnapshot, type: EventTypes.SET_MOUSE_DRAG_END });
+        executeSocketUtil(socketManager, {transactionData, sharedSnapshot: data.sharedSnapshot, type: EventTypes.RECORDING_FINISHED});
     },
 };

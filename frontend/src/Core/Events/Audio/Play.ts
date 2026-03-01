@@ -39,7 +39,9 @@ export const Play:EventNamespace<typeof EventTypes.START_PLAYBACK> = {
     },
 
     getLocalPayload(state: State): Payload {
+        const mouseDragStart = state.query('mouseDragStart');
         const mouseDragEnd = state.query('mouseDragEnd');
+        const snapToGrid = state.query('snapToGrid');
         const processordata = { type: EventTypes.START_PLAYBACK,
             state: {
                 isPlaying: state.query('isPlaying'),
@@ -54,8 +56,8 @@ export const Play:EventNamespace<typeof EventTypes.START_PLAYBACK> = {
                 bpm: state.query('bpm'),
             },
             timeline: {
-                start: state.query('playheadTimeSeconds'),
-                end: mouseDragEnd ? mouseDragEnd.t : CONSTANTS.TIMELINE_LENGTH_IN_SECONDS,
+                start: mouseDragEnd ? (snapToGrid ? Math.min(mouseDragStart.trounded, mouseDragEnd.trounded) : Math.min(mouseDragStart.t, mouseDragEnd.t)) : state.query('playheadTimeSeconds'),
+                end: mouseDragEnd ? (snapToGrid ? Math.max(mouseDragStart.trounded, mouseDragEnd.trounded) : Math.max(mouseDragStart.t, mouseDragEnd.t)) : CONSTANTS.TIMELINE_LENGTH_IN_SECONDS,
                 pos: state.query('playheadTimeSeconds'),
                 staging: state.query('timeline').staging,
                 mix: state.query('timeline').mix,

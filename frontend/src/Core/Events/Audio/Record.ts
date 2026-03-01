@@ -38,7 +38,9 @@ export const Record: EventNamespace<typeof EventTypes.START_RECORDING> = {
     },
 
     getLocalPayload(state: State): LocalPayload {
+        const mouseDragStart = state.query('mouseDragStart');
         const mouseDragEnd = state.query('mouseDragEnd');
+        const snapToGrid = state.query('snapToGrid');
         const audioProcessorData = { type: EventTypes.START_RECORDING,
             state: {
                 isPlaying: state.query('isPlaying'),
@@ -53,8 +55,8 @@ export const Record: EventNamespace<typeof EventTypes.START_RECORDING> = {
                 bpm: state.query('bpm'),
             },
             timeline: {
-                start: state.query('playheadTimeSeconds'),
-                end: mouseDragEnd ? mouseDragEnd.t : CONSTANTS.TIMELINE_LENGTH_IN_SECONDS,
+                start: snapToGrid ? mouseDragStart.trounded : state.query('playheadTimeSeconds'),
+                end: mouseDragEnd ? (snapToGrid ? mouseDragEnd.trounded : mouseDragEnd.t) : CONSTANTS.TIMELINE_LENGTH_IN_SECONDS,
                 pos: state.query('playheadTimeSeconds'),
                 staging: state.query('timeline').staging,
                 mix: state.query('timeline').mix,

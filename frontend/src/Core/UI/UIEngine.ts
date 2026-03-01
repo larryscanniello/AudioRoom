@@ -166,10 +166,8 @@ export class UIEngine implements Observer{
                 (ref: React.RefObject<HTMLElement|null>, data: StateContainer, mipMap: Int8Array) => {renderMixWaveforms(ref,data,mipMap)},
             [DOMCommands.FILL_SELECTED_REGION_MEASURE_TICKS]:
                 (ref: React.RefObject<HTMLElement|null>, data: StateContainer, mipMap: Int8Array) => {fillSelectedRegion(ref,data,mipMap)},
-            [DOMCommands.FILL_SELECTED_REGION_TRACK_ONE]:
-                (ref: React.RefObject<HTMLElement|null>, data: StateContainer, mipMap: Int8Array) => {fillSelectedRegion(ref,data,mipMap)},
-            [DOMCommands.FILL_SELECTED_REGION_TRACK_TWO]:
-                (ref: React.RefObject<HTMLElement|null>, data: StateContainer, mipMap: Int8Array) => {fillSelectedRegion(ref,data,mipMap)},
+            [DOMCommands.FILL_SELECTED_REGION_TRACK_ONE]: () => {},
+            [DOMCommands.FILL_SELECTED_REGION_TRACK_TWO]: () => {},
             [DOMCommands.DRAW_PLAYHEAD]:
                 (ref: React.RefObject<HTMLElement|null>, data: StateContainer, mipMap: Int8Array) => {drawPlayhead(ref,data,mipMap)},
             [DOMCommands.RENDER_TRACK_ONE_REGIONS]:

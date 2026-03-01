@@ -70,7 +70,9 @@ interface Timeline {
 
 interface Absolute {
   start: number | null;
-  end: number | null;
+  end: number | null;               // non-looping playback end frame; nulled after firing
+  recordingEnd: number | null;      // frame at which to send add_region + stop recording
+  timelineEndAtStop: number | null; // timeline sample position saved at stop (for add_region)
   packetPos: number;
 }
 
@@ -187,6 +189,8 @@ class AudioProcessor extends AudioWorkletProcessor {
     this.absolute = {
       start: null,
       end: null,
+      recordingEnd: null,
+      timelineEndAtStop: null,
       packetPos: 0,
     };
 
@@ -235,7 +239,6 @@ class AudioProcessor extends AudioWorkletProcessor {
       };
     }
     if (data.type === "START_RECORDING" || data.type === "START_PLAYBACK") {
-      console.log("starting recording or playback with data", data);
       this.buffers.mix?.resetPointers();
       this.buffers.record?.resetPointers();
       this.buffers.staging?.resetPointers();  
@@ -259,24 +262,56 @@ class AudioProcessor extends AudioWorkletProcessor {
     }
     if (data.type === "STOP") {
       if (this.state.isRecording) {
-        this.port.postMessage({
-          type: "add_region",
-          timelineStart: this.timeline.start,
-          timelineEnd: Math.round(this.timeline.start! + ((sampleRate * currentTime - this.absolute.start!) % (this.timeline.end! - this.timeline.start!))),
-          takeNumber: this.state.count.take,
-          bounceNumber: this.state.count.bounce,
-          fileName: `bounce_${this.state.count.bounce}_take_${this.state.count.take}`,
-          delayCompensation: [0],
-        });
+        // Save timeline position at the moment of manual stop (for later add_region)
+        this.absolute.timelineEndAtStop = Math.round(
+          this.timeline.start! +
+          ((sampleRate * currentTime - this.absolute.start!) %
+            (this.timeline.end! - this.timeline.start!))
+        );
+        // Keep recording 0.5s of headroom; add_region sent when window closes
+        this.absolute.recordingEnd = Math.round((currentTime + 0.5) * sampleRate);
       }
-      this.absolute.end = currentTime + .5;
+      // Null out absolute.end so the auto-stop path in process() never fires for manual stops
+      this.absolute.end = null;
       this.state.isPlaying = false;
-      this.state.isRecording = false;
+      // Do NOT set isRecording = false here; handled when recordingEnd is reached
     }
     if ("actiontype" in data && data.actiontype === "bounce_to_mix") {
       this.state.count.bounce += 1;
       this.state.count.take = -1;
     }
+  }
+
+  // Compute the next click sample, accounting for non-beat-aligned loop boundaries.
+  // When looping, advancing by samplesPerBeat past the loop end would place the click at
+  // the wrong position. Instead we compute how far to the loop end, then how far from the
+  // loop start to the first beat of the next iteration.
+  #nextClickSample(firedAt: number, samplesPerBeat: number): number {
+    const loopStart = this.timeline.start;
+    const loopEnd   = this.timeline.end;
+    if (!this.state.looping || loopStart === null || loopEnd === null) {
+      return firedAt + samplesPerBeat;
+    }
+    const loopLength = loopEnd - loopStart;
+    if (loopLength <= 0) return firedAt + samplesPerBeat;
+
+    // Timeline position at which this beat fired
+    const loopOffset = (firedAt - this.absolute.start!) % loopLength;
+    const tlPos = loopStart + loopOffset;
+
+    const tlNext = tlPos + samplesPerBeat;
+    if (tlNext < loopEnd) {
+      // Next beat is within the same loop iteration — simple advance
+      return firedAt + samplesPerBeat;
+    }
+
+    // Next beat crosses the loop boundary.
+    // Find the first beat at or after loopStart in the next iteration.
+    const firstBeatAfterStart = Math.ceil(loopStart / samplesPerBeat) * samplesPerBeat;
+    const nextTlPos = firstBeatAfterStart < loopEnd ? firstBeatAfterStart : loopStart;
+    const framesToLoopEnd    = loopEnd - tlPos;
+    const framesAfterWrap    = nextTlPos - loopStart;
+    return firedAt + framesToLoopEnd + framesAfterWrap;
   }
 
   process(
@@ -287,9 +322,37 @@ class AudioProcessor extends AudioWorkletProcessor {
     if (!this.state.isRecording && !this.state.isPlaying) return true;
     if (currentFrame + this.PROCESS_FRAMES < this.absolute.start!) return true;
 
-    if (this.absolute.end) {
-      if (currentFrame > this.absolute.end) { this.state.isPlaying = false; }
-      if (currentFrame > this.absolute.end + this.halfSecondInSamples) { this.state.isRecording = false; }
+    // Auto-stop: non-looping playback reached timeline end
+    if (this.absolute.end !== null && currentFrame > this.absolute.end) {
+      this.state.isPlaying = false;
+      if (this.state.isRecording) {
+        this.absolute.timelineEndAtStop = Math.round(
+          this.timeline.start! +
+          ((currentFrame - this.absolute.start!) %
+            (this.timeline.end! - this.timeline.start!))
+        );
+        this.absolute.recordingEnd = this.absolute.end + this.halfSecondInSamples;
+      }
+      this.absolute.end = null; // prevent re-firing
+      this.port.postMessage({ type: "playback_ended" });
+    }
+
+    // Recording window close (manual or auto stop)
+    if (this.absolute.recordingEnd !== null && currentFrame > this.absolute.recordingEnd) {
+      if (this.state.isRecording) {
+        this.port.postMessage({
+          type: "add_region",
+          timelineStart: this.timeline.start,
+          timelineEnd: this.absolute.timelineEndAtStop,
+          takeNumber: this.state.count.take,
+          bounceNumber: this.state.count.bounce,
+          fileName: `bounce_${this.state.count.bounce}_take_${this.state.count.take}`,
+          delayCompensation: [0],
+        });
+        this.state.isRecording = false;
+      }
+      this.absolute.recordingEnd = null;
+      this.absolute.timelineEndAtStop = null;
     }
 
     const framesToDelay = 0; //Math.max(0,this.absolute.start-currentFrame);
@@ -302,11 +365,6 @@ class AudioProcessor extends AudioWorkletProcessor {
 
       if (this.absolute.packetPos >= this.packetSize) {
         this.buffers.record!.write(this.readers.record!, 0, this.packetSize);
-        /*this.port.postMessage({
-                type: "recording_progress",
-                start: this.timeline.start,
-                end: this.timeline.start! + currentFrame - this.absolute.start!,
-            });*/
         this.absolute.packetPos = 0;
       }
       this.readers.record![this.absolute.packetPos] = input[0][j];
@@ -342,7 +400,7 @@ class AudioProcessor extends AudioWorkletProcessor {
         const absFrame = currentFrame + i;
         if (absFrame >= this.nextClickSample && this.clickPlaybackPos === -1) {
           this.clickPlaybackPos = 0;
-          this.nextClickSample += samplesPerBeat;
+          this.nextClickSample = this.#nextClickSample(this.nextClickSample, samplesPerBeat);
         }
         if (this.clickPlaybackPos >= 0 && this.clickPlaybackPos < this.clickBuffer.length) {
           if (metrGain > 0) {

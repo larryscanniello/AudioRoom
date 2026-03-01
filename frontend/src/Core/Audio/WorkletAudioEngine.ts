@@ -10,6 +10,7 @@ import type { DispatchEvent, GlobalContext } from "../Mediator";
 
 import timelineReducer from "../State/timelineReducer";
 import { RecordingFinished } from "../Events/Audio/RecordingFinished";
+import { Stop } from "../Events/Audio/Stop";
 
 import type { OPFSEventData } from "@/Workers/opfs_worker";
 
@@ -50,10 +51,25 @@ export class WorkletAudioEngine implements AudioEngine{
     
     #workletOnMessage(e: MessageEvent){
         switch(e.data.type){
-            case "add_region":
+            case "add_region": {
                 const prevTimeline = this.#context.query("timeline");
                 const newTimeline = timelineReducer(prevTimeline, {type: "add_region", data: e.data});
                 this.#context.dispatch(RecordingFinished.getDispatchEvent({param: newTimeline, emit: true}));
+                break;
+            }
+            case "playback_ended":
+                const mouseDragEnd = this.#context.query("mouseDragEnd");
+                const mouseDragStart = this.#context.query("mouseDragStart");
+                const snapToGrid = this.#context.query("snapToGrid");
+                const playheadTimeSeconds = this.#context.query("playheadTimeSeconds");
+                const start = mouseDragEnd ? (snapToGrid ? mouseDragStart.trounded : mouseDragStart.t) : playheadTimeSeconds;
+                this.#context.dispatch(
+                    Stop.getDispatchEvent({
+                        emit: true,
+                        param: start,
+                        serverMandated: false,
+                    })
+                );
                 break;
         }
     }

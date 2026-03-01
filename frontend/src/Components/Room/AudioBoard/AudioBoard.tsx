@@ -32,6 +32,7 @@ import Latency from "./BottomControls/BottomRight/Latency.tsx";
 import CommMessage from "./BottomControls/BottomRight/CommMessage.tsx";
 import TouchOverlay from "./Timeline/TouchOverlay.tsx";
 import BottomControls from "./BottomControls/BottomControls.tsx";
+import SnapToGrid from "./Timeline/SnapToGrid.tsx";
 
 type AudioBoardProps = {
     uiControllerRef:React.RefObject<UIController|null>,
@@ -44,7 +45,7 @@ export default function AudioBoard({uiControllerRef,audioControllerRef}:AudioBoa
 
     const [compactMode,setCompactMode] = useState<number>(1);
 
-    const timelinePxLen = Math.max(750,width-CONSTANTS.LEFT_CONTROLS_WIDTH-50);
+    const timelinePxLen = Math.max(1050-CONSTANTS.LEFT_CONTROLS_WIDTH - 50,width-CONSTANTS.LEFT_CONTROLS_WIDTH - 50);
 
     useEffect(()=>{
         if(height<700){
@@ -100,12 +101,7 @@ export default function AudioBoard({uiControllerRef,audioControllerRef}:AudioBoa
                         </div>
                         {/*<Playhead compactMode={compactMode} windowLen={timelinePxLen} UIControllerRef={uiControllerRef} />*/}
                     </Timeline>
-                        {/*<Button variant="default" size={compactMode==1?"lg":"sm"} onClick={()=>setSnapToGrid(prev=>!prev)} 
-                            className="border-1 border-gray-300 hover:bg-gray-800"
-                            style={{position:"absolute",right:15,top:Math.floor(120*compactMode),transform:"scale(.7)"}}>
-                            <Magnet color={snapToGrid ? "lightblue" : "white"} style={{transform:"rotate(315deg)"+(compactMode==1?"scale(1.5)":"scale(1)")}}></Magnet>
-                            <Columns4 color={snapToGrid ? "lightblue" : "white"} style={{transform:compactMode==1?"scale(1.5)":"scale(1)"}}></Columns4>
-                        </Button>*/}
+                    <SnapToGrid audioControllerRef={audioControllerRef} compactMode={compactMode}/>
                     </div>
                     <BottomControls compactMode={compactMode}>
                         <Transport compactMode={compactMode}>

@@ -19,6 +19,7 @@ import { UndoTimeline } from "../Events/Audio/UndoTimeline";
 import { RedoTimeline } from "../Events/Audio/RedoTimeline";
 import { TrimRegion } from "../Events/Audio/TrimRegion";
 import { MoveRegion } from "../Events/Audio/MoveRegion";
+import { ToggleSnapToGrid } from "../Events/Audio/SnapToGrid";
 
 
 export class AudioController{
@@ -124,9 +125,15 @@ export class AudioController{
         this.#context.dispatch(TrimRegion.getDispatchEvent({ emit: true, param: newTimeline, serverMandated: false }));
     }
 
+    //trimRegion and moveRegion are not currently actually used in the code, but they are implemented in case future use is needed
     public moveRegion(id: string, deltaSamples: number) {
         const newTimeline = timelineReducer(this.#context.query("timeline"), { type: "move_region", id, deltaSamples });
         this.#context.dispatch(MoveRegion.getDispatchEvent({ emit: true, param: newTimeline, serverMandated: false }));
+    }
+
+    public toggleSnapToGrid() {
+        const snapToGrid = this.#context.query("snapToGrid");
+        this.#context.dispatch(ToggleSnapToGrid.getDispatchEvent({ emit: true, param: !snapToGrid, serverMandated: false }));
     }
 
     public query<K extends keyof StateContainer>(query: K): StateContainer[K] {

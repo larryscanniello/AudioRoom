@@ -55,9 +55,9 @@ export const Record: EventNamespace<typeof EventTypes.START_RECORDING> = {
                 bpm: state.query('bpm'),
             },
             timeline: {
-                start: snapToGrid ? mouseDragStart.trounded : state.query('playheadTimeSeconds'),
+                start: mouseDragEnd ? (snapToGrid ? mouseDragStart.trounded : mouseDragStart.t) : state.query('playheadTimeSeconds'),
                 end: mouseDragEnd ? (snapToGrid ? mouseDragEnd.trounded : mouseDragEnd.t) : CONSTANTS.TIMELINE_LENGTH_IN_SECONDS,
-                pos: state.query('playheadTimeSeconds'),
+                pos: mouseDragEnd ? (snapToGrid ? mouseDragStart.trounded : mouseDragStart.t) : state.query('playheadTimeSeconds'),
                 staging: state.query('timeline').staging,
                 mix: state.query('timeline').mix,
             }

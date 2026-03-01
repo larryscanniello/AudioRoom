@@ -154,6 +154,37 @@ export default function timelineReducer(state: TimelineState, action: any): Time
             };
         }
 
+        case 'delete_region': {
+            const { id: deleteId } = action;
+            const currentStaging = state.staging[0] ?? [];
+            const toDelete = currentStaging.find(r => r.id === deleteId);
+            if (!toDelete) return state;
+            const newStaging = currentStaging.filter(r => r.id !== deleteId);
+            const mipmapRanges: MipmapRange[] = [{ start: toDelete.start, end: toDelete.end }];
+            return {
+                staging: [newStaging],
+                mix: state.mix,
+                undoStack: pushUndo(state, mipmapRanges),
+                redoStack: [],
+                lastRecordedRegion: null,
+                lastMipmapRanges: mipmapRanges,
+            };
+        }
+
+        case 'paste_region': {
+            const { region: pastedRegion } = action;
+            const newStaging = addRegionToStaging(state.staging[0] ?? [], pastedRegion);
+            const mipmapRanges: MipmapRange[] = [{ start: pastedRegion.start, end: pastedRegion.end }];
+            return {
+                staging: [newStaging],
+                mix: state.mix,
+                undoStack: pushUndo(state, mipmapRanges),
+                redoStack: [],
+                lastRecordedRegion: null,
+                lastMipmapRanges: mipmapRanges,
+            };
+        }
+
         case 'move_region': {
             const { id, deltaSamples } = action;
             const currentStaging = state.staging[0] ?? [];

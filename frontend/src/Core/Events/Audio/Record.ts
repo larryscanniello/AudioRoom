@@ -46,7 +46,7 @@ export const Record: EventNamespace<typeof EventTypes.START_RECORDING> = {
                 isPlaying: state.query('isPlaying'),
                 isRecording: state.query('isRecording'),
                 isStreaming: state.query('isStreaming'),
-                looping: state.query('isLooping'),
+                looping: false, //state.query('isLooping'), // for now, looping is disabled during recording
                 count: {
                     bounce: state.query('bounce'),
                     take: state.query('take'),

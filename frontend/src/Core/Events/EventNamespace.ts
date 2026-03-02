@@ -39,6 +39,7 @@ export const EventTypes = {
     DELETE_REGION: "DELETE_REGION",
     PASTE_REGION: "PASTE_REGION",
     TOGGLE_SNAP_TO_GRID: "TOGGLE_SNAP_TO_GRID",
+    AUTO_STOP: "AUTO_STOP",
 } as const;
 
 export type EventParams = {
@@ -74,6 +75,7 @@ export type EventParams = {
     [EventTypes.DELETE_REGION]: TimelineState,
     [EventTypes.PASTE_REGION]: TimelineState,
     [EventTypes.TOGGLE_SNAP_TO_GRID]: boolean,
+    [EventTypes.AUTO_STOP]: number,
 }
 /*
     I decided to go with a fat event model. Everything you need to know about an event

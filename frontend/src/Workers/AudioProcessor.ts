@@ -86,7 +86,15 @@ interface InitAudioMessage {
     };
   };
 
-
+interface LatencyTestData {
+  barker13: Float32Array;
+  barker13Elongated: Float32Array;
+  barker13PlaybackPos: number;
+  isLatencyTesting: boolean;
+  samplesRecorded: number;
+  totalSamples: number;
+  recording: Float32Array | null;
+}
 
 interface StopMessage {
   type: "STOP";
@@ -105,7 +113,11 @@ interface InitMetronomeMessage {
   clickBuffer: Float32Array;
 }
 
-type ProcessorMessage = InitAudioMessage | AudioProcessorData | StopMessage | BounceMessage | InitMetronomeMessage;
+interface LatencyTestMessage {
+  type: "START_LATENCY_TEST";
+}
+
+type ProcessorMessage = InitAudioMessage | AudioProcessorData | StopMessage | BounceMessage | InitMetronomeMessage | LatencyTestMessage;
 
 class AudioProcessor extends AudioWorkletProcessor {
   packetSize: number = CONSTANTS.PACKET_SIZE;
@@ -113,7 +125,15 @@ class AudioProcessor extends AudioWorkletProcessor {
   fiftymsInSamples: number;
   maxTimelineSample: number;
   PROCESS_FRAMES: number;
-
+  latencyTestData: LatencyTestData = {
+    barker13: new Float32Array([1,1,1,1,1,-1,-1,1,1,-1,1,-1,1]),
+    barker13Elongated: new Float32Array([1,1,1,1,1,-1,-1,1,1,-1,1,-1,1].flatMap(v => Array(50).fill(v))), // each chip repeated 50 times = 650 samples
+    barker13PlaybackPos: 0,
+    isLatencyTesting: false,
+    samplesRecorded: 0,
+    totalSamples: 0,
+    recording: null,
+  }
   buffers: ProcessorBuffers;
   readers: ProcessorReaders;
   state: ProcessorState;
@@ -254,7 +274,7 @@ class AudioProcessor extends AudioWorkletProcessor {
         end: Math.round(sampleRate * data.timeline.end),
         pos: Math.round(sampleRate * data.timeline.pos),
       });
-      const absStart = Math.round((currentTime + .05) * sampleRate);
+      const absStart = currentFrame + Math.floor(this.PROCESS_FRAMES * this.fiftymsInSamples) / this.PROCESS_FRAMES; // add 50ms to account for scheduling delay, rounded to nearest process block  
       const looping = this.state.looping;
       Object.assign(this.absolute, {
         start: absStart,
@@ -291,6 +311,14 @@ class AudioProcessor extends AudioWorkletProcessor {
       this.state.count.bounce += 1;
       this.state.count.take = -1;
     }
+    if (data.type === "START_LATENCY_TEST") {
+      this.absolute.start = currentFrame + Math.floor(this.PROCESS_FRAMES * this.fiftymsInSamples) / this.PROCESS_FRAMES; // add 50ms to account for scheduling delay, rounded to nearest process block
+      this.latencyTestData.barker13PlaybackPos = 0;
+      this.latencyTestData.samplesRecorded = 0;
+      this.latencyTestData.totalSamples = sampleRate; // 1 second
+      this.latencyTestData.recording = new Float32Array(sampleRate);
+      this.latencyTestData.isLatencyTesting = true;
+    }
   }
 
   // Compute the next click sample, accounting for non-beat-aligned loop boundaries.
@@ -325,16 +353,66 @@ class AudioProcessor extends AudioWorkletProcessor {
     return firedAt + framesToLoopEnd + framesAfterWrap;
   }
 
+  #crossCorrelateBarker13(recorded: Float32Array): number {
+    const signal = this.latencyTestData.barker13Elongated;
+    const signalLen = signal.length;
+    let maxCorr = -Infinity;
+    let bestLag = 0;
+    const maxLag = recorded.length - signalLen;
+    for (let lag = 0; lag <= maxLag; lag++) {
+      let corr = 0;
+      for (let i = 0; i < signalLen; i++) {
+        corr += recorded[lag + i] * signal[i];
+      }
+      if (corr > maxCorr) {
+        maxCorr = corr;
+        bestLag = lag;
+      }
+    }
+    return bestLag;
+  }
+
   process(
     inputs: Float32Array[][],
     outputs: Float32Array[][],
     parameters: Record<string, Float32Array>
   ): boolean {
+
+    //This if handles the latency test
+    if (this.latencyTestData.isLatencyTesting && this.absolute.start! <= currentFrame) {
+      const input = inputs[0];
+      const output = outputs[0];
+      for (let i = 0; i < this.PROCESS_FRAMES; i++) {
+        const pos = this.latencyTestData.barker13PlaybackPos;
+        const s = pos < this.latencyTestData.barker13Elongated.length
+          ? this.latencyTestData.barker13Elongated[pos]
+          : 0;
+        if (pos < this.latencyTestData.barker13Elongated.length) {
+          this.latencyTestData.barker13PlaybackPos++;
+        }
+        if (output[0]) output[0][i] = s;
+        if (output[1]) output[1][i] = s;
+      }
+      if (input && input[0] && this.latencyTestData.recording) {
+        const offset = this.latencyTestData.samplesRecorded;
+        const end = Math.min(offset + this.PROCESS_FRAMES, this.latencyTestData.recording.length);
+        this.latencyTestData.recording.set(input[0].subarray(0, end - offset), offset);
+        this.latencyTestData.samplesRecorded += this.PROCESS_FRAMES;
+      }
+      if (this.latencyTestData.samplesRecorded >= this.latencyTestData.totalSamples) {
+        this.latencyTestData.isLatencyTesting = false;
+        const delaySamples = this.#crossCorrelateBarker13(this.latencyTestData.recording!);
+        this.port.postMessage({ type: "latency_test_done", delaySamples });
+        this.latencyTestData.recording = null;
+      }
+      return true;
+    }
+
     if (!this.state.isRecording && !this.state.isPlaying) return true;
     if (currentFrame + this.PROCESS_FRAMES < this.absolute.start!) return true;
 
     // Auto-stop: non-looping playback/record or looping record reached timeline end
-    if (this.absolute.end !== null && currentFrame > this.absolute.end) {
+    if (this.absolute.end !== null && currentFrame <= this.absolute.end) {
       this.state.isPlaying = false;
       if (this.state.isRecording) {
         this.timeline.stopSamples = this.timeline.end!;
@@ -363,12 +441,14 @@ class AudioProcessor extends AudioWorkletProcessor {
       
     }
 
-    const framesToDelay = 0; //Math.max(0,this.absolute.start-currentFrame);
     const input = inputs[0];
+
     if (!input || !input[0]) return true;
 
     // take samples from the input stream and write them in the ring buffer; recording is mono
-    for (let j = framesToDelay; j < this.PROCESS_FRAMES; j++) {
+    // NOTE: start time is strategically set to arrive at exactly the start of a process block
+
+    for (let j = 0; j < this.PROCESS_FRAMES; j++) {
       if (!this.state.isRecording) break;
 
       if (this.absolute.packetPos >= this.packetSize) {
@@ -389,7 +469,9 @@ class AudioProcessor extends AudioWorkletProcessor {
 
     const stagingGain = parameters["STAGING_MASTER_VOLUME"][0];
     const mixGain = parameters["MIX_MASTER_VOLUME"][0];
+
     const output = outputs[0];
+
     for (let i = 0; i < this.PROCESS_FRAMES; i++) {
       if (!this.state.isRecording && !this.state.isPlaying) break;
       for (let channel = 0; channel < 2; channel++) {
@@ -401,6 +483,7 @@ class AudioProcessor extends AudioWorkletProcessor {
       }
     }
 
+    //handle metronome clicks
     const isValidPlaybackTime = !this.absolute.recordingEnd && (this.state.isPlaying || this.state.isRecording) //otherwise met would play in .5 seconds after recording stopped
     if (this.clickBuffer && isValidPlaybackTime) { 
       const metrGain = parameters["METRONOME_GAIN"][0];

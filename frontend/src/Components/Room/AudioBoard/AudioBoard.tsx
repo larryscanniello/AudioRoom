@@ -121,7 +121,7 @@ export default function AudioBoard({uiControllerRef,audioControllerRef}:AudioBoa
                         </Transport>
                         <ZoomSlider uiControllerRef={uiControllerRef} compactMode={compactMode} timelinePxLen={timelinePxLen}/>
                         <Settings compactMode={compactMode}/>
-                        <Latency compactMode={compactMode}/>
+                        <Latency compactMode={compactMode} audioControllerRef={audioControllerRef}/>
                         <CommMessage uiControllerRef={uiControllerRef} compactMode={compactMode}/>
                     </BottomControls>
                 </div>

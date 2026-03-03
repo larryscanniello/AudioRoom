@@ -9,5 +9,6 @@ export interface AudioEngine extends Observer{
     bounce: (data: any) => void;
     toggleMetronome: () => void;
     otherPersonRecording: (data: any) => void; 
+    startLatencyTest: () => void;
     init(): void;
 }

@@ -1,12 +1,27 @@
 import { useState } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/Components/ui/popover";
 import { Button } from "@/Components/ui/button";
+import type { AudioController } from "@/Core/Audio/AudioController";
 
-export default function Latency({compactMode}: {compactMode:number}){
+type LatencyProps = {
+    compactMode: number,
+    audioControllerRef: React.RefObject<AudioController|null>,
+}
+
+export default function Latency({compactMode,audioControllerRef}: LatencyProps){
 
     const [latencyPopoverOpen, setLatencyPopoverOpen] = useState<boolean>(false);
     const [firstEnteredRoom, _setFirstEnteredRoom] = useState<boolean>(true);
     const [popoverMoreInfo, setPopoverMoreInfo] = useState<boolean>(false);
+
+    const handleLatencyTest = () => {
+        console.log("Starting latency test...");
+        if(audioControllerRef.current){
+            audioControllerRef.current.startLatencyTest();
+        }else{
+            console.error("AudioController reference is null");
+        }
+    }
 
     return <Popover open={latencyPopoverOpen} onOpenChange={setLatencyPopoverOpen}>
             <PopoverTrigger className={"col-start-5 hover:underline text-blue-200 "+(compactMode!=1?"-translate-y-2":"")}>Latency</PopoverTrigger>
@@ -23,7 +38,7 @@ export default function Latency({compactMode}: {compactMode:number}){
                 <div className="grid place-items-center p-2">
                     <Button 
                         variant="default" size="lg" className="bg-white hover:bg-gray-300 border-1 border-gray-400 text-red-500"
-                        onClick={()=>{}}
+                        onClick={handleLatencyTest}
                         >
                         Start Latency Test
                     </Button>

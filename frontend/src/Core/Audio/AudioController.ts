@@ -20,6 +20,7 @@ import { RedoTimeline } from "../Events/Audio/RedoTimeline";
 import { TrimRegion } from "../Events/Audio/TrimRegion";
 import { MoveRegion } from "../Events/Audio/MoveRegion";
 import { ToggleSnapToGrid } from "../Events/Audio/SnapToGrid";
+import { StartLatencyTest } from "../Events/Audio/StartLatencyTest";
 
 
 export class AudioController{
@@ -91,6 +92,11 @@ export class AudioController{
 
     public isMixTrackMuted(): boolean {
         return this.#context.query("mixMuted");
+    }
+
+    public startLatencyTest(){
+        console.log("Dispatching StartLatencyTest event");
+        this.#context.dispatch(StartLatencyTest.getDispatchEvent({emit:false, param: null,serverMandated: false}));
     }
 
     public deleteStagingRegions() {

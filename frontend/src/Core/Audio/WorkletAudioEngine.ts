@@ -58,7 +58,6 @@ export class WorkletAudioEngine implements AudioEngine{
                 console.log("Add region new timeline", newTimeline);
                 break;
             case "playback_ended":
-                console.log("playback ended message received in WorkletAudioEngine");
                 const mouseDragEnd = this.#context.query("mouseDragEnd");
                 const mouseDragStart = this.#context.query("mouseDragStart");
                 const snapToGrid = this.#context.query("snapToGrid");
@@ -72,6 +71,12 @@ export class WorkletAudioEngine implements AudioEngine{
                     })
                 );
                 break;
+            case "latency_test_done": {
+                const delaySamples: number = e.data.delaySamples;
+                const delayMs = (delaySamples / this.#hardware.audioContext.sampleRate) * 1000;
+                console.log(`[LatencyTest] delay: ${delaySamples} samples / ${delayMs.toFixed(2)} ms`);
+                break;
+            }
         }
     }
 
@@ -107,6 +112,10 @@ export class WorkletAudioEngine implements AudioEngine{
         const isMetronomeOn = this.#context.query("isMetronomeOn");
         const param = this.#hardware.processorNode.parameters.get(MIXER_PARAMS.METRONOME_GAIN);
         if(param) param.value = isMetronomeOn ? 1 : 0;
+    }
+
+    public startLatencyTest(): void {
+        this.#hardware.processorNode.port.postMessage({ type: "START_LATENCY_TEST" });
     }
 
     public handlePacket(data: DecodeAudioData){

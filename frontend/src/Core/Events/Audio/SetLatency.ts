@@ -1,5 +1,5 @@
 import { EventTypes } from "../EventNamespace";
-import type { State, StateContainer } from "@/Core/State/State";
+import type { State } from "@/Core/State/State";
 import { stateTransactionUtil } from "../genericEventFunctions";
 
 import type { AudioEngine } from "@/Core/Audio/AudioEngine";
@@ -9,25 +9,23 @@ import type { SocketManager } from "@/Core/Sockets/SocketManager";
 import type { EventNamespace } from "../EventNamespace";
 import type { TransactionData } from "@/Core/State/State";
 import type { WebRTCManager } from "@/Core/WebRTC/WebRTCManager";
-import { Stop } from "./Stop";
 
-type Payload = {type: typeof EventTypes.STOP, sharedSnapshot: Partial<StateContainer>}
 
-export const LatencyTestDone: EventNamespace<typeof EventTypes.LATENCY_TEST_DONE> = {
+export const SetLatency: EventNamespace<typeof EventTypes.SET_LATENCY> = {
     sharedState: false,
 
     getDispatchEvent: ({ emit,param,serverMandated }) => {
          return {
-            type: EventTypes.LATENCY_TEST_DONE,
+            type: EventTypes.SET_LATENCY,
             emit,
             serverMandated,
             transactionData: {
                 transactionQueries: [],
                 mutations: [
-                    {key: "delayCompensation", value: param}
+                    { key: "latency", value: param }
                 ]
             },
-            getEventNamespace: () => { return Stop; }
+            getEventNamespace: () => { return SetLatency; }
         }},
 
     stateTransaction(state: State, transactionData: TransactionData): boolean {
@@ -38,8 +36,8 @@ export const LatencyTestDone: EventNamespace<typeof EventTypes.LATENCY_TEST_DONE
         return null;
     },
 
-    executeAudio(engine: AudioEngine, _data: StopAudioProcessorData): void {
-        engine.startLatencyTest();
+    executeAudio(_engine: AudioEngine, _data: StopAudioProcessorData): void {
+        
     },
 
     executeUI(_engine: UIEngine): void {
@@ -49,7 +47,7 @@ export const LatencyTestDone: EventNamespace<typeof EventTypes.LATENCY_TEST_DONE
 
     },
 
-    executeSocket(_socketManager: SocketManager, _transactionData: TransactionData, _data: Payload): void {
+    executeSocket(_socketManager: SocketManager, _transactionData: TransactionData, _data: any): void {
 
     },
 };

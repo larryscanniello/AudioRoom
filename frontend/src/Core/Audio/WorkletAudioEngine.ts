@@ -13,6 +13,9 @@ import { RecordingFinished } from "../Events/Audio/RecordingFinished";
 import { AutoStop } from "../Events/Audio/AutoStop";
 
 import type { OPFSEventData } from "@/Workers/opfs_worker";
+import { SetLatency } from "../Events/Audio/SetLatency";
+
+import { CONSTANTS } from "@/Constants/constants";
 
 type Hardware = {
     audioContext: AudioContext,
@@ -36,7 +39,7 @@ type Memory = {
 }
 
 export class WorkletAudioEngine implements AudioEngine{
-    #mixer: Mixer;
+    _mixer: Mixer;
     #hardware: Hardware;
     #mediaProvider: MediaProvider|undefined;
     #context: GlobalContext;
@@ -44,7 +47,7 @@ export class WorkletAudioEngine implements AudioEngine{
     constructor({hardware,mediaProvider,mixer,context}:WorkletAudioEngineDependencies) {
         this.#hardware = hardware;
         hardware.processorNode.port.onmessage = this.#workletOnMessage.bind(this);
-        this.#mixer = mixer;
+        this._mixer = mixer;
         this.#mediaProvider = mediaProvider;
         this.#context = context;
     }
@@ -58,6 +61,7 @@ export class WorkletAudioEngine implements AudioEngine{
                 console.log("Add region new timeline", newTimeline);
                 break;
             case "playback_ended":
+                console.log("Playback ended, auto stopping");
                 const mouseDragEnd = this.#context.query("mouseDragEnd");
                 const mouseDragStart = this.#context.query("mouseDragStart");
                 const snapToGrid = this.#context.query("snapToGrid");
@@ -73,8 +77,13 @@ export class WorkletAudioEngine implements AudioEngine{
                 break;
             case "latency_test_done": {
                 const delaySamples: number = e.data.delaySamples;
-                const delayMs = (delaySamples / this.#hardware.audioContext.sampleRate) * 1000;
-                console.log(`[LatencyTest] delay: ${delaySamples} samples / ${delayMs.toFixed(2)} ms`);
+                const ctxLatencySamples = Math.round((this.#hardware.audioContext.outputLatency || 0) * CONSTANTS.SAMPLE_RATE);
+                const latency = {totalDelayCompensationSamples: delaySamples, ctxLatencySamples};
+                this.#context.dispatch(SetLatency.getDispatchEvent({emit: false, param: latency, serverMandated: false}));
+                const ctx = this.#hardware.audioContext;
+                console.log(
+                    `[LatencyTest] delay: ${delaySamples} samples /
+                     ${((delaySamples / ctx.sampleRate) * 1000).toFixed(2)} ms, output latency: ${ctx.outputLatency} s / ${(ctx.outputLatency * 1000).toFixed(2)} ms`);
                 break;
             }
         }
@@ -91,8 +100,19 @@ export class WorkletAudioEngine implements AudioEngine{
     }
 
     public record(data: AudioProcessorData) {
+        this.#updateCtxLatency(data);
         this.#hardware.processorNode.port.postMessage(data);
         this.#hardware.opfsWorker.postMessage(data);
+    }
+
+    #updateCtxLatency(data: AudioProcessorData){
+        const outputLatency = this.#hardware.audioContext.outputLatency || 0;
+        const delta = Math.round(outputLatency * CONSTANTS.SAMPLE_RATE) - data.state.latency.ctxLatencySamples;
+        data.state.latency = {
+            totalDelayCompensationSamples: data.state.latency.totalDelayCompensationSamples + delta,
+            ctxLatencySamples: Math.round(outputLatency * CONSTANTS.SAMPLE_RATE),
+        };
+        this.#context.dispatch(SetLatency.getDispatchEvent({emit: false, param: data.state.latency, serverMandated: false}));
     }
 
     public stop(data:StopAudioProcessorData) {
@@ -137,7 +157,7 @@ export class WorkletAudioEngine implements AudioEngine{
         );
         if(!this.#mediaProvider){
             throw new Error("Media provider is not set in WorkletAudioEngine. Cannot set packet handler for incoming audio packets.");
-        }
+        }        
         this.#mediaProvider.setHandlePacket(this.handlePacket.bind(this));
     }
 }

@@ -16,7 +16,6 @@ export interface StateContainer {
     }
     snapToGrid: boolean;
     timeline: TimelineState;
-    delayCompensation: number[];
     isPlaying: boolean;
     isRecording: boolean;
     bounce: number;
@@ -33,6 +32,10 @@ export interface StateContainer {
     mixMuted: boolean;
     remoteStreamAttached: boolean;
     liveRecording: {start: number, end:number};
+    latency: {
+        totalDelayCompensationSamples: number;
+        ctxLatencySamples: number;
+    }
 }
 
 export type TransactionQuery<K extends keyof StateContainer> = {
@@ -79,7 +82,6 @@ export class State {
             },
             snapToGrid: true,
             timeline: { staging: [[]], mix: [], undoStack: [], redoStack: [], lastRecordedRegion: null, lastMipmapRanges: [] },
-            delayCompensation: [0],
             isPlaying: false,
             isRecording: false,
             bounce: 0,
@@ -96,13 +98,17 @@ export class State {
             mixMuted: false,
             remoteStreamAttached: false,
             liveRecording: {start: 0, end: 0},
+            latency: {
+                totalDelayCompensationSamples: 0,
+                ctxLatencySamples: 0,
+            }
         };
     #render: React.Dispatch<React.SetStateAction<number>> | null = null;
 
     constructor(roomID: string | null = null) {
         this.#reactState = new Set([
             "bpm","isLooping","isStreaming","isMetronomeOn",
-            "snapToGrid","timeline","delayCompensation",
+            "snapToGrid","timeline","latency",
             "commMessage","stagingMasterVolume","mixMasterVolume",
             "stagingMuted","mixMuted","playheadTimeSeconds","remoteStreamAttached",
         ]);

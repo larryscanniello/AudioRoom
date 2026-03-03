@@ -53,6 +53,7 @@ export const Record: EventNamespace<typeof EventTypes.START_RECORDING> = {
                 },
                 packetCount: 0,
                 bpm: state.query('bpm'),
+                latency: state.query('latency'),
             },
             timeline: {
                 start: mouseDragEnd ? (snapToGrid ? mouseDragStart.trounded : mouseDragStart.t) : state.query('playheadTimeSeconds'),

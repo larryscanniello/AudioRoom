@@ -54,6 +54,7 @@ export const Play:EventNamespace<typeof EventTypes.START_PLAYBACK> = {
                 },
                 packetCount: 0,
                 bpm: state.query('bpm'),
+                latency: state.query('latency'),
             },
             timeline: {
                 start: mouseDragEnd ? (snapToGrid ? Math.min(mouseDragStart.trounded, mouseDragEnd.trounded) : Math.min(mouseDragStart.t, mouseDragEnd.t)) : state.query('playheadTimeSeconds'),

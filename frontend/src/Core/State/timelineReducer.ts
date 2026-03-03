@@ -52,7 +52,7 @@ export default function timelineReducer(state: TimelineState, action: any): Time
                 bounce: bounceNumber,
                 take: takeNumber,
                 name: fileName,
-                offset: delayCompensation[0],
+                offset: delayCompensation,
                 clipStart: timelineStart,
                 clipEnd: timelineEnd,
             };

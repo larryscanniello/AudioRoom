@@ -1,4 +1,7 @@
 import type { DecodeAudioData } from "@/Types/AudioState";
+import type { GlobalContext } from "./Mediator";
+import { SetLatency } from "./Events/Audio/SetLatency";
+import { CONSTANTS } from "@/Constants/constants";
 
 export class MediaProvider {
     #standaloneMode: boolean = false;
@@ -8,10 +11,25 @@ export class MediaProvider {
     #sourceNode: MediaStreamAudioSourceNode | null = null;
     #audioContext: AudioContext;
     #handlePacket: ((data:DecodeAudioData) => void) | null = null;
+    #globalContext: GlobalContext
 
-    constructor(audioContext: AudioContext,standaloneMode:boolean) {
+    constructor(audioContext: AudioContext,standaloneMode:boolean, globalContext: GlobalContext) {
         this.#audioContext = audioContext;
         this.#standaloneMode = standaloneMode;
+        this.#globalContext = globalContext;
+        navigator.mediaDevices.ondevicechange = this.onDeviceChange.bind(this);
+    }
+
+    
+    onDeviceChange(){
+        const latency = this.#globalContext.query("latency");
+        const prevCtxLatency = latency.ctxLatencySamples;
+        const newCtxLatency = Math.round((this.#audioContext.outputLatency || 0) * CONSTANTS.SAMPLE_RATE);
+        const delta = newCtxLatency - prevCtxLatency;
+        const newTotalLatency = latency.totalDelayCompensationSamples + delta;
+        const newLatency = {totalDelayCompensationSamples: newTotalLatency, ctxLatencySamples: newCtxLatency};
+        console.log(`[Device Change] new latency`, newLatency);
+        this.#globalContext.dispatch(SetLatency.getDispatchEvent({emit: false, param: newLatency, serverMandated: false}));
     }
 
     receivePacket(data: DecodeAudioData){

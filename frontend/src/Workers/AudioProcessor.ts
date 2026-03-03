@@ -60,6 +60,10 @@ interface ProcessorState {
     bounce: number;
     take: number;
   };
+  latency: {
+    totalDelayCompensationSamples: number;
+    ctxLatencySamples: number;
+  }
 }
 
 //all in samples, all relative to the start of the timeline (not absolute time)
@@ -200,6 +204,10 @@ class AudioProcessor extends AudioWorkletProcessor {
         bounce: 0,
         take: -1,
       },
+      latency:{
+        totalDelayCompensationSamples: 0,
+        ctxLatencySamples: 0,
+      }
     };
 
     this.clickBuffer = null;
@@ -299,7 +307,7 @@ class AudioProcessor extends AudioWorkletProcessor {
           takeNumber: this.state.count.take,
           bounceNumber: this.state.count.bounce,
           fileName: `bounce_${this.state.count.bounce}_take_${this.state.count.take}`,
-          delayCompensation: [0],
+          delayCompensation: this.state.latency.totalDelayCompensationSamples,
         });
       }
       // Null out absolute.end so the auto-stop path in process() never fires for manual stops
@@ -412,12 +420,11 @@ class AudioProcessor extends AudioWorkletProcessor {
     if (currentFrame + this.PROCESS_FRAMES < this.absolute.start!) return true;
 
     // Auto-stop: non-looping playback/record or looping record reached timeline end
-    if (this.absolute.end !== null && currentFrame <= this.absolute.end) {
+    if (this.absolute.end !== null && currentFrame >= this.absolute.end) {
       this.state.isPlaying = false;
       if (this.state.isRecording) {
         this.timeline.stopSamples = this.timeline.end!;
         this.absolute.recordingEnd = this.absolute.end + this.halfSecondInSamples;
-        console.log({timelineStart: this.timeline.start, timelineEnd: this.timeline.end, timelinePos: this.timeline.pos, absoluteStart: this.absolute.start, absoluteEnd: this.absolute.end, recordingEnd: this.absolute.recordingEnd});
         this.port.postMessage({
           type: "add_region",
           timelineStart: this.timeline.start,
@@ -425,7 +432,7 @@ class AudioProcessor extends AudioWorkletProcessor {
           takeNumber: this.state.count.take,
           bounceNumber: this.state.count.bounce,
           fileName: `bounce_${this.state.count.bounce}_take_${this.state.count.take}`,
-          delayCompensation: [0],
+          delayCompensation: this.state.latency.totalDelayCompensationSamples,
         });
       }
       this.absolute.end = null; // prevent re-firing

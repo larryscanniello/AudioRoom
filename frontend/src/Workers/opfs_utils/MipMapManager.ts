@@ -117,7 +117,7 @@ export class MipMapManager {
                 } else {
                     const toFill = Math.min(region.end - currPos, bufferEndPos - bufferPos);
                     const subarray = buffer.subarray(bufferPos, bufferPos + toFill);
-                    bounces[region.bounce].takeHandles[region.name].read(subarray, { at: (currPos - region.start) * Float32Array.BYTES_PER_ELEMENT });
+                    bounces[region.bounce].takeHandles[region.name].read(subarray, { at: (currPos - region.start + region.offset) * Float32Array.BYTES_PER_ELEMENT });
                     currPos += toFill;
                     bufferPos += toFill;
                 }

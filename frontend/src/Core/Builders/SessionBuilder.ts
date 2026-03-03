@@ -215,7 +215,7 @@ export class SessionBuilder{
         }
         this.#mediator = new Mediator(state);
         const globalContext = this.#mediator.getGlobalContext();
-        this.#mediaProvider = new MediaProvider(new AudioContext({latencyHint: "interactive"}), this.#config.standaloneMode);
+        this.#mediaProvider = new MediaProvider(new AudioContext({latencyHint: 0}), this.#config.standaloneMode, globalContext);
         this.#socketManager = this.#config.socketManager ? new SocketManager(globalContext) : null;
         if(this.#socketManager){ //later I want to enable just video chat alone, but for now, this will do
             this.#mediator.attach(this.#socketManager);

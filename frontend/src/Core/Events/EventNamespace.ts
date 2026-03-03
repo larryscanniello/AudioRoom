@@ -41,7 +41,7 @@ export const EventTypes = {
     TOGGLE_SNAP_TO_GRID: "TOGGLE_SNAP_TO_GRID",
     AUTO_STOP: "AUTO_STOP",
     START_LATENCY_TEST: "START_LATENCY_TEST",
-    LATENCY_TEST_DONE: "LATENCY_TEST_DONE",
+    SET_LATENCY: "SET_LATENCY",
 } as const;
 
 export type EventParams = {
@@ -79,7 +79,7 @@ export type EventParams = {
     [EventTypes.TOGGLE_SNAP_TO_GRID]: boolean,
     [EventTypes.AUTO_STOP]: number,
     [EventTypes.START_LATENCY_TEST]: null,
-    [EventTypes.LATENCY_TEST_DONE]: number[],
+    [EventTypes.SET_LATENCY]: {ctxLatencySamples: number, totalDelayCompensationSamples: number},
 }
 /*
     I decided to go with a fat event model. Everything you need to know about an event

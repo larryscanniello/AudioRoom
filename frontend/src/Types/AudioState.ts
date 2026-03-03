@@ -86,6 +86,10 @@ interface AudioProcessorData {
         },
         packetCount: number,
         bpm: number,
+        latency: {
+            totalDelayCompensationSamples: number,
+            ctxLatencySamples: number,
+        },
     },
     timeline: {
         start: number,

@@ -139,6 +139,14 @@ export class SocketManager implements Observer {
                 this.#context.dispatch(MoveRegion.getDispatchEvent({emit: false,param:state.timeline,serverMandated: true}));
                 this.#context.commMessage(`Partner moved a region`,"white");
                 break;
+            case EventTypes.PASTE_REGION:
+                // Handled by state change
+                this.#context.commMessage(`Partner pasted a region`,"white");
+                break;
+            case EventTypes.DELETE_REGION:
+                // Handled by state change
+                this.#context.commMessage(`Partner deleted a region`,"white");
+                break;
             default:
                 console.warn("Received unhandled socket event type:", type);
         }
@@ -195,6 +203,12 @@ export class SocketManager implements Observer {
                 break;
             case EventTypes.MOVE_REGION:
                 this.#context.commMessage(`Partner region moved`,"white");
+                break;
+            case EventTypes.PASTE_REGION:
+                this.#context.commMessage(`Partner region pasted`,"white");
+                break;
+            case EventTypes.DELETE_REGION:
+                this.#context.commMessage(`Partner region deleted`,"white");
                 break;
             default:
                 console.warn("Received unhandled event acknowledgement type:", type);

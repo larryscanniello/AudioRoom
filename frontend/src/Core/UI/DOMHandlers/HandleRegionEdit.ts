@@ -7,6 +7,7 @@ import { TrimRegion } from "@/Core/Events/Audio/TrimRegion";
 import { MoveRegion } from "@/Core/Events/Audio/MoveRegion";
 import { DeleteRegion } from "@/Core/Events/Audio/DeleteRegion";
 import { PasteRegion } from "@/Core/Events/Audio/PasteRegion";
+import { SplitRegion } from "@/Core/Events/Audio/SplitRegion";
 import { paintPlayhead } from "@/Core/UI/DrawCallbacks/drawPlayhead";
 
 const EDGE_ZONE_PX = 8;
@@ -253,7 +254,18 @@ export class HandleRegionEdit {
         if (ctrl && e.key === 'c') { e.preventDefault(); this.#copy(); return; }
         if (ctrl && e.key === 'x') { e.preventDefault(); this.#cut();  return; }
         if (ctrl && e.key === 'v') { e.preventDefault(); this.#paste(); return; }
+        if (!ctrl && e.key.toLowerCase() === 'x') { e.preventDefault(); this.#splitAtPlayhead(); return; }
     };
+
+    #splitAtPlayhead() {
+        const playheadSamples = Math.round(
+            this.#context.query('playheadTimeSeconds') * CONSTANTS.SAMPLE_RATE
+        );
+        const timeline = this.#context.query('timeline');
+        const newTimeline = timelineReducer(timeline, { type: 'split_region', splitPointSamples: playheadSamples });
+        if (newTimeline === timeline) return;
+        this.#context.dispatch(SplitRegion.getDispatchEvent({ emit: true, param: newTimeline, serverMandated: false }));
+    }
 
     #deleteSelected() {
         if (!this.#selectedId) return;

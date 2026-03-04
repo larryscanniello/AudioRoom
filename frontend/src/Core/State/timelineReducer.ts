@@ -212,6 +212,32 @@ export default function timelineReducer(state: TimelineState, action: any): Time
             };
         }
 
+        case 'split_region': {
+            const { splitPointSamples } = action;
+            const currentStaging = state.staging[0] ?? [];
+            const region = currentStaging.find(
+                r => r.start < splitPointSamples && r.end > splitPointSamples
+            );
+            if (!region) return state;
+            if (
+                splitPointSamples - region.start < MIN_REGION_SAMPLES ||
+                region.end - splitPointSamples < MIN_REGION_SAMPLES
+            ) return state;
+            const leftPart: Region = { ...region, id: crypto.randomUUID(), end: splitPointSamples };
+            const rightPart: Region = { ...region, id: crypto.randomUUID(), start: splitPointSamples };
+            const stagingWithout = currentStaging.filter(r => r.id !== region.id);
+            const newStaging = [...stagingWithout, leftPart, rightPart].sort((a, b) => a.start - b.start);
+            const mipmapRanges: MipmapRange[] = [{ start: region.start, end: region.end }];
+            return {
+                staging: [newStaging],
+                mix: state.mix,
+                undoStack: pushUndo(state, mipmapRanges),
+                redoStack: [],
+                lastRecordedRegion: null,
+                lastMipmapRanges: mipmapRanges,
+            };
+        }
+
         default:
             if (import.meta.env.PRODUCTION) {
                 return state;

@@ -60,7 +60,7 @@ export function paintPlayhead(
     ctx.stroke();
 
     if (liveStartSec !== null && liveEndSec !== null) {
-        ctx.fillStyle = "rgb(10, 138, 74, 0.5)";
+        ctx.fillStyle = "rgb(214, 127, 56,.5)";
         for (const region of stagingRegions) {
             const rStart = region.start / CONSTANTS.SAMPLE_RATE;
             const rEnd = region.end / CONSTANTS.SAMPLE_RATE;

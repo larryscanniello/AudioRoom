@@ -18,10 +18,10 @@ function clipAgainst(existing: Region, newRegion: Region): Region[] {
     }
     const parts: Region[] = [];
     if (existing.start < newRegion.start) {
-        parts.push({ ...existing, end: newRegion.start });
+        parts.push({ ...existing, id: crypto.randomUUID(), end: newRegion.start });
     }
     if (existing.end > newRegion.end) {
-        parts.push({ ...existing, start: newRegion.end });
+        parts.push({ ...existing, id: crypto.randomUUID(), start: newRegion.end });
     }
     return parts;
 }

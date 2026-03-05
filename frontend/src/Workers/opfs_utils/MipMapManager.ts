@@ -16,7 +16,6 @@ export class MipMapManager {
         }
         this.staging = mipMap.staging;
         this.mix = mipMap.mix;
-
         this.halfSize = CONSTANTS.MIPMAP_HALF_SIZE;
         this.resolutions = CONSTANTS.MIPMAP_RESOLUTIONS;
         this.totalTimelineSamples = CONSTANTS.SAMPLE_RATE * CONSTANTS.TIMELINE_LENGTH_IN_SECONDS;

@@ -7,6 +7,7 @@ export function writeToOPFSUtil(
     handle: any,
     mipMapManager: MipMapManager|null,
     timelineStartSample: number,
+    mipMapOffset: number
 ):number{
     let newReadPtr = readPtr;
     while(samplesToWrite > 0){
@@ -16,8 +17,8 @@ export function writeToOPFSUtil(
         const fileSizeInSamples = handle.getSize() / Float32Array.BYTES_PER_ELEMENT;
         mipMapManager && mipMapManager.write(
             {
-                startSample: timelineStartSample + fileSizeInSamples - subarray.length,
-                endSample: timelineStartSample + fileSizeInSamples,
+                startSample: timelineStartSample + fileSizeInSamples - subarray.length - mipMapOffset,
+                endSample: timelineStartSample + fileSizeInSamples - mipMapOffset,
             },
             [],[], 
             "staging",

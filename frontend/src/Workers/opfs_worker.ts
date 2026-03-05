@@ -73,6 +73,7 @@ export type OPFS = {
     incomingStream:{
         isInitializing: boolean;
         queue: DecodeAudioData[];
+        mipMapOffset: number;
     }
 }
 
@@ -103,6 +104,7 @@ const opfs:OPFS = {
     incomingStream:{
         isInitializing: false,
         queue: [],
+        mipMapOffset: 0,
     }
 }
 
@@ -239,7 +241,7 @@ if (typeof self !== "undefined") { // for testing, otherwise in testing self is 
                 const init_recording = async () => {
                     if(!pointers.record.readOPFS || !pointers.record.readStream || !pointers.record.write || !pointers.record.isFull ||
                         !pointers.mix.read || !pointers.mix.write || !pointers.mix.isFull || !buffers.mix ||
-                        !opfs.config.TRACK_COUNT || !opfs.bounces || !buffers.record
+                        !opfs.config.TRACK_COUNT || !opfs.bounces || !buffers.record || !opfs.mipMapManager
                     ){
                         console.error("Can't record. Recorder not initialized.");
                         return;
@@ -269,8 +271,8 @@ if (typeof self !== "undefined") { // for testing, otherwise in testing self is 
                     opfs.timeline.posSample.mix = start;
                     opfs.timeline.posSample.staging = start;
 
+                    opfs.incomingStream.mipMapOffset = e.data.state.latency.totalDelayCompensationSamples;
                     
-
                     looping = e.data.state.looping;
                     proceed.record = "ready";
                     writeToOPFS(
@@ -600,6 +602,7 @@ function writeToOPFS(
         handle,
         opfs.mipMapManager,
         opfs.timeline.startSample,
+        opfs.incomingStream.mipMapOffset,
     );
     if(readPtr !== oldReadPtr){
         postMessage({type:"staging_mipmap_done"})

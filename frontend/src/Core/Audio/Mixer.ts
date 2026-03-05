@@ -5,21 +5,21 @@ type masterGainParams = {
     mixMasterVolumeParam: AudioParam,
 }
 
-export class Mixer {
-    #audioContext: AudioContext;
-    #mixMasterVolume: {param: AudioParam, muted: boolean};
-    #stagingMasterVolume: {param: AudioParam, muted: boolean};
-    #mixTracksGainNodes: GainNode[];
+export class Mixer { 
+
+    _audioContext: AudioContext;
+    #mixMasterVolume: {param: AudioParam, muted: boolean, latent: number};
+    #stagingMasterVolume: {param: AudioParam, muted: boolean, latent: number};
     #context: GlobalContext;
 
-    constructor(numberOfMixChannels: number = 16,
+    constructor(_numberOfMixChannels: number = 16,
                 audioContext: AudioContext,
                 masterGainParams: masterGainParams,
                 context: GlobalContext) {
-        this.#audioContext = audioContext;
+        this._audioContext = audioContext;
         this.#stagingMasterVolume = { latent: 1.0, param: masterGainParams.stagingMasterVolumeParam, muted: false};
         this.#mixMasterVolume = { latent: 1.0, param: masterGainParams.mixMasterVolumeParam, muted: false};
-        this.#mixTracksGainNodes = new Array(numberOfMixChannels).fill(null).map(() => this.#audioContext.createGain());
+        this.#context = context;
     }
 
     setStagingMasterVolume(volume: number) {

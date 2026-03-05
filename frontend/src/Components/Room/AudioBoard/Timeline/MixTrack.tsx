@@ -1,4 +1,3 @@
-import { CONSTANTS } from "@/Constants/constants";
 import type { Region } from "@/Types/AudioState";
 import { useRef } from "react";
 import { DOMElements } from "@/Constants/DOMElements";

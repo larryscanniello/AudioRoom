@@ -140,7 +140,6 @@ export class SessionBuilder{
         const audioContext = mediaProvider.getAudioContext();
         let audioEngine: AudioEngine;
         let processorNode = undefined; 
-        let memory = undefined;
         let mixer = undefined;
         if(true /*temporary*/ || this.#config.audEngineType === "worklet"){
             if(!this.#config.workletFilePath){

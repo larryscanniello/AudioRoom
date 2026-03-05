@@ -32,7 +32,7 @@ export const Metronome: EventNamespace<typeof EventTypes.TOGGLE_METRONOME> = {
         return state.getSharedStateSnapshot();
     },
 
-    executeAudio(audioEngine: AudioEngine, data: any): void {
+    executeAudio(audioEngine: AudioEngine, _data: any): void {
         audioEngine.toggleMetronome();
     },
 

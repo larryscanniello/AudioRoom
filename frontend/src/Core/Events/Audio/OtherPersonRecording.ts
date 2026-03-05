@@ -48,6 +48,8 @@ export const OtherPersonRecording: EventNamespace<typeof EventTypes.OTHER_PERSON
                     take: state.query('take'),
                 },
                 packetCount: 0,
+                bpm: state.query('bpm'),
+                latency: state.query('latency'),
             },
             timeline: {
                 start: state.query('playheadTimeSeconds'),

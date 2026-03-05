@@ -10,6 +10,8 @@ export default function Landing() {
   const [goToRoomValue,setGoToRoomValue] = useState("");
   const navigate = useNavigate();
 
+  console.log("Welcome to the landing page! 2");
+
   return <div className="min-h-screen grid grid-cols-[1fr_auto_1fr]">
         <div/>
         <div className="bg-[rgba(89,79,79,0.5)] px-10 py-8">

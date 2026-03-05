@@ -1,6 +1,6 @@
 import type { AudioProcessorData } from "@/Types/AudioState";
 import type { Observer } from "@/Types/Observer";
-import type { DataConnection } from "Peerjs";
+import type { DataConnection } from "peerjs";
 
 export interface WebRTCManager extends Observer {
     getRemoteStream(): MediaStream | null;

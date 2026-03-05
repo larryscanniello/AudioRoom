@@ -17,6 +17,10 @@ import { State } from "../State/State";
 import type { MipMap } from "../UI/UIEngine";
 import type { Buffers, Pointers } from "@/Types/AudioState";
 
+import audioWorkletUrl from '../../Workers/AudioProcessor?url';
+import OPFSWorker from '../../Workers/opfs_worker?worker';
+import OpusWorker from '../../Workers/opus_worker?worker';
+
 type Config = {
     audEngineType: "worklet" | "C++" | "inmemory",
     standaloneMode: boolean,
@@ -63,13 +67,8 @@ export class SessionBuilder{
         return this;
     }
 
-    withAudEngine(type: "worklet" | "C++" | "inmemory", filePaths?: {opfsFilePath: string, workletFilePath: string}){
+    withAudEngine(type: "worklet" | "C++" | "inmemory"){
         this.#config.audEngineType = type;
-        if(type === "worklet" && filePaths){
-            this.#config.audEngineType = "worklet";
-            this.#config.opfsFilePath = filePaths.opfsFilePath;
-            this.#config.workletFilePath = filePaths.workletFilePath;
-        }
         return this;
     }
 
@@ -142,19 +141,13 @@ export class SessionBuilder{
         let processorNode = undefined; 
         let mixer = undefined;
         if(true /*temporary*/ || this.#config.audEngineType === "worklet"){
-            if(!this.#config.workletFilePath){
-                throw new Error("Worklet file path must be provided for worklet audio engine");
-            }
             if (audioContext.state === 'suspended') {
                 await audioContext.resume();
             }
-            if(!this.#config.workletFilePath){
-                throw new Error("Worklet file path must be provided for worklet audio engine");
-            }
             try {
-                await audioContext.audioWorklet.addModule(new URL(this.#config.workletFilePath, import.meta.url));
+                await audioContext.audioWorklet.addModule(new URL(audioWorkletUrl, import.meta.url));
             } catch (e) {
-                throw new Error(`Failed to load worklet at '${this.#config.workletFilePath}'. \n1. Check Console for "Diagnostic pre-fetch" errors.\n2. If the file is valid JS, check inside 'AudioProcessor.js' for syntax errors.\nOriginal Error: ${e}`);
+                throw new Error(`Failed to load worklet at '${audioWorkletUrl}'. \n1. Check Console for "Diagnostic pre-fetch" errors.\n2. If the file is valid JS, check inside 'AudioProcessor.js' for syntax errors.\nOriginal Error: ${e}`);
             }
             processorNode = new AudioWorkletNode(audioContext,'AudioProcessor');
             const stagingMasterVolumeParam = processorNode.parameters.get(MIXER_PARAMS.STAGING_MASTER_VOLUME);
@@ -164,13 +157,9 @@ export class SessionBuilder{
             }
             const volumeParams = {stagingMasterVolumeParam, mixMasterVolumeParam};
             mixer = new Mixer(this.#config.numberOfMixTracks, audioContext,volumeParams,globalContext);
-            if(!this.#config.opfsFilePath){
-                throw new Error("OPFS file path must be provided for worklet audio engine");
-            }
             if(!this.#opfsWorker){
-                this.#opfsWorker = new Worker(new URL(this.#config.opfsFilePath, import.meta.url), {type: "module"});
+                this.#opfsWorker = new OPFSWorker();
             }
-            console.log("In builder: OPFS worker",this.#opfsWorker,this.#config.opfsFilePath);
             if(!this.#memory){
                 this.#memory = this.#allocateBuffersandPointers();
             }
@@ -188,11 +177,8 @@ export class SessionBuilder{
         const keydownManager = new KeydownManager(context);
         const domHandlers = new DOMHandlers(context);
         const mipMap = this.#allocateMipMap();
-        if(!this.#config.opfsFilePath){
-            throw new Error("OPFS file path must be provided for worklet audio engine");
-        }
         if(!this.#opfsWorker){
-            this.#opfsWorker = new Worker(new URL(this.#config.opfsFilePath, import.meta.url), {type: "module"});
+            this.#opfsWorker = new OPFSWorker();
         }
         const UIhardware = {opfsWorker:this.#opfsWorker, mipMap}
         const uiEngine = new UIEngine(UIhardware,mediaProvider,context);
@@ -220,7 +206,7 @@ export class SessionBuilder{
             this.#mediator.attach(this.#socketManager);
             this.#socketManager.initDAWConnection();
         }
-        const opusWorker = new Worker(new URL("../../Workers/opus_worker.js", import.meta.url), {type: "module"});
+        const opusWorker = new OpusWorker();
         if(!this.#memory){
             this.#memory = this.#allocateBuffersandPointers();
         }

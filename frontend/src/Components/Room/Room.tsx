@@ -60,10 +60,7 @@ export default function Room() {
 
         builderRef.current = await new SessionBuilder(roomID)
           .withReact(setDawInternalState)
-          .withAudEngine("worklet", {
-            opfsFilePath: "../../Workers/opfs_worker.ts",
-            workletFilePath: "../../Workers/AudioProcessor.ts",
-          })
+          .withAudEngine("worklet")
           .withMixTracks(16)
           .withSockets()
           .withPeerJSWebRTC()

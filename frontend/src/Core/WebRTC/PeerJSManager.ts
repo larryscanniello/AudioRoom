@@ -1,7 +1,8 @@
 import { MediaProvider } from "../MediaProvider";
 import type { DispatchEvent, GlobalContext } from "../Mediator";
-import { Peer } from "Peerjs"
-import type { DataConnection } from "Peerjs"; 
+
+import Peer, {type DataConnection } from "peerjs";
+
 import { JoinSocketRoom } from "../Events/Sockets/JoinSocketRoom";
 import type { WebRTCManager } from "./WebRTCManager";
 import { RemoteStreamAttached } from "../Events/WebRTC/RemoteStreamAttached";

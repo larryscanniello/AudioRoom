@@ -58,10 +58,8 @@ export class WorkletAudioEngine implements AudioEngine{
                 const prevTimeline = this.#context.query("timeline");
                 const newTimeline = timelineReducer(prevTimeline, {type: "add_region", data: e.data});
                 this.#context.dispatch(RecordingFinished.getDispatchEvent({param: newTimeline, emit: true}));
-                console.log("Add region new timeline", newTimeline);
                 break;
             case "playback_ended":
-                console.log("Playback ended, auto stopping");
                 const mouseDragEnd = this.#context.query("mouseDragEnd");
                 const mouseDragStart = this.#context.query("mouseDragStart");
                 const snapToGrid = this.#context.query("snapToGrid");

@@ -132,7 +132,7 @@ export class UIEngine implements Observer{
         const playheadRef = this.#refs.get(DOMCommands.DRAW_PLAYHEAD);
         const waveformRef = this.#refs.get(DOMCommands.DRAW_TRACK_ONE_WAVEFORMS);
         if(!playheadRef || !playheadRef.current || !waveformRef || !waveformRef.current){
-            console.error("Playhead or waveform ref not found when starting playhead loop");
+            console.error("Playhead or waveform ref not found when starting playhead loop, playheadRef:", playheadRef, "waveformRef:", waveformRef);
             return;
         }
         const audioCtx = this.#mediaProvider.getAudioContext();

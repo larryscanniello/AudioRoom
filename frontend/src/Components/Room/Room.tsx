@@ -128,14 +128,9 @@ export default function Room() {
         uiControllerRef.current = uiController;
         uiControllerRef.current.initUIEngine();
 
+        uiControllerRef.current.drawAllCanvases();
         
     }
-
-    useEffect(()=>{
-      if(uiControllerRef.current){
-        uiControllerRef.current.drawAllCanvases();
-      }
-    },[roomJoined])
 
 
     return <div>

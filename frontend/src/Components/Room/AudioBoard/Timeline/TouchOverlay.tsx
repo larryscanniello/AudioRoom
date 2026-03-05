@@ -39,7 +39,7 @@ export default function TouchOverlay({ timelinePxLen, compactMode, uiControllerR
         }
     };
 
-    if(uiControllerRef.current && overlayRef && overlayRef.current){
+    if(uiControllerRef.current){
         uiControllerRef.current.registerRef(DOMElements.TOUCH_OVERLAY, overlayRef);
     }
 

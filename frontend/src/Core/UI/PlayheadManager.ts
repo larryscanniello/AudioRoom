@@ -20,7 +20,7 @@ export class PlayheadManager {
             const { isMoving, startTime } = this.playheadData;
 
             if(!playheadRef.current || !waveformRef.current){
-                console.error("Playhead or waveform ref not found during playhead loop");
+                console.error(`In playhead loop, playheadRef or waveformRef is null. playheadRef: ${playheadRef.current}, waveformRef: ${waveformRef.current}`);
                 return;
             }
             

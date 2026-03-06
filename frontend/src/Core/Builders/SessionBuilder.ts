@@ -17,7 +17,7 @@ import { State } from "../State/State";
 import type { MipMap } from "../UI/UIEngine";
 import type { Buffers, Pointers } from "@/Types/AudioState";
 
-import audioWorkletUrl from '../../Workers/AudioProcessor?url';
+import audioWorkletUrl from '../../Workers/AudioProcessor?worker&url';
 import OPFSWorker from '../../Workers/opfs_worker?worker';
 import OpusWorker from '../../Workers/opus_worker?worker';
 

@@ -25,6 +25,16 @@ export function renderMixRegion(
             console.error("Failed to parse mix track height from canvas dataset in renderMixRegion");
             return;
         }
+        const measureTickHeight = Number(ref.current.dataset.measuretickheight);
+        if(isNaN(measureTickHeight)){
+            console.error("Failed to parse measure tick height from canvas dataset in renderMixRegion");
+            return;
+        }
+        const stagingHeight = Number(ref.current.dataset.stagingheight);
+        if(isNaN(stagingHeight)){
+            console.error("Failed to parse staging track height from canvas dataset in renderMixRegion");
+            return;
+        }
         const timelinePxLen = Number(ref.current.dataset.timelinepxlen);
         if(isNaN(timelinePxLen)){
             console.error("Failed to parse timeline pixel length from canvas dataset in renderMixRegion");
@@ -76,11 +86,11 @@ export function renderMixRegion(
             }*/
         regionToDisplay.style.display = "block"
         regionToDisplay.style.left = "0";
-        regionToDisplay.style.top = "93px";
+        regionToDisplay.style.top = `${measureTickHeight + stagingHeight}px`;
         regionToDisplay.style.position = "absolute"
         regionToDisplay.style.transform = `translateX(${left}px)`;
         regionToDisplay.style.width = `${regionWidth}px`;
-        regionToDisplay.style.height = '57px';
+        regionToDisplay.style.height = `${mixHeight}px`;
         regionToDisplay.style.background = "rgb(10, 138, 74,.5)";
         //regionToDisplay.style.borderRadius = borderRadius;
         //regionToDisplay.style.border = "2px solid rgb(220,220,2020,.8)";

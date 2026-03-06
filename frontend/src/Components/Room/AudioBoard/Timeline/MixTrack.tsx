@@ -5,6 +5,7 @@ import { DOMElements } from "@/Constants/DOMElements";
 type MixTrackProps = {
     timelinePxLen: number;
     trackHeights: {
+        measureTickHeight: number;
         stagingHeight: number;
         mixHeight: number;
     };
@@ -99,6 +100,7 @@ export default function MixTrack({timelinePxLen, trackHeights, uiControllerRef}:
 
             <div ref={mixRegionsRef} className=""
                 data-timelinepxlen={timelinePxLen}
+                data-measuretickheight={trackHeights.measureTickHeight}
                 data-mixheight={trackHeights.mixHeight}
                 data-stagingheight={trackHeights.stagingHeight}
                 data-track={"mix"}

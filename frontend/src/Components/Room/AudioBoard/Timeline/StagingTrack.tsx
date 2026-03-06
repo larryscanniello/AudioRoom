@@ -5,6 +5,7 @@ import { DOMElements } from "@/Constants/DOMElements";
 type StagingTrackProps = {
     timelinePxLen: number;
     trackHeights: {
+        measureTickHeight: number;
         stagingHeight: number;
         mixHeight: number;
     };
@@ -36,6 +37,7 @@ export default function StagingTrack({timelinePxLen,trackHeights,uiControllerRef
             data-timelinepxlen={timelinePxLen}
             data-mixheight={trackHeights.mixHeight}
             data-stagingheight={trackHeights.stagingHeight}
+            data-measuretickheight={trackHeights.measureTickHeight}
             data-track={"staging"}
             className="">
                 {timeline.staging[0].map((region:Region) => {

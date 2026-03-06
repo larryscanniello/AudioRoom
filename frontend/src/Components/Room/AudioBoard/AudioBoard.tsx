@@ -43,7 +43,7 @@ type AudioBoardProps = {
 export default function AudioBoard({uiControllerRef,audioControllerRef}:AudioBoardProps){
     const [width,height] = useWindowSize();
 
-    const [compactMode,setCompactMode] = useState<number>(1);
+    const [compactMode,setCompactMode] = useState<number>(() => window.innerHeight < 700 ? 4/7 : 1);
 
     const timelinePxLen = Math.max(1050-CONSTANTS.LEFT_CONTROLS_WIDTH - 50,width-CONSTANTS.LEFT_CONTROLS_WIDTH - 50);
 
@@ -65,7 +65,10 @@ export default function AudioBoard({uiControllerRef,audioControllerRef}:AudioBoa
 
     const stagingTrackHeight = Math.floor(58*compactMode);
     const mixTrackHeight = Math.floor(57*compactMode);
+    const measureTickHeight = Math.floor(35*compactMode);
+
     const trackHeights = {
+        measureTickHeight,
         stagingHeight: stagingTrackHeight,
         mixHeight: mixTrackHeight,
     }

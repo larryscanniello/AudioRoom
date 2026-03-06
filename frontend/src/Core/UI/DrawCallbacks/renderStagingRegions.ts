@@ -26,6 +26,11 @@ export function renderStagingRegions(
             console.error("Failed to parse staging track height from canvas dataset in renderStagingRegions");
             return;
         }
+        const measureTickHeight = Number(ref.current.dataset.measuretickheight);
+        if(isNaN(measureTickHeight)){
+            console.error("Failed to parse measure tick height from canvas dataset in renderStagingRegions");
+            return;
+        }
         const timelinePxLen = Number(ref.current.dataset.timelinepxlen);
         if(isNaN(timelinePxLen)){
             console.error("Failed to parse timeline pixel length from canvas dataset in renderStagingRegions");
@@ -100,7 +105,7 @@ export function renderStagingRegions(
 
 
             child.style.left = "0";
-            child.style.top = "35px";
+            child.style.top = `${measureTickHeight}px`;
             child.style.position = "absolute"
             child.style.transform = `translateX(${left}px)`;
             child.style.width = `${regionWidth}px`;

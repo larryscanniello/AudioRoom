@@ -177,7 +177,6 @@ export class SessionBuilder{
     }
 
     #getUIController(context:GlobalContext, mediaProvider: MediaProvider){
-        const keydownManager = new KeydownManager(context);
         const domHandlers = new DOMHandlers(context);
         const mipMap = this.#allocateMipMap();
         if(!this.#opfsWorker){
@@ -185,8 +184,7 @@ export class SessionBuilder{
         }
         const UIhardware = {opfsWorker:this.#opfsWorker, mipMap}
         const uiEngine = new UIEngine(UIhardware,mediaProvider,context);
-        const uiController = new UIController(uiEngine, context, keydownManager, domHandlers);
-        return {uiEngine, uiController};
+        return {uiEngine, domHandlers};
     }
 
     getWebRTCManager(){
@@ -232,12 +230,14 @@ export class SessionBuilder{
             throw new Error("Media provider not initialized, call buildRTC() before build()");
         }
         const globalContext = this.#mediator.getGlobalContext();
-        const {audioController,audioEngine} = await this.#getAudioController(globalContext,this.#mediaProvider);
-        
-        const {uiEngine, uiController} = this.#getUIController(globalContext,this.#mediaProvider);
+        const {audioController, audioEngine} = await this.#getAudioController(globalContext, this.#mediaProvider);
+
+        const {uiEngine, domHandlers} = this.#getUIController(globalContext, this.#mediaProvider);
+        const keydownManager = new KeydownManager(audioController, domHandlers.getHandleRegionEdit());
+        const uiController = new UIController(uiEngine, globalContext, keydownManager, domHandlers);
         this.#mediator.attach(audioEngine);
         this.#mediator.attach(uiEngine);
-        return {audioController, uiController,webRTCManager: this.#webRTCManager};
+        return {audioController, uiController, webRTCManager: this.#webRTCManager};
     }
 
 }

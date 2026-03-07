@@ -46,11 +46,12 @@ export default function StagingTrack({timelinePxLen,trackHeights,uiControllerRef
                     data-id={region.id}
                     data-start={region.start}
                     data-end={region.end}
-                    className="region"
+                    className="region relative"
                     >
-                    <div></div>
-                    <div></div>
+                    <div className="">
+
                     </div>
+                   </div>
                 })}
             </div>
             </div>

@@ -24,6 +24,10 @@ export class DOMHandlers {
         this.#handleRegionEdit = new HandleRegionEdit(context);
     }
 
+    public getHandleRegionEdit(): HandleRegionEdit {
+        return this.#handleRegionEdit;
+    }
+
     public registerRef(ID: keyof typeof DOMElements, ref: React.RefObject<HTMLElement|null>) {
         this.#refs.set(ID, ref);
         this.#handleRegionEdit.registerRef(ID, ref);

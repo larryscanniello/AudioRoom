@@ -56,7 +56,6 @@ export class HandleRegionEdit {
     constructor(context: GlobalContext) {
         this.#context = context;
         this.#refs = new Map();
-        window.addEventListener('keydown', this.#onKeydown);
     }
 
     registerRef(ID: keyof typeof DOMElements, ref: React.RefObject<HTMLElement | null>) {
@@ -238,26 +237,9 @@ export class HandleRegionEdit {
         ctx.fill();
     }
 
-    // ─── Keyboard ─────────────────────────────────────────────────────────
+    // ─── Keyboard actions (called by KeydownManager) ──────────────────────
 
-    #onKeydown = (e: KeyboardEvent) => {
-        // Don't intercept if user is typing in an input
-        if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-
-        const ctrl = e.ctrlKey || e.metaKey;
-
-        if ((e.key === 'Delete' || e.key === 'Backspace') && !ctrl) {
-            e.preventDefault();
-            this.#deleteSelected();
-            return;
-        }
-        if (ctrl && e.key === 'c') { e.preventDefault(); this.#copy(); return; }
-        if (ctrl && e.key === 'x') { e.preventDefault(); this.#cut();  return; }
-        if (ctrl && e.key === 'v') { e.preventDefault(); this.#paste(); return; }
-        if (!ctrl && e.key.toLowerCase() === 'x') { e.preventDefault(); this.#splitAtPlayhead(); return; }
-    };
-
-    #splitAtPlayhead() {
+    splitAtPlayhead() {
         const playheadSamples = Math.round(
             this.#context.query('playheadTimeSeconds') * CONSTANTS.SAMPLE_RATE
         );
@@ -267,7 +249,7 @@ export class HandleRegionEdit {
         this.#context.dispatch(SplitRegion.getDispatchEvent({ emit: true, param: newTimeline, serverMandated: false }));
     }
 
-    #deleteSelected() {
+    deleteSelected() {
         if (!this.#selectedId) return;
         const id = this.#selectedId;
         this.#selectedId = null;
@@ -277,18 +259,18 @@ export class HandleRegionEdit {
         requestAnimationFrame(() => this.#applyRegionStyles());
     }
 
-    #copy() {
+    copy() {
         if (!this.#selectedId) return;
         const region = this.#context.query('timeline').staging[0]?.find(r => r.id === this.#selectedId);
         if (region) this.#clipboard = region;
     }
 
-    #cut() {
-        this.#copy();
-        this.#deleteSelected();
+    cut() {
+        this.copy();
+        this.deleteSelected();
     }
 
-    #paste() {
+    paste() {
         if (!this.#clipboard) return;
         const src = this.#clipboard;
         const playheadSamples = Math.round(this.#context.query('playheadTimeSeconds') * CONSTANTS.SAMPLE_RATE);

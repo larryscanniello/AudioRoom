@@ -51,6 +51,7 @@ export const Play:EventNamespace<typeof EventTypes.START_PLAYBACK> = {
                 count: {
                     bounce: state.query('bounce'),
                     take: state.query('take'),
+                    globalTake: state.query('globalTake'),
                 },
                 packetCount: 0,
                 bpm: state.query('bpm'),

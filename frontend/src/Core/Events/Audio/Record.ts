@@ -27,7 +27,8 @@ export const Record: EventNamespace<typeof EventTypes.START_RECORDING> = {
                 ],
                 mutations: [
                     { key: 'isRecording', value: true },
-                    { key: 'take', value: param },
+                    { key: 'take', value: param.take },
+                    { key: 'globalTake', value: param.globalTake },
                 ]
             },
             getEventNamespace: () => { return Record; }
@@ -50,6 +51,7 @@ export const Record: EventNamespace<typeof EventTypes.START_RECORDING> = {
                 count: {
                     bounce: state.query('bounce'),
                     take: state.query('take'),
+                    globalTake: state.query('globalTake'),
                 },
                 packetCount: 0,
                 bpm: state.query('bpm'),

@@ -7,7 +7,7 @@ import { JoinSocketRoom } from "../Events/Sockets/JoinSocketRoom";
 import type { WebRTCManager } from "./WebRTCManager";
 import { RemoteStreamAttached } from "../Events/WebRTC/RemoteStreamAttached";
 import type { SocketManager } from "../Sockets/SocketManager";
-import type { Buffers, Pointers } from "@/Workers/opfs_utils/types";
+import type { Buffers, Pointers } from "@/Types/AudioState";
 import { EventTypes } from "../Events/EventNamespace";
 import type { AudioProcessorData } from "@/Types/AudioState";
 

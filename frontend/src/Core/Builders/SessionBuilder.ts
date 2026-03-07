@@ -94,32 +94,35 @@ export class SessionBuilder{
     }
 
     #allocateBuffersandPointers() {
-        const stagingSAB = new SharedArrayBuffer(CONSTANTS.SAMPLE_RATE * Float32Array.BYTES_PER_ELEMENT + 12);
-        const mixSAB = new SharedArrayBuffer(CONSTANTS.SAMPLE_RATE * Float32Array.BYTES_PER_ELEMENT * this.#config.numberOfMixTracks + 12);
-        const recordSAB = new SharedArrayBuffer(CONSTANTS.SAMPLE_RATE * Float32Array.BYTES_PER_ELEMENT + 16);
+        const stagingSAB = new SharedArrayBuffer(CONSTANTS.SAMPLE_RATE * Float32Array.BYTES_PER_ELEMENT + 16);
+        const mixSAB = new SharedArrayBuffer(CONSTANTS.SAMPLE_RATE * Float32Array.BYTES_PER_ELEMENT * this.#config.numberOfMixTracks + 16);
+        const recordSAB = new SharedArrayBuffer(CONSTANTS.SAMPLE_RATE * Float32Array.BYTES_PER_ELEMENT + 20);
 
         const buffers:Buffers = {
-            staging: new Float32Array(stagingSAB,12),
-            mix: new Float32Array(mixSAB,12),
-            record: new Float32Array(recordSAB,16),
+            staging: new Float32Array(stagingSAB,16),
+            mix: new Float32Array(mixSAB,16),
+            record: new Float32Array(recordSAB,20),
         };
 
         const pointers:Pointers = {
             staging: {
-                read: new Uint32Array(stagingSAB,0,1),
-                write: new Uint32Array(stagingSAB,4,1),
-                isFull: new Uint32Array(stagingSAB,8,1),
+                read: new Int32Array(stagingSAB,0,1),
+                write: new Int32Array(stagingSAB,4,1),
+                isFull: new Int32Array(stagingSAB,8,1),
+                globalTake: new Int32Array(stagingSAB,12,1),
             },
             mix: {
-                read: new Uint32Array(mixSAB,0,1),
-                write: new Uint32Array(mixSAB,4,1),
-                isFull: new Uint32Array(mixSAB,8,1),
+                read: new Int32Array(mixSAB,0,1),
+                write: new Int32Array(mixSAB,4,1),
+                isFull: new Int32Array(mixSAB,8,1),
+                globalTake: new Int32Array(mixSAB,12,1),
             },
             record: {
-                readOPFS: new Uint32Array(recordSAB,0,1),
-                readStream: new Uint32Array(recordSAB,4,1),
-                write: new Uint32Array(recordSAB,8,1),
-                isFull: new Uint32Array(recordSAB,12,1),
+                readOPFS: new Int32Array(recordSAB,0,1),
+                readStream: new Int32Array(recordSAB,4,1),
+                write: new Int32Array(recordSAB,8,1),
+                isFull: new Int32Array(recordSAB,12,1),
+                globalTake: new Int32Array(recordSAB,16,1),
             },
         };
         return {buffers, pointers};

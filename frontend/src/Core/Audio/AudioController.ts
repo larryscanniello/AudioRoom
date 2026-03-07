@@ -40,7 +40,8 @@ export class AudioController{
 
     public record() {
         const prevTakeNum = this.#context.query("take");
-        this.#context.dispatch(Record.getDispatchEvent({emit:true, param: prevTakeNum + 1,serverMandated: false}));
+        const prevGlobalTakeNum = this.#context.query("globalTake");
+        this.#context.dispatch(Record.getDispatchEvent({emit:true, param: {take: prevTakeNum + 1, globalTake: prevGlobalTakeNum + 1},serverMandated: false}));
     }
 
     public stop() {
@@ -56,7 +57,8 @@ export class AudioController{
         const timeline = this.#context.query("timeline");
         const newTimeline = timelineReducer(timeline, { type: "bounce_to_mix" });
         const prevBounce = this.#context.query("bounce");
-        const bounceState = {timeline: newTimeline, bounce: prevBounce + 1};
+        const prevGlobalTake = this.#context.query("globalTake");
+        const bounceState = {timeline: newTimeline, bounce: prevBounce + 1, globalTake: prevGlobalTake + 1};
         this.#context.dispatch(Bounce.getDispatchEvent({emit:true, param: bounceState,serverMandated: false}));
     }
 

@@ -26,20 +26,23 @@ const buffers:Buffers = {
 
 const pointers:Pointers = {
     staging: {
-        read: new Uint32Array(),
-        write: new Uint32Array(),
-        isFull: new Uint32Array(),
+        read: new Int32Array(),
+        write: new Int32Array(),
+        isFull: new Int32Array(),
+        globalTake: new Int32Array(),
     },
     mix: {
-        read: new Uint32Array(),
-        write: new Uint32Array(),
-        isFull: new Uint32Array(),
+        read: new Int32Array(),
+        write: new Int32Array(),
+        isFull: new Int32Array(),
+        globalTake: new Int32Array(),
     },
     record: {
-        readOPFS: new Uint32Array(),
-        readStream: new Uint32Array(),
-        write: new Uint32Array(),
-        isFull: new Uint32Array(),
+        readOPFS: new Int32Array(),
+        readStream: new Int32Array(),
+        write: new Int32Array(),
+        isFull: new Int32Array(),
+        globalTake: new Int32Array(),
     },
 }
 
@@ -251,6 +254,7 @@ if (typeof self !== "undefined") { // for testing, otherwise in testing self is 
                         return;
                     }
 
+                    Atomics.wait(pointers.record.globalTake, 0, e.data.state.count.globalTake-1);
 
                     const bounce = e.data.state.count.bounce;
                     const take = e.data.state.count.take;   
@@ -345,7 +349,6 @@ if (typeof self !== "undefined") { // for testing, otherwise in testing self is 
                 proceed.record = "off";
                 proceed.staging = "off";
                 proceed.mix = "off";
-                
                 break;
 
             case "bounce_to_mix":
@@ -370,6 +373,7 @@ if (typeof self !== "undefined") { // for testing, otherwise in testing self is 
                     opfs.bounces.push({dirHandle:newTrack,takeHandles:{}});
                     postMessage({type:'bounce_to_mix_done'})
                 }
+                opfs.curr.bounce = bounce;
                 createNewTrack();
                 break;
 
@@ -422,31 +426,30 @@ export async function writeStreamedPacketToOPFS(
             opfs.incomingStream.queue.push(data);
             return;
         };
-        opfs.incomingStream.queue = [];
         opfs.incomingStream.isInitializing = true;
+        opfs.incomingStream.queue = [];
         const currTakeFile = await opfs.bounces[bounce].dirHandle.getFileHandle(fileName, {create: true});
         const handle = await (currTakeFile as any).createSyncAccessHandle();
         opfs.bounces[bounce].takeHandles[fileName] = handle;
         opfs.curr.take = take;
-        opfs.incomingStream.isInitializing = false;const slicedPacket = packet.slice(lookahead * Float32Array.BYTES_PER_ELEMENT);
-        handle.write(slicedPacket, {at: 0});
+        handle.write(packet, {at: 0});
         opfs.mipMapManager?.write(
-            { startSample: opfs.timeline.startSample, endSample: opfs.timeline.startSample + (slicedPacket.byteLength / Float32Array.BYTES_PER_ELEMENT) },
+            { startSample: opfs.timeline.startSample, endSample: opfs.timeline.startSample + (packet.byteLength / Float32Array.BYTES_PER_ELEMENT) },
             [], [], "staging",
-            new Float32Array(slicedPacket)
+            new Float32Array(packet)
         )
         postMessage({type:"staging_mipmap_done"})
+        opfs.incomingStream.isInitializing = false;
         return;
     }
 
     const lookaheadInBytes = lookahead * Float32Array.BYTES_PER_ELEMENT;
     const handle = opfs.bounces[bounce].takeHandles[fileName];
     
-    const writeToOPFS = (packet: ArrayBuffer, packetCount: number) => {
+    const writePacketToOPFS = (packet: ArrayBuffer, packetCount: number) => {
         const fileLengthInBytes = handle.getSize();
         const byteIndexToInsertPacket =
             packetCount * CONSTANTS.PACKET_SIZE * Float32Array.BYTES_PER_ELEMENT - lookaheadInBytes;
-
         if (fileLengthInBytes < byteIndexToInsertPacket) {
             const numOfZeroBytesToFill = Math.max(byteIndexToInsertPacket - fileLengthInBytes, 0);
             const zeroBuffer = new Float32Array(numOfZeroBytesToFill / Float32Array.BYTES_PER_ELEMENT);
@@ -455,19 +458,17 @@ export async function writeStreamedPacketToOPFS(
 
         handle.write(packet, { at: byteIndexToInsertPacket });
 
-        const mipPacket = packetCount === 0 ? packet.slice(lookaheadInBytes) : packet;
-
         const packetStartSample =
             opfs.timeline.startSample + byteIndexToInsertPacket / Float32Array.BYTES_PER_ELEMENT;
         const packetEndSample =
-            packetStartSample + mipPacket.byteLength / Float32Array.BYTES_PER_ELEMENT;
+            packetStartSample + packet.byteLength / Float32Array.BYTES_PER_ELEMENT;
 
         opfs.mipMapManager?.write(
             { startSample: packetStartSample, endSample: packetEndSample },
             [],
             [],
             "staging",
-            new Float32Array(mipPacket)
+            new Float32Array(packet)
         );
 
         postMessage({ type: "staging_mipmap_done" });
@@ -475,19 +476,19 @@ export async function writeStreamedPacketToOPFS(
 
     if(opfs.incomingStream.queue.length > 0){
         opfs.incomingStream.queue.forEach(
-            (queuedData:DecodeAudioData) => {writeToOPFS(queuedData.packet, queuedData.packetCount)}
+            (queuedData:DecodeAudioData) => {writePacketToOPFS(queuedData.packet, queuedData.packetCount)}
         )
         opfs.incomingStream.queue = [];
     }
 
-    writeToOPFS(packet, packetCount);
+    writePacketToOPFS(packet, packetCount);
 
 }
 
 export function fillMixPlaybackBuffer(
-    read:Uint32Array,
-    write:Uint32Array,
-    isFullArr:Uint32Array,
+    read:Int32Array,
+    write:Int32Array,
+    isFullArr:Int32Array,
     buffer:Float32Array,
     TRACK_COUNT:number,
     bounces:{dirHandle:FileSystemDirectoryHandle,takeHandles:{[key:string]:any}}[],
@@ -527,9 +528,9 @@ export function fillMixPlaybackBuffer(
 };
 
 export function fillStagingPlaybackBuffer(
-    read:Uint32Array,
-    write:Uint32Array,
-    isFullArr:Uint32Array,
+    read:Int32Array,
+    write:Int32Array,
+    isFullArr:Int32Array,
     buffer:Float32Array,
     TRACK_COUNT:number,
     bounces:{dirHandle:FileSystemDirectoryHandle,takeHandles:{[key:string]:any}}[],
@@ -573,9 +574,9 @@ export function fillStagingPlaybackBuffer(
 
 
 function writeToOPFS(
-    read:Uint32Array,
-    write:Uint32Array,
-    isFullArr:Uint32Array,
+    read:Int32Array,
+    write:Int32Array,
+    isFullArr:Int32Array,
     buffer:Float32Array,
     mipMapManager: MipMapManager,
 ){

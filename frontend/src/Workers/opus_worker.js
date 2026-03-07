@@ -49,6 +49,7 @@ self.onmessage = async (e) => {
                 read2: recordPointers.readOPFS,
                 write: recordPointers.write,
                 isFull: recordPointers.isFull,
+                globalTake: recordPointers.globalTake,
             }
             recordSAB = new RingSAB(incomingAudioFloat32SAB,pointers,pointers.read);
             break;
@@ -56,6 +57,7 @@ self.onmessage = async (e) => {
         case EventTypes.START_RECORDING:
             proceed = "ready";
             encodePacketCount = 0;
+            recordSAB.wait(e.data.state.count.globalTake-1,2000);
             readTo(recordSAB, e.data);
             break;
 

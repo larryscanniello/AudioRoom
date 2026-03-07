@@ -1,19 +1,21 @@
 import { EventTypes } from "@/Core/Events/EventNamespace"
 
 interface PointerEntries {
-    read: Uint32Array,
-    write: Uint32Array,
-    isFull: Uint32Array,
+    read: Int32Array,
+    write: Int32Array,
+    isFull: Int32Array,
+    globalTake: Int32Array,
 }
 
 interface Pointers {
     staging: PointerEntries,
     mix: PointerEntries,
     record: {
-        readOPFS: Uint32Array,
-        readStream: Uint32Array,
-        write: Uint32Array,
-        isFull: Uint32Array,
+        readOPFS: Int32Array,
+        readStream: Int32Array,
+        write: Int32Array,
+        isFull: Int32Array,
+        globalTake: Int32Array,
     },
 }
 
@@ -83,6 +85,7 @@ interface AudioProcessorData {
         count: {
             bounce: number,
             take: number,
+            globalTake: number,
         },
         packetCount: number,
         bpm: number,

@@ -36,7 +36,8 @@ export class KeydownManager {
                 break;
             case"r":
                 const prevTake = this.#context.query("take");
-                this.#context.dispatch(Record.getDispatchEvent({param: prevTake + 1, emit: true}));
+                const prevGlobalTake = this.#context.query("globalTake");
+                this.#context.dispatch(Record.getDispatchEvent({param: {take: prevTake + 1, globalTake: prevGlobalTake + 1}, emit: true}));
                 break;
         }
         

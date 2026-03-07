@@ -47,7 +47,7 @@ export const EventTypes = {
 
 export type EventParams = {
     [EventTypes.START_PLAYBACK]: null;
-    [EventTypes.START_RECORDING]: number;
+    [EventTypes.START_RECORDING]: {take: number,globalTake: number};
     [EventTypes.STOP]: number;
     [EventTypes.SKIPBACK]: null,
     [EventTypes.CHANGE_BPM]: number,
@@ -68,7 +68,7 @@ export type EventParams = {
     [EventTypes.REMOTE_STREAM_ATTACHED]: boolean,
     [EventTypes.STATE_SYNC]: StateContainer,
     [EventTypes.RECORDING_PROGRESS]: {start: number, end: number},
-    [EventTypes.OTHER_PERSON_RECORDING]: number,
+    [EventTypes.OTHER_PERSON_RECORDING]: {take:number, playheadTimeSeconds: number},
     [EventTypes.DELETE_STAGING_REGIONS]: TimelineState,
     [EventTypes.DELETE_MIX_REGIONS]: TimelineState,
     [EventTypes.UNDO_TIMELINE]: TimelineState,

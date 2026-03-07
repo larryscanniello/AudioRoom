@@ -20,6 +20,7 @@ export interface StateContainer {
     isRecording: boolean;
     bounce: number;
     take: number;
+    globalTake: number;
     playheadTimeSeconds: number;
     mouseDragStart: { t: number; trounded: number };
     mouseDragEnd: { t: number; trounded: number } | null;
@@ -86,6 +87,7 @@ export class State {
             isRecording: false,
             bounce: 0,
             take: 0,
+            globalTake: 0,
             playheadTimeSeconds: 0,
             mouseDragStart: { t: 0, trounded: 0 },
             mouseDragEnd: null,

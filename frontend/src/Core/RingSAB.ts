@@ -1,11 +1,12 @@
 type TypedArray = Int8Array | Uint8Array | Uint8ClampedArray | Int16Array | Uint16Array | Int32Array | Uint32Array | Float32Array | Float64Array;
 
-type IntegerTypedArray = Int8Array | Uint8Array | Int16Array | Uint16Array | Int32Array | Uint32Array;
+type IntegerTypedArray = Int32Array;
 
 type RingSABPointers = {
     read: IntegerTypedArray[];
     write: IntegerTypedArray;
     isFull: IntegerTypedArray;
+    globalTake: IntegerTypedArray;
 }
 
 type PointerArgs = {
@@ -13,6 +14,7 @@ type PointerArgs = {
     read2?: IntegerTypedArray;
     write: IntegerTypedArray;
     isFull: IntegerTypedArray;
+    globalTake: IntegerTypedArray;
 }
 
 export class RingSAB {
@@ -26,6 +28,7 @@ export class RingSAB {
             read: [pointers.read],
             write: pointers.write,
             isFull: pointers.isFull,
+            globalTake: pointers.globalTake,
         }
         if (pointers.read2) {
             this.#pointers.read.push(pointers.read2);
@@ -196,9 +199,21 @@ export class RingSAB {
         Atomics.store(this.#pointers.isFull, 0, isFull ? 1 : 0);
     }
 
+    storeGlobalTake(globalTake: number): void {
+        Atomics.store(this.#pointers.globalTake, 0, globalTake);
+    }
+
     resetPointers(){
         this.storeWritePointer(0);
         this.#pointers.read.forEach(ptr => Atomics.store(ptr, 0, 0));
         this.storeIsFull(false);
+    }
+
+    wait(val:number, timeout?: number): void {
+        Atomics.wait(this.#pointers.globalTake, 0, val, timeout);
+    }
+
+    notify(){
+        Atomics.notify(this.#pointers.globalTake, 0);
     }
 }

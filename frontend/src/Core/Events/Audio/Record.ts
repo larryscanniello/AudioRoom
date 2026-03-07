@@ -52,6 +52,7 @@ export const Record: EventNamespace<typeof EventTypes.START_RECORDING> = {
                     bounce: state.query('bounce'),
                     take: state.query('take'),
                     globalTake: state.query('globalTake'),
+                    globalPlayCount: state.query('globalPlayCount'),
                 },
                 packetCount: 0,
                 bpm: state.query('bpm'),

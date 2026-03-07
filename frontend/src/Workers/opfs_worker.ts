@@ -29,20 +29,20 @@ const pointers:Pointers = {
         read: new Int32Array(),
         write: new Int32Array(),
         isFull: new Int32Array(),
-        globalTake: new Int32Array(),
+        globalCount: new Int32Array(),
     },
     mix: {
         read: new Int32Array(),
         write: new Int32Array(),
         isFull: new Int32Array(),
-        globalTake: new Int32Array(),
+        globalCount: new Int32Array(),
     },
     record: {
         readOPFS: new Int32Array(),
         readStream: new Int32Array(),
         write: new Int32Array(),
         isFull: new Int32Array(),
-        globalTake: new Int32Array(),
+        globalCount: new Int32Array(),
     },
 }
 
@@ -254,7 +254,7 @@ if (typeof self !== "undefined") { // for testing, otherwise in testing self is 
                         return;
                     }
 
-                    Atomics.wait(pointers.record.globalTake, 0, e.data.state.count.globalTake-1);
+                    Atomics.wait(pointers.record.globalCount, 0, e.data.state.count.globalTake-1,2000);
 
                     const bounce = e.data.state.count.bounce;
                     const take = e.data.state.count.take;   
@@ -310,6 +310,8 @@ if (typeof self !== "undefined") { // for testing, otherwise in testing self is 
                 };
                 const start = Math.round(e.data.timeline.start * CONSTANTS.SAMPLE_RATE);
                 const end = Math.round(e.data.timeline.end * CONSTANTS.SAMPLE_RATE);
+
+                Atomics.wait(pointers.staging.globalCount, 0, e.data.state.count.globalPlayCount-1,2000);
 
                 opfs.timeline.staging = e.data.timeline.staging;
                 opfs.timeline.mix = e.data.timeline.mix;

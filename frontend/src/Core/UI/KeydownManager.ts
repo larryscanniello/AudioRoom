@@ -31,7 +31,8 @@ export class KeydownManager {
                     const stopTime = this.#context.query("playheadTimeSeconds");
                     this.#context.dispatch(Stop.getDispatchEvent({emit:true, param: stopTime,serverMandated: false}));
                 }else{
-                    this.#context.dispatch(Play.getDispatchEvent({param: null, emit: true}));
+                    const playCount = this.#context.query("globalPlayCount");
+                    this.#context.dispatch(Play.getDispatchEvent({param: playCount, emit: true}));
                 }
                 break;
             case"r":

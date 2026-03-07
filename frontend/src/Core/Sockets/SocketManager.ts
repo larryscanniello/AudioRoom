@@ -68,7 +68,7 @@ export class SocketManager implements Observer {
     #handleSocketEvent(type: keyof typeof EventTypes, state: StateContainer) {
         switch(type){
             case EventTypes.START_PLAYBACK:
-                this.#context.dispatch(Play.getDispatchEvent({emit: false, param: null,serverMandated: true}));
+                this.#context.dispatch(Play.getDispatchEvent({emit: false, param: state.globalPlayCount,serverMandated: true}));
                 this.#context.commMessage("Partner started playback","white");
                 break;
             case EventTypes.START_RECORDING:

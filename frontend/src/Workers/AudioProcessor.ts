@@ -60,6 +60,7 @@ interface ProcessorState {
     bounce: number;
     take: number;
     globalTake: number;
+    globalPlayCount: number;
   };
   latency: {
     totalDelayCompensationSamples: number;
@@ -205,6 +206,7 @@ class AudioProcessor extends AudioWorkletProcessor {
         bounce: 0,
         globalTake: -1,
         take: -1,
+        globalPlayCount: -1,
       },
       latency:{
         totalDelayCompensationSamples: 0,
@@ -246,7 +248,7 @@ class AudioProcessor extends AudioWorkletProcessor {
           read: mem.pointers.staging.read,
           write: mem.pointers.staging.write,
           isFull: mem.pointers.staging.isFull,
-          globalTake: mem.pointers.staging.globalTake,
+          globalCount: mem.pointers.staging.globalCount,
         },
         mem.pointers.staging.read
       );
@@ -256,7 +258,7 @@ class AudioProcessor extends AudioWorkletProcessor {
           read: mem.pointers.mix.read,
           write: mem.pointers.mix.write,
           isFull: mem.pointers.mix.isFull,
-          globalTake: mem.pointers.mix.globalTake,  
+          globalCount: mem.pointers.mix.globalCount,  
         },
         mem.pointers.mix.read
       );
@@ -267,7 +269,7 @@ class AudioProcessor extends AudioWorkletProcessor {
           read2: mem.pointers.record.readOPFS,
           write: mem.pointers.record.write,
           isFull: mem.pointers.record.isFull,
-          globalTake: mem.pointers.record.globalTake,
+          globalCount: mem.pointers.record.globalCount,
         },
         mem.pointers.record.readStream,
       );
@@ -298,8 +300,10 @@ class AudioProcessor extends AudioWorkletProcessor {
       const samplesToNextBeat = samplesPerBeat - (this.timeline.pos! % samplesPerBeat);
       this.nextClickSample = absStart + (samplesToNextBeat % samplesPerBeat);
       this.clickPlaybackPos = -1;
-      this.buffers.record?.storeGlobalTake(this.state.count.globalTake);
+      this.buffers.record?.storeGlobalCount(this.state.count.globalTake);
+      this.buffers.staging?.storeGlobalCount(this.state.count.globalPlayCount);
       this.buffers.record?.notify();
+      this.buffers.staging?.notify();
     }
     if (data.type === "STOP") {
       if (this.state.isRecording) {

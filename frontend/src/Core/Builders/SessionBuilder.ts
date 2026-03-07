@@ -109,20 +109,20 @@ export class SessionBuilder{
                 read: new Int32Array(stagingSAB,0,1),
                 write: new Int32Array(stagingSAB,4,1),
                 isFull: new Int32Array(stagingSAB,8,1),
-                globalTake: new Int32Array(stagingSAB,12,1),
+                globalCount: new Int32Array(stagingSAB,12,1),
             },
             mix: {
                 read: new Int32Array(mixSAB,0,1),
                 write: new Int32Array(mixSAB,4,1),
                 isFull: new Int32Array(mixSAB,8,1),
-                globalTake: new Int32Array(mixSAB,12,1),
+                globalCount: new Int32Array(mixSAB,12,1),
             },
             record: {
                 readOPFS: new Int32Array(recordSAB,0,1),
                 readStream: new Int32Array(recordSAB,4,1),
                 write: new Int32Array(recordSAB,8,1),
                 isFull: new Int32Array(recordSAB,12,1),
-                globalTake: new Int32Array(recordSAB,16,1),
+                globalCount: new Int32Array(recordSAB,16,1),
             },
         };
         return {buffers, pointers};

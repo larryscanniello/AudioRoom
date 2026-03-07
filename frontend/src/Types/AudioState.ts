@@ -4,7 +4,7 @@ interface PointerEntries {
     read: Int32Array,
     write: Int32Array,
     isFull: Int32Array,
-    globalTake: Int32Array,
+    globalCount: Int32Array,
 }
 
 interface Pointers {
@@ -15,7 +15,7 @@ interface Pointers {
         readStream: Int32Array,
         write: Int32Array,
         isFull: Int32Array,
-        globalTake: Int32Array,
+        globalCount: Int32Array,
     },
 }
 
@@ -86,6 +86,7 @@ interface AudioProcessorData {
             bounce: number,
             take: number,
             globalTake: number,
+            globalPlayCount: number,
         },
         packetCount: number,
         bpm: number,

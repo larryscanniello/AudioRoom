@@ -49,7 +49,7 @@ self.onmessage = async (e) => {
                 read2: recordPointers.readOPFS,
                 write: recordPointers.write,
                 isFull: recordPointers.isFull,
-                globalTake: recordPointers.globalTake,
+                globalCount: recordPointers.globalCount,
             }
             recordSAB = new RingSAB(incomingAudioFloat32SAB,pointers,pointers.read);
             break;

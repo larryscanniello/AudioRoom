@@ -6,7 +6,7 @@ type RingSABPointers = {
     read: IntegerTypedArray[];
     write: IntegerTypedArray;
     isFull: IntegerTypedArray;
-    globalTake: IntegerTypedArray;
+    globalCount: IntegerTypedArray;
 }
 
 type PointerArgs = {
@@ -14,7 +14,7 @@ type PointerArgs = {
     read2?: IntegerTypedArray;
     write: IntegerTypedArray;
     isFull: IntegerTypedArray;
-    globalTake: IntegerTypedArray;
+    globalCount: IntegerTypedArray;
 }
 
 export class RingSAB {
@@ -28,7 +28,7 @@ export class RingSAB {
             read: [pointers.read],
             write: pointers.write,
             isFull: pointers.isFull,
-            globalTake: pointers.globalTake,
+            globalCount: pointers.globalCount,
         }
         if (pointers.read2) {
             this.#pointers.read.push(pointers.read2);
@@ -199,8 +199,8 @@ export class RingSAB {
         Atomics.store(this.#pointers.isFull, 0, isFull ? 1 : 0);
     }
 
-    storeGlobalTake(globalTake: number): void {
-        Atomics.store(this.#pointers.globalTake, 0, globalTake);
+    storeGlobalCount(globalCount: number): void {
+        Atomics.store(this.#pointers.globalCount, 0, globalCount);
     }
 
     resetPointers(){
@@ -210,10 +210,10 @@ export class RingSAB {
     }
 
     wait(val:number, timeout?: number): void {
-        Atomics.wait(this.#pointers.globalTake, 0, val, timeout);
+        Atomics.wait(this.#pointers.globalCount, 0, val, timeout);
     }
 
     notify(){
-        Atomics.notify(this.#pointers.globalTake, 0);
+        Atomics.notify(this.#pointers.globalCount, 0);
     }
 }

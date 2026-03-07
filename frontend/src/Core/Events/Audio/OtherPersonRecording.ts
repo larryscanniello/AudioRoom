@@ -25,6 +25,7 @@ export const OtherPersonRecording: EventNamespace<typeof EventTypes.OTHER_PERSON
                 mutations: [
                     { key: 'isRecording', value: true },
                     { key: 'take', value: param.take },
+                    { key: 'globalTake', value: param.globalTake },
                     { key: 'playheadTimeSeconds', value: param.playheadTimeSeconds },
                 ]
             },
@@ -48,6 +49,7 @@ export const OtherPersonRecording: EventNamespace<typeof EventTypes.OTHER_PERSON
                     bounce: state.query('bounce'),
                     take: state.query('take'),
                     globalTake: state.query('globalTake'),
+                    globalPlayCount: state.query('globalPlayCount'),
                 },
                 packetCount: 0,
                 bpm: state.query('bpm'),

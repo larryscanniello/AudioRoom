@@ -35,7 +35,8 @@ export class AudioController{
     }
 
     public play() {
-        this.#context.dispatch(Play.getDispatchEvent({emit:true, param: null,serverMandated: false}));
+        const playCount = this.#context.query("globalPlayCount");
+        this.#context.dispatch(Play.getDispatchEvent({emit:true, param: playCount,serverMandated: false}));
     }
 
     public record() {

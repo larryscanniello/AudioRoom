@@ -21,6 +21,7 @@ export interface StateContainer {
     bounce: number;
     take: number;
     globalTake: number;
+    globalPlayCount: number,
     playheadTimeSeconds: number;
     mouseDragStart: { t: number; trounded: number };
     mouseDragEnd: { t: number; trounded: number } | null;
@@ -88,6 +89,7 @@ export class State {
             bounce: 0,
             take: 0,
             globalTake: 0,
+            globalPlayCount: 0,
             playheadTimeSeconds: 0,
             mouseDragStart: { t: 0, trounded: 0 },
             mouseDragEnd: null,
@@ -116,7 +118,7 @@ export class State {
         ]);
         this.#sharedState = new Set([
             "bpm","isLooping","timeSignature","timeline",
-            "isPlaying","isRecording","bounce","take",
+            "isPlaying","isRecording","bounce","take","globalTake","globalPlayCount",
             "playheadTimeSeconds","mouseDragStart","mouseDragEnd",
             "numConnectedUsers","roomID","stagingMasterVolume",
             "mixMasterVolume","stagingMuted","mixMuted","liveRecording",

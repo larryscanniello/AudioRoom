@@ -73,8 +73,9 @@ export class SocketManager implements Observer {
                 break;
             case EventTypes.START_RECORDING:
                 const newTake = state.take;
+                const globalTake = state.globalTake;
                 const playheadTimeSeconds = state.playheadTimeSeconds;
-                this.#context.dispatch(OtherPersonRecording.getDispatchEvent({emit: false, param: {take: newTake, playheadTimeSeconds}, serverMandated: true}));
+                this.#context.dispatch(OtherPersonRecording.getDispatchEvent({emit: false, param: {take: newTake, globalTake, playheadTimeSeconds}, serverMandated: true}));
                 this.#context.commMessage("Partner started recording","white");
                 break;
             case EventTypes.STOP:

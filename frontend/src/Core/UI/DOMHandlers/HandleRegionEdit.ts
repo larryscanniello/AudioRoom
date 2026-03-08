@@ -184,9 +184,11 @@ export class HandleRegionEdit {
         for (const region of regions) {
             const regionLeft  = this.#samplesToPx(region.start, viewportStart, viewportEnd, timelinePxLen);
             const regionRight = this.#samplesToPx(region.end,   viewportStart, viewportEnd, timelinePxLen);
-            if (regionRight - regionLeft < 24) continue; // too narrow to show handle
-            const slipX1 = regionLeft + 2;
-            const slipX2 = regionLeft + 22;
+            const clampedLeft  = Math.max(0, regionLeft);
+            const visibleWidth = Math.min(regionRight, timelinePxLen) - clampedLeft;
+            if (visibleWidth < 24) continue; // too narrow to show handle
+            const slipX1 = clampedLeft + 2;
+            const slipX2 = clampedLeft + 22;
             if (mouseX >= slipX1 && mouseX <= slipX2) return region;
         }
         return null;

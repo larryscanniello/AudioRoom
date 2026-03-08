@@ -4,8 +4,6 @@ import { UpdateRegionOffset } from "@/Core/Events/Audio/UpdateRegionOffset";
 import timelineReducer from "@/Core/State/timelineReducer";
 import { CONSTANTS } from "@/Constants/constants";
 
-// ~10ms per pixel at 48kHz
-const SAMPLES_PER_DRAG_PX = Math.round(CONSTANTS.SAMPLE_RATE * 0.01);
 
 export class HandleSlipEdit {
     #context: GlobalContext;
@@ -25,7 +23,9 @@ export class HandleSlipEdit {
 
         const handleMouseMove = (mv: MouseEvent) => {
             const deltaX = mv.clientX - startX;
-            const rawOffset = baselineOffset + Math.round(deltaX * SAMPLES_PER_DRAG_PX);
+            const timelineSamplesPerPx = this.#context.query('viewport').samplesPerPx;
+            const samplesPerDragPx = timelineSamplesPerPx * 0.5;
+            const rawOffset = baselineOffset + Math.round(deltaX * samplesPerDragPx);
             const delta = clamp(rawOffset) - baselineOffset;
             this.#context.dispatch(SetLiveSlip.getDispatchEvent({
                 emit: false,

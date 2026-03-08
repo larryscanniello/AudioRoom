@@ -128,5 +128,43 @@ export function renderStagingWaveforms(ref: React.RefObject<HTMLElement|null>, d
 
     canvasCtx.stroke();
 
-        
+    // Second pass: red zero-line for out-of-bounds (slip empty) zones
+    if (data.liveSlip) {
+        canvasCtx.beginPath();
+        canvasCtx.strokeStyle = 'rgba(80,200,100,0.85)';
+        canvasCtx.lineWidth = 5;
+
+        let j2 = 0;
+        while (j2 < timeline[0].length && timeline[0][j2].end <= vpStartSamples) j2++;
+
+        while (j2 < timeline[0].length && timeline[0][j2].start < vpEndSamples) {
+            const region = timeline[0][j2];
+            const startSamples = Math.max(region.start, vpStartSamples);
+
+            const liveDelta = (data.liveSlip.regionId === region.id) ? data.liveSlip.delta : 0;
+            const slipBuckets = Math.round(liveDelta / bucketSize);
+
+            let mipMapIndex = mipMapStart + Math.floor(Math.floor(startSamples / iterateAmount) / Math.pow(2, currRes + 1)) + slipBuckets;
+            const validStart = mipMapStart + Math.floor(Math.floor(region.start / iterateAmount) / Math.pow(2, currRes + 1));
+            const validEnd   = mipMapStart + Math.floor(Math.floor(region.end   / iterateAmount) / Math.pow(2, currRes + 1));
+
+            let k = 0;
+            while (k * pxGap < WIDTH * (startSamples - vpStartSamples) / (vpEndSamples - vpStartSamples)) k++;
+
+            while (k * pxGap < WIDTH * (region.end - vpStartSamples) / (vpEndSamples - vpStartSamples)) {
+                if (mipMapIndex < validStart || mipMapIndex >= validEnd) {
+                    const x = k * pxGap;
+                    const yMid = HEIGHT / 2;
+                    canvasCtx.moveTo(x, yMid);
+                    canvasCtx.lineTo(x, yMid + 1);
+                }
+                mipMapIndex++; k++;
+            }
+            j2++;
+        }
+
+        canvasCtx.stroke();
+        canvasCtx.strokeStyle = '#1c1e22';
+        canvasCtx.lineWidth = 1;
+    }
 }

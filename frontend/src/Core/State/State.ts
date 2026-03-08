@@ -34,6 +34,7 @@ export interface StateContainer {
     mixMuted: boolean;
     remoteStreamAttached: boolean;
     liveRecording: {start: number, end:number};
+    liveSlip: { regionId: string; delta: number } | null;
     latency: {
         totalDelayCompensationSamples: number;
         ctxLatencySamples: number;
@@ -102,6 +103,7 @@ export class State {
             mixMuted: false,
             remoteStreamAttached: false,
             liveRecording: {start: 0, end: 0},
+            liveSlip: null,
             latency: {
                 totalDelayCompensationSamples: 0,
                 ctxLatencySamples: 0,

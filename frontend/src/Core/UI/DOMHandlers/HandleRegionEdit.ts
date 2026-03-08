@@ -165,6 +165,33 @@ export class HandleRegionEdit {
         return null;
     }
 
+    // Returns the region whose slip handle was clicked, or null
+    hitTestSlip(mouseX: number, mouseY: number): import("@/Types/AudioState").Region | null {
+        const overlayRef = this.#refs.get(DOMElements.TOUCH_OVERLAY);
+        const overlay = overlayRef?.current;
+        if (!(overlay instanceof HTMLCanvasElement)) return null;
+
+        const stagingHeight = Number(overlay.dataset.stagingheight);
+        if (isNaN(stagingHeight)) return null;
+
+        const slipY1 = STAGING_TOP_PX + stagingHeight - 22;
+        const slipY2 = STAGING_TOP_PX + stagingHeight - 2;
+        if (mouseY < slipY1 || mouseY > slipY2) return null;
+
+        const { viewportStart, viewportEnd, timelinePxLen } = this.#getViewportInfo(overlay);
+        const regions = this.#context.query("timeline").staging[0] ?? [];
+
+        for (const region of regions) {
+            const regionLeft  = this.#samplesToPx(region.start, viewportStart, viewportEnd, timelinePxLen);
+            const regionRight = this.#samplesToPx(region.end,   viewportStart, viewportEnd, timelinePxLen);
+            if (regionRight - regionLeft < 24) continue; // too narrow to show handle
+            const slipX1 = regionLeft + 2;
+            const slipX2 = regionLeft + 22;
+            if (mouseX >= slipX1 && mouseX <= slipX2) return region;
+        }
+        return null;
+    }
+
     // ─── Hover ────────────────────────────────────────────────────────────
 
     #onHoverMove = (e: MouseEvent) => {

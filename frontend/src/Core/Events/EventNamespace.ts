@@ -43,6 +43,8 @@ export const EventTypes = {
     START_LATENCY_TEST: "START_LATENCY_TEST",
     SET_LATENCY: "SET_LATENCY",
     SPLIT_REGION: "SPLIT_REGION",
+    SET_LIVE_SLIP: "SET_LIVE_SLIP",
+    UPDATE_REGION_OFFSET: "UPDATE_REGION_OFFSET",
 } as const;
 
 export type EventParams = {
@@ -82,6 +84,8 @@ export type EventParams = {
     [EventTypes.START_LATENCY_TEST]: null,
     [EventTypes.SET_LATENCY]: {ctxLatencySamples: number, totalDelayCompensationSamples: number},
     [EventTypes.SPLIT_REGION]: TimelineState,
+    [EventTypes.SET_LIVE_SLIP]: { regionId: string; delta: number } | null,
+    [EventTypes.UPDATE_REGION_OFFSET]: TimelineState,
 }
 /*
     I decided to go with a fat event model. Everything you need to know about an event

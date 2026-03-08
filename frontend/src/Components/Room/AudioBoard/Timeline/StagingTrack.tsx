@@ -1,6 +1,7 @@
 import type { Region } from "@/Types/AudioState";
-import { useRef } from "react"; 
+import { useRef } from "react";
 import { DOMElements } from "@/Constants/DOMElements";
+import { ArrowLeftRight } from "lucide-react";
 
 type StagingTrackProps = {
     timelinePxLen: number;
@@ -46,11 +47,19 @@ export default function StagingTrack({timelinePxLen,trackHeights,uiControllerRef
                     data-id={region.id}
                     data-start={region.start}
                     data-end={region.end}
-                    className="region relative"
+                    className="region relative overflow-hidden"
                     >
-                    <div className="">
-
-                    </div>
+                        <div
+                            style={{
+                                position: 'absolute', bottom: 2, left: 2,
+                                width: 20, height: 20,
+                                background: 'rgba(0,0,0,0.4)',
+                                borderRadius: 3,
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            }}
+                        >
+                            <ArrowLeftRight size={12} color="white" />
+                        </div>
                    </div>
                 })}
             </div>

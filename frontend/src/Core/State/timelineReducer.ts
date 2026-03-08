@@ -238,6 +238,24 @@ export default function timelineReducer(state: TimelineState, action: any): Time
             };
         }
 
+        case 'update_region_offset': {
+            const { regionId, newOffset } = action;
+            const currentStaging = state.staging[0] ?? [];
+            const region = currentStaging.find(r => r.id === regionId);
+            if (!region) return state;
+            const updatedRegion = { ...region, offset: newOffset };
+            const newStaging = currentStaging.map(r => r.id === regionId ? updatedRegion : r);
+            const mipmapRanges: MipmapRange[] = [{ start: region.start, end: region.end }];
+            return {
+                staging: [newStaging],
+                mix: state.mix,
+                undoStack: pushUndo(state, mipmapRanges),
+                redoStack: [],
+                lastRecordedRegion: null,
+                lastMipmapRanges: mipmapRanges,
+            };
+        }
+
         default:
             if (import.meta.env.PRODUCTION) {
                 return state;

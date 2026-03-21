@@ -6,6 +6,7 @@ import { renderMixWaveforms } from "./DrawCallbacks/renderMixWaveforms";
 import { drawPlayhead} from "./DrawCallbacks/drawPlayhead"
 import { renderStagingRegions } from "./DrawCallbacks/renderStagingRegions";
 import { MipMapsDone } from "../Events/UI/MipMapsDone";
+import { RecordingDrained } from "../Events/Audio/RecordingDrained";
 
 import type { StateContainer } from "../State/State";
 import type React from "react";
@@ -61,6 +62,15 @@ export class UIEngine implements Observer{
             case "bounce_to_mix_done":
                 this.#context.dispatch(MipMapsDone.getDispatchEvent({emit: false, param: null}));
                 break;
+            case "recording_drained": {
+                const timeline = this.#context.query("timeline");
+                const lastRegion = timeline.lastRecordedRegion;
+                if (lastRegion) {
+                    this.renderNewRegion(lastRegion.start, lastRegion.end);
+                }
+                this.#context.dispatch(RecordingDrained.getDispatchEvent({ emit: false, param: null, serverMandated: false }));
+                break;
+            }
             default:
                 console.warn(`Unrecognized message from OPFS worker: ${e.data.type}`);
         }

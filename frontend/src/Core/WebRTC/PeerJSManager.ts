@@ -48,7 +48,7 @@ export class PeerJSManager implements WebRTCManager{
             case "encode":
                 if(this.#dataChannel && this.#dataChannel.open){
                     this.#dataChannel.send(e.data.packet);
-                }else{
+                }else if(this.#context.query('numConnectedUsers') > 1 ){
                     console.warn("Data channel not open, cannot send encoded audio packet");
                 }
                 break;

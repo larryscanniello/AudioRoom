@@ -18,6 +18,7 @@ export interface StateContainer {
     timeline: TimelineState;
     isPlaying: boolean;
     isRecording: boolean;
+    isDrainingRecording: boolean;
     bounce: number;
     take: number;
     globalTake: number;
@@ -87,6 +88,7 @@ export class State {
             timeline: { staging: [[]], mix: [], undoStack: [], redoStack: [], lastRecordedRegion: null, lastMipmapRanges: [] },
             isPlaying: false,
             isRecording: false,
+            isDrainingRecording: false,
             bounce: 0,
             take: 0,
             globalTake: 0,

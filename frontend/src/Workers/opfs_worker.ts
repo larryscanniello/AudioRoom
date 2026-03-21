@@ -115,7 +115,7 @@ const opfs:OPFS = {
 let looping = false;
 
 type Proceed = {
-    record: "ready"|"working"|"off"|null;
+    record: "ready"|"working"|"off"|"final_drain"|null;
     staging: "ready"|"working"|"off"|null;
     mix: "ready"|"working"|"off"|null;
 }
@@ -154,9 +154,9 @@ async function removeHandles(root:any){
     }
 }
 
-export type OPFSEventData = OPFSInitAudioData | OPFSInitUIData | 
+export type OPFSEventData = OPFSInitAudioData | OPFSInitUIData |
 AudioProcessorData | OPFSStopData | OPFSFillStagingMipMapData |
-OPFSBounceToMixData | DecodeAudioData | {type: "cleanup"};
+OPFSBounceToMixData | DecodeAudioData | {type: "cleanup"} | {type: "stop_recording_drain"};
 
 type OPFSInitAudioData = {
     type: "initAudio";
@@ -348,9 +348,21 @@ if (typeof self !== "undefined") { // for testing, otherwise in testing self is 
                 break;
                 
             case EventTypes.STOP:
-                proceed.record = "off";
+                // proceed.record intentionally NOT set — AudioProcessor records 0.5s of headroom
+                // after STOP. stop_recording_drain finalizes it once the window closes.
                 proceed.staging = "off";
                 proceed.mix = "off";
+                break;
+
+            case "stop_recording_drain":
+                // AudioProcessor's 0.5s headroom window has closed. Signal writeToOPFS to do
+                // one final drain and then stop.
+                if (proceed.record === "ready") {
+                    proceed.record = "final_drain";
+                    writeToOPFS(pointers.record.readOPFS, pointers.record.write, pointers.record.isFull, buffers.record, opfs.mipMapManager!);
+                } else if (proceed.record === "working") {
+                    proceed.record = "final_drain"; // in-flight iteration will handle on completion
+                }
                 break;
 
             case "bounce_to_mix":
@@ -582,7 +594,8 @@ function writeToOPFS(
     buffer:Float32Array,
     mipMapManager: MipMapManager,
 ){
-    if(proceed.record!=="ready") return;
+    if(proceed.record!=="ready" && proceed.record!=="final_drain") return;
+    const wasFinalDrain = proceed.record === "final_drain";
     proceed.record = "working";
     let readPtr = Atomics.load(read,0);
     const writePtr = Atomics.load(write,0);
@@ -590,7 +603,10 @@ function writeToOPFS(
     let samplesToWrite = (writePtr - readPtr + buffer.length) % buffer.length;
     if(isFull){samplesToWrite = buffer.length;}
     if(samplesToWrite===0){
-        if((proceed as Proceed).record!=="off"){
+        if(wasFinalDrain){
+            proceed.record = "off";
+            postMessage({type:"recording_drained"});
+        } else if((proceed as Proceed).record!=="off"){
             proceed.record = "ready";
             setTimeout(()=>writeToOPFS(read,write,isFullArr,buffer,mipMapManager),15);
         }
@@ -612,8 +628,13 @@ function writeToOPFS(
     }
     Atomics.store(read,0,readPtr);
     Atomics.store(isFullArr,0,0);
-    if((proceed as Proceed).record!=="off"){proceed.record = "ready";}
-    setTimeout(()=>writeToOPFS(read,write,isFullArr,buffer,mipMapManager),15);
+    if(wasFinalDrain){
+        proceed.record = "off";
+        postMessage({type:"recording_drained"});
+    } else if((proceed as Proceed).record!=="off"){
+        proceed.record = "ready";
+        setTimeout(()=>writeToOPFS(read,write,isFullArr,buffer,mipMapManager),15);
+    }
 }
 
 export { opfs };

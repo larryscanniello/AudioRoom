@@ -24,6 +24,7 @@ export const Record: EventNamespace<typeof EventTypes.START_RECORDING> = {
                 transactionQueries: [
                     { key: 'isPlaying', comparitor: '===', target: false },
                     { key: 'isRecording', comparitor: '===', target: false },
+                    { key: 'isDrainingRecording', comparitor: '===', target: false },
                 ],
                 mutations: [
                     { key: 'isRecording', value: true },

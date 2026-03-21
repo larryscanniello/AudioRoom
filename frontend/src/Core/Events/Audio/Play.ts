@@ -25,11 +25,12 @@ export const Play:EventNamespace<typeof EventTypes.START_PLAYBACK> = {
                 transactionQueries: [
                     {key: 'isPlaying', comparitor: '===', target: false},
                     {key: 'isRecording', comparitor: '===', target: false},
+                    {key: 'isDrainingRecording', comparitor: '===', target: false},
                     {key: 'playheadTimeSeconds', comparitor: '<', target: CONSTANTS.TIMELINE_LENGTH_IN_SECONDS},
                 ],
                 mutations: [
                     {key: 'isPlaying', value: true},
-                ]
+            ]
             },
             getEventNamespace:()=>{return Play}
         }},

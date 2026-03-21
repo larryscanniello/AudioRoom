@@ -456,7 +456,7 @@ class AudioProcessor extends AudioWorkletProcessor {
       this.state.isRecording = false;
       this.absolute.recordingEnd = null;
       this.timeline.stopSamples = null;
-      
+      this.port.postMessage({ type: "recording_ended" });
     }
 
     const input = inputs[0];

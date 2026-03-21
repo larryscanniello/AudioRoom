@@ -25,7 +25,10 @@ export const RecordingFinished: EventNamespace<typeof EventTypes.RECORDING_FINIS
             serverMandated,
             transactionData: {
                 transactionQueries: [],
-                mutations: [{ key: 'timeline', value: param }],
+                mutations: [
+                    { key: 'timeline', value: param },
+                    { key: 'isDrainingRecording', value: true },
+                ],
             },
             getEventNamespace: () => { return RecordingFinished; }
         };

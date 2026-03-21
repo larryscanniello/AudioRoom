@@ -45,6 +45,7 @@ export const EventTypes = {
     SPLIT_REGION: "SPLIT_REGION",
     SET_LIVE_SLIP: "SET_LIVE_SLIP",
     UPDATE_REGION_OFFSET: "UPDATE_REGION_OFFSET",
+    RECORDING_DRAINED: "RECORDING_DRAINED",
 } as const;
 
 export type EventParams = {
@@ -86,6 +87,7 @@ export type EventParams = {
     [EventTypes.SPLIT_REGION]: TimelineState,
     [EventTypes.SET_LIVE_SLIP]: { regionId: string; delta: number } | null,
     [EventTypes.UPDATE_REGION_OFFSET]: TimelineState,
+    [EventTypes.RECORDING_DRAINED]: null,
 }
 /*
     I decided to go with a fat event model. Everything you need to know about an event

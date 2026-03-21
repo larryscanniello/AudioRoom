@@ -73,6 +73,9 @@ export class WorkletAudioEngine implements AudioEngine{
                     })
                 );
                 break;
+            case "recording_ended":
+                this.#hardware.opfsWorker.postMessage({ type: "stop_recording_drain" });
+                break;
             case "latency_test_done": {
                 const delaySamples: number = e.data.delaySamples;
                 const ctxLatencySamples = Math.round((this.#hardware.audioContext.outputLatency || 0) * CONSTANTS.SAMPLE_RATE);

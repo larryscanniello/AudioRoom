@@ -7,6 +7,7 @@ import { drawPlayhead} from "./DrawCallbacks/drawPlayhead"
 import { renderStagingRegions } from "./DrawCallbacks/renderStagingRegions";
 import { MipMapsDone } from "../Events/UI/MipMapsDone";
 import { RecordingDrained } from "../Events/Audio/RecordingDrained";
+import { SetLiveSlip } from "../Events/UI/SetLiveSlip";
 
 import type { StateContainer } from "../State/State";
 import type React from "react";
@@ -38,6 +39,7 @@ export class UIEngine implements Observer{
     #mediaProvider: MediaProvider;
     #playheadManager: PlayheadManager;
     #context: GlobalContext;
+    #pendingSlipMipmaps: number = 0;
     #callbackObj: {[key in keyof typeof DOMCommands]: 
         (ref: React.RefObject<HTMLElement|null>, 
         data: StateContainer, 
@@ -58,6 +60,13 @@ export class UIEngine implements Observer{
         switch(e.data.type){
             case "staging_mipmap_done":
                 this.#context.dispatch(MipMapsDone.getDispatchEvent({emit: false, param: null}));
+                break;
+            case "slip_mipmap_done":
+                this.#pendingSlipMipmaps--;
+                if (this.#pendingSlipMipmaps === 0) {
+                    this.#context.dispatch(SetLiveSlip.getDispatchEvent({ emit: false, param: null }));
+                    this.#context.dispatch(MipMapsDone.getDispatchEvent({ emit: false, param: null }));
+                }
                 break;
             case "bounce_to_mix_done":
                 this.#context.dispatch(MipMapsDone.getDispatchEvent({emit: false, param: null}));
@@ -82,6 +91,19 @@ export class UIEngine implements Observer{
             type: "fill_staging_mipmap",
             timeline,start,end
         });
+    }
+
+    public renderNewRegionForSlip(start: number, end: number) {
+        this.#pendingSlipMipmaps++;
+        const timeline = this.#context.query("timeline");
+        this.#opfsWorker.postMessage({
+            type: "fill_staging_mipmap_slip",
+            timeline, start, end,
+        });
+    }
+
+    public clearLiveSlip() {
+        this.#context.dispatch(SetLiveSlip.getDispatchEvent({ emit: false, param: null }));
     }
 
     public getRef(ID: keyof typeof DOMCommands): React.RefObject<HTMLElement|null>|undefined{
@@ -124,6 +146,11 @@ export class UIEngine implements Observer{
 
     public draw(commands: (keyof typeof DOMCommands)[], data: StateContainer) {
         for(let command of commands){
+            if (this.#pendingSlipMipmaps > 0 &&
+                (command === DOMCommands.DRAW_TRACK_ONE_WAVEFORMS ||
+                 command === DOMCommands.DRAW_TRACK_TWO_WAVEFORMS)) {
+                continue;
+            }
             const ref = this.#refs.get(command);
             if(ref && ref.current){
                 const callback = this.#callbackObj[command];

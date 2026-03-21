@@ -2,7 +2,6 @@ import { EventTypes } from "../EventNamespace";
 import type { State, TransactionData } from "@/Core/State/State";
 import type { UIEngine } from "@/Core/UI/UIEngine";
 import { executeSocketUtil, stateTransactionUtil } from "../genericEventFunctions";
-import { DOMCommands } from "@/Constants/DOMElements";
 
 import type { EventNamespace } from "../EventNamespace";
 import type { WorkletAudioEngine } from "@/Core/Audio/WorkletAudioEngine";
@@ -44,11 +43,8 @@ export const UpdateRegionOffset: EventNamespace<typeof EventTypes.UPDATE_REGION_
     },
 
     executeUI(engine: UIEngine, data: any): void {
-        for (const r of data.lastMipmapRanges) engine.renderNewRegion(r.start, r.end);
-        engine.draw([
-            DOMCommands.DRAW_TRACK_ONE_WAVEFORMS,
-            DOMCommands.RENDER_TRACK_ONE_REGIONS,
-        ], data.snapshot);
+        for (const r of data.lastMipmapRanges) engine.renderNewRegionForSlip(r.start, r.end);
+        if (data.lastMipmapRanges.length === 0) engine.clearLiveSlip();
     },
 
     executeSocket(socketManager: any, transactionData: TransactionData, data: any): void {

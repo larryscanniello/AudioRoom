@@ -156,7 +156,12 @@ async function removeHandles(root:any){
 
 export type OPFSEventData = OPFSInitAudioData | OPFSInitUIData |
 AudioProcessorData | OPFSStopData | OPFSFillStagingMipMapData |
-OPFSBounceToMixData | DecodeAudioData | {type: "cleanup"} | {type: "stop_recording_drain"};
+OPFSBounceToMixData | DecodeAudioData | {type: "cleanup"} | {type: "stop_recording_drain"} | {
+    type: "fill_staging_mipmap_slip";
+    timeline: { staging: readonly Region[][]; mix: readonly Region[][] };
+    start: number;
+    end: number;
+};
 
 type OPFSInitAudioData = {
     type: "initAudio";
@@ -404,6 +409,21 @@ if (typeof self !== "undefined") { // for testing, otherwise in testing self is 
                     "staging",
                 );
                 postMessage({type:'staging_mipmap_done'})
+                break;
+
+            case "fill_staging_mipmap_slip":
+                if (!opfs.mipMapManager) {
+                    console.error("Can't fill staging mipmap - not initialized");
+                    return;
+                }
+                opfs.timeline.staging = e.data.timeline.staging;
+                opfs.mipMapManager.write(
+                    { startSample: e.data.start, endSample: e.data.end },
+                    opfs.timeline.staging,
+                    opfs.bounces,
+                    "staging",
+                );
+                postMessage({ type: 'slip_mipmap_done' });
                 break;
             case "decode":
                 writeStreamedPacketToOPFS(e.data,opfs);

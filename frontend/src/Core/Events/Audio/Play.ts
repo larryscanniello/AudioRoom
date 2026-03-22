@@ -16,8 +16,8 @@ export const Play:EventNamespace<typeof EventTypes.START_PLAYBACK> = {
     sharedState: true,
 
 
-    getDispatchEvent: ({emit,serverMandated}) => { 
-        return { 
+    getDispatchEvent: ({emit,param,serverMandated}) => {
+        return {
             type: EventTypes.START_PLAYBACK,
             emit,
             serverMandated,
@@ -30,6 +30,7 @@ export const Play:EventNamespace<typeof EventTypes.START_PLAYBACK> = {
                 ],
                 mutations: [
                     {key: 'isPlaying', value: true},
+                    {key: 'globalPlayCount', value: param},
             ]
             },
             getEventNamespace:()=>{return Play}

@@ -28,7 +28,12 @@ export const TrimRegion: EventNamespace<typeof EventTypes.TRIM_REGION> = {
     },
 
     getLocalPayload(state: State): any {
-        return { snapshot: state.getSnapshot(), sharedSnapshot: state.getSharedStateSnapshot() };
+        const timeline = state.query('timeline');
+        return {
+            snapshot: state.getSnapshot(),
+            sharedSnapshot: state.getSharedStateSnapshot(),
+            lastMipmapRanges: timeline.lastMipmapRanges,
+        };
     },
 
     executeAudio(_audioEngine: WorkletAudioEngine, _data: any): void {
@@ -36,6 +41,7 @@ export const TrimRegion: EventNamespace<typeof EventTypes.TRIM_REGION> = {
     },
 
     executeUI(engine: UIEngine, data: any): void {
+        for (const r of data.lastMipmapRanges) engine.renderNewRegion(r.start, r.end);
         engine.draw([
             DOMCommands.DRAW_TRACK_ONE_WAVEFORMS,
             DOMCommands.RENDER_TRACK_ONE_REGIONS,

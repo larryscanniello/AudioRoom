@@ -44,7 +44,7 @@ export class DOMHandlers {
         const mouseY = e.clientY - rect.top;
         const slipRegion = this.#handleRegionEdit.hitTestSlip(mouseX, mouseY);
         if (slipRegion) {
-            this.#handleSlipEdit.slipMouseDown(e, slipRegion.id, slipRegion.offset);
+            this.#handleSlipEdit.slipMouseDown(e, slipRegion.id, slipRegion.latencyOffset);
             return;
         }
 

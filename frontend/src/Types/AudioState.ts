@@ -42,14 +42,14 @@ export type DecodeAudioData = {
 
 export interface Region {
     id: string;
-    start: number;
-    end: number;
+    start: number;           // Timeline position where clip begins (samples)
+    end: number;             // Timeline position where clip ends (samples)
     take: number;
     bounce: number;
     name: string;
-    offset: number;
-    clipStart: number;   
-    clipEnd: number;  
+    clipOffset: number;      // Samples into source audio at region.start (0 = original recording)
+    latencyOffset: number;   // Delay comp + user slip only (≤ 0.4s); inherited on split
+    audioLength: number;     // Total usable samples in source file = timelineEnd - timelineStart
 }
 
 export type MipmapRange = { start: number; end: number };

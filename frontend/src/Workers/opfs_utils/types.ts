@@ -31,7 +31,9 @@ interface Region {
 	take: number;
 	bounce: number;
 	name: string;
-	offset: number;
+	clipOffset: number;
+	latencyOffset: number;
+	audioLength: number;
 }
 
 // Entry for a track in OPFS: directory handle and list of take handles

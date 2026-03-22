@@ -42,7 +42,7 @@ export function fillPlaybackBufferUtil(
                 }else{
                     const handle = tracks[track].takeHandles[region.name];
                     writePtrPerTrack = writeToRingBuffer(
-                        sliceLength, 
+                        sliceLength,
                         handle,
                         region.start,
                         writePtrPerTrack,
@@ -50,7 +50,7 @@ export function fillPlaybackBufferUtil(
                         timelinePos,
                         buffer,
                         TRACK_COUNT,
-                        region.offset
+                        region.clipOffset + region.latencyOffset
                     );
                 }
                 
@@ -76,15 +76,15 @@ export function fillPlaybackBufferUtil(
 }
 
 function writeToRingBuffer(
-    samplesToFill:number, 
-    handle: any, 
-    takeStart:number, 
-    write:number, 
-    track:number, 
+    samplesToFill:number,
+    handle: any,
+    takeStart:number,
+    write:number,
+    track:number,
     pos:number,
     buffer:Float32Array,
     TRACK_COUNT:number,
-    offset:number,
+    combinedOffset:number,
 ):number{
     let writePtr = write;
     let samplesWritten = 0;
@@ -94,13 +94,12 @@ function writeToRingBuffer(
         const remainingInPhysicalBuffer = trackBufferLen - writePtr;
         const chunkLength = Math.min(samplesToFill - samplesWritten, remainingInPhysicalBuffer);
         const chunkView = buffer.subarray(track * trackBufferLen + writePtr, track * trackBufferLen + writePtr + chunkLength);
-        handle.read(chunkView, { at: (timelinePos - takeStart + offset) * Float32Array.BYTES_PER_ELEMENT });  
+        handle.read(chunkView, { at: (timelinePos - takeStart + combinedOffset) * Float32Array.BYTES_PER_ELEMENT });
         writePtr = (writePtr + chunkLength) % trackBufferLen;
         samplesWritten += chunkLength;
         timelinePos += chunkLength;
-       
     }
-    
+
     return writePtr;
 }
 

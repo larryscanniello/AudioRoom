@@ -304,18 +304,16 @@ export class HandleRegionEdit {
         const src = this.#clipboard;
         const playheadSamples = Math.round(this.#context.query('playheadTimeSeconds') * CONSTANTS.SAMPLE_RATE);
         const duration    = src.end - src.start;
-        const leftBuffer  = src.start - src.clipStart;
-        const rightBuffer = src.clipEnd - src.end;
         const pastedRegion: Region = {
-            id:         crypto.randomUUID(),
-            name:       src.name,
-            take:       src.take,
-            bounce:     src.bounce,
-            offset:     src.offset,
-            start:      playheadSamples,
-            end:        playheadSamples + duration,
-            clipStart:  playheadSamples - leftBuffer,
-            clipEnd:    playheadSamples + duration + rightBuffer,
+            id:            crypto.randomUUID(),
+            name:          src.name,
+            take:          src.take,
+            bounce:        src.bounce,
+            clipOffset:    src.clipOffset,
+            latencyOffset: src.latencyOffset,
+            audioLength:   src.audioLength,
+            start:         playheadSamples,
+            end:           playheadSamples + duration,
         };
         this.#selectedId = pastedRegion.id;
         const timeline = this.#context.query('timeline');
@@ -374,18 +372,18 @@ export class HandleRegionEdit {
                            - this.#pxToSamples(this.#drag.startX, viewportStart, viewportEnd, timelinePxLen);
 
         const { origStart, origEnd, region } = this.#drag;
-        const clipStart = region.clipStart;
-        const clipEnd = region.clipEnd;
+        const minStart = region.start - region.clipOffset;
+        const maxEnd   = region.start + (region.audioLength - region.clipOffset);
 
         let ghostStartSamples: number;
         let ghostEndSamples: number;
 
         if (this.#drag.mode === 'trim-start') {
-            ghostStartSamples = Math.max(clipStart, Math.min(origStart + deltaSamples, origEnd - MIN_REGION_SAMPLES));
+            ghostStartSamples = Math.max(minStart, Math.min(origStart + deltaSamples, origEnd - MIN_REGION_SAMPLES));
             ghostEndSamples = origEnd;
         } else if (this.#drag.mode === 'trim-end') {
             ghostStartSamples = origStart;
-            ghostEndSamples = Math.min(clipEnd, Math.max(origEnd + deltaSamples, origStart + MIN_REGION_SAMPLES));
+            ghostEndSamples = Math.min(maxEnd, Math.max(origEnd + deltaSamples, origStart + MIN_REGION_SAMPLES));
         } else {
             const newStart = Math.max(0, origStart + deltaSamples);
             const actualDelta = newStart - origStart;
@@ -472,14 +470,14 @@ export class HandleRegionEdit {
                            - this.#pxToSamples(drag.startX, viewportStart, viewportEnd, timelinePxLen);
 
         const { origStart, origEnd, region } = drag;
-        const clipStart = region.clipStart;
-        const clipEnd = region.clipEnd;
+        const minStart = region.start - region.clipOffset;
+        const maxEnd   = region.start + (region.audioLength - region.clipOffset);
         const timeline = this.#context.query("timeline");
 
         if (drag.mode === 'trim-start') {
             const rawStart = origStart + deltaSamples;
             const newStart = this.#snapSamples(
-                Math.max(clipStart, Math.min(rawStart, origEnd - MIN_REGION_SAMPLES))
+                Math.max(minStart, Math.min(rawStart, origEnd - MIN_REGION_SAMPLES))
             );
             if (newStart === origStart) return;
             const newTimeline = timelineReducer(timeline, { type: 'trim_region', id: region.id, newStart, newEnd: origEnd });
@@ -488,7 +486,7 @@ export class HandleRegionEdit {
         } else if (drag.mode === 'trim-end') {
             const rawEnd = origEnd + deltaSamples;
             const newEnd = this.#snapSamples(
-                Math.min(clipEnd, Math.max(rawEnd, origStart + MIN_REGION_SAMPLES))
+                Math.min(maxEnd, Math.max(rawEnd, origStart + MIN_REGION_SAMPLES))
             );
             if (newEnd === origEnd) return;
             const newTimeline = timelineReducer(timeline, { type: 'trim_region', id: region.id, newStart: origStart, newEnd });

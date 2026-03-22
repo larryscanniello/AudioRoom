@@ -52,9 +52,9 @@ export default function timelineReducer(state: TimelineState, action: any): Time
                 bounce: bounceNumber,
                 take: takeNumber,
                 name: fileName,
-                offset: delayCompensation,
-                clipStart: timelineStart,
-                clipEnd: timelineEnd,
+                clipOffset: 0,
+                latencyOffset: delayCompensation,
+                audioLength: timelineEnd - timelineStart,
             };
             const newStaging = addRegionToStaging(state.staging[0] ?? [], newRegion);
             const mipmapRanges: MipmapRange[] = [{ start: newRegion.start, end: newRegion.end }];
@@ -139,10 +139,13 @@ export default function timelineReducer(state: TimelineState, action: any): Time
             const currentStaging = state.staging[0] ?? [];
             const region = currentStaging.find(r => r.id === id);
             if (!region) return state;
-            const start = Math.max(region.clipStart, Math.min(newStart, region.end - MIN_REGION_SAMPLES));
-            const end = Math.min(region.clipEnd, Math.max(newEnd, region.start + MIN_REGION_SAMPLES));
+            const minStart = region.start - region.clipOffset;  // clipOffset can't go below 0
+            const maxEnd   = region.start + (region.audioLength - region.clipOffset);
+            const start    = Math.max(minStart, Math.min(newStart, region.end - MIN_REGION_SAMPLES));
+            const end      = Math.min(maxEnd,   Math.max(newEnd, region.start + MIN_REGION_SAMPLES));
+            const clipOffset = region.clipOffset + (start - region.start);
             const stagingWithout = currentStaging.filter(r => r.id !== id);
-            const newStaging = addRegionToStaging(stagingWithout, { ...region, start, end });
+            const newStaging = addRegionToStaging(stagingWithout, { ...region, start, end, clipOffset });
             const mipmapRanges: MipmapRange[] = [{ start: Math.min(region.start, start), end: Math.max(region.end, end) }];
             return {
                 staging: [newStaging],
@@ -196,8 +199,6 @@ export default function timelineReducer(state: TimelineState, action: any): Time
                 ...region,
                 start: newStart,
                 end: region.end + actualDelta,
-                clipStart: region.clipStart + actualDelta,
-                clipEnd: region.clipEnd + actualDelta,
             };
             const stagingWithout = currentStaging.filter(r => r.id !== id);
             const newStaging = addRegionToStaging(stagingWithout, movedRegion);
@@ -223,8 +224,13 @@ export default function timelineReducer(state: TimelineState, action: any): Time
                 splitPointSamples - region.start < MIN_REGION_SAMPLES ||
                 region.end - splitPointSamples < MIN_REGION_SAMPLES
             ) return state;
-            const leftPart: Region = { ...region, id: crypto.randomUUID(), end: splitPointSamples };
-            const rightPart: Region = { ...region, id: crypto.randomUUID(), start: splitPointSamples };
+            const leftPart: Region  = { ...region, id: crypto.randomUUID(), end: splitPointSamples };
+            const rightPart: Region = {
+                ...region,
+                id: crypto.randomUUID(),
+                start: splitPointSamples,
+                clipOffset: region.clipOffset + (splitPointSamples - region.start),
+            };
             const stagingWithout = currentStaging.filter(r => r.id !== region.id);
             const newStaging = [...stagingWithout, leftPart, rightPart].sort((a, b) => a.start - b.start);
             const mipmapRanges: MipmapRange[] = [{ start: region.start, end: region.end }];
@@ -243,7 +249,7 @@ export default function timelineReducer(state: TimelineState, action: any): Time
             const currentStaging = state.staging[0] ?? [];
             const region = currentStaging.find(r => r.id === regionId);
             if (!region) return state;
-            const updatedRegion = { ...region, offset: newOffset };
+            const updatedRegion = { ...region, latencyOffset: newOffset };
             const newStaging = currentStaging.map(r => r.id === regionId ? updatedRegion : r);
             const mipmapRanges: MipmapRange[] = [{ start: region.start, end: region.end }];
             return {

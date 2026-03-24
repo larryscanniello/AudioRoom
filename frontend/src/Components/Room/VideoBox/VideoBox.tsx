@@ -36,7 +36,7 @@ export default function VideoBox({webRTCManagerRef,height,roomJoined}: VideoProp
     return <div className="video-box relative flex justify-center"
                 style={{
                     width: 1050,
-                    height: height - (height < 700 ? 235 * (4 / 7) : 235),
+                    height: height - 235 //(height < 700 ? 235 * (4 / 7) : 235),
                 }}
                 >
     {remoteStream && (
@@ -47,12 +47,12 @@ export default function VideoBox({webRTCManagerRef,height,roomJoined}: VideoProp
                 className="bg-black"
                 style={{
                   width: 1050,
-                  height: height - (height < 700 ? 235 * (4 / 7) : 235),
+                  height: height - 235, //(height < 700 ? 235 * (4 / 7) : 235),
                   objectFit: "cover",
                 }}
               />
             )}
-    {(!remoteStream && roomJoined) && <div className="bg-white border-1 border-gray-700 text-black absolute px-4 py-1 rounded-2xl">Waiting for partner to join room</div>}
+    {(!remoteStream && roomJoined) && <div className="bg-white border border-gray-700 text-black absolute px-4 py-1 rounded-2xl">Waiting for partner to join room</div>}
     <video
       ref={localStreamRef}
       autoPlay
@@ -66,7 +66,7 @@ export default function VideoBox({webRTCManagerRef,height,roomJoined}: VideoProp
       style={{
         width: !remoteStream ? 1050 : undefined,
         height: !remoteStream
-          ? height - (height < 700 ? 235 * (4 / 7) : 235)
+          ? height - 235 //(height < 700 ? 235 * (4 / 7) : 235)
           : undefined,
         objectFit: "cover",
       }}

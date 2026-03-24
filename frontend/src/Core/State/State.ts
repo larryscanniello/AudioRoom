@@ -122,7 +122,7 @@ export class State {
         ]);
         this.#sharedState = new Set([
             "bpm","isLooping","timeSignature","timeline",
-            "isPlaying","isRecording","bounce","take","globalTake","globalPlayCount",
+            "isPlaying","isRecording","isDrainingRecording","bounce","take","globalTake","globalPlayCount",
             "playheadTimeSeconds","mouseDragStart","mouseDragEnd",
             "numConnectedUsers","roomID","stagingMasterVolume",
             "mixMasterVolume","stagingMuted","mixMuted","liveRecording",

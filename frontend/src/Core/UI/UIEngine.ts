@@ -77,7 +77,7 @@ export class UIEngine implements Observer{
                 if (lastRegion) {
                     this.renderNewRegion(lastRegion.start, lastRegion.end);
                 }
-                this.#context.dispatch(RecordingDrained.getDispatchEvent({ emit: false, param: null, serverMandated: false }));
+                this.#context.dispatch(RecordingDrained.getDispatchEvent({ emit: true, param: null, serverMandated: false }));
                 break;
             }
             default:

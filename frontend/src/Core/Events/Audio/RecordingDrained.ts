@@ -1,16 +1,18 @@
 import { EventTypes } from "../EventNamespace";
 import type { State, TransactionData } from "@/Core/State/State";
-import { stateTransactionUtil } from "../genericEventFunctions";
+import { executeSocketUtil, stateTransactionUtil } from "../genericEventFunctions";
 import type { EventNamespace } from "../EventNamespace";
+import type { SocketManager } from "@/Core/Sockets/SocketManager";
 
 /*
     Dispatched after the OPFS worker finishes draining the 0.5s headroom ring buffer.
     Clears isDrainingRecording, lifting the guard that prevents re-recording during the drain.
-    Local-only — drain is an OPFS operation on the local machine; collaborators don't need it.
+    Emitted to the server so the server state reflects isDrainingRecording: false,
+    allowing subsequent START_RECORDING transactions to pass server validation.
 */
 
 export const RecordingDrained: EventNamespace<typeof EventTypes.RECORDING_DRAINED> = {
-    sharedState: false,
+    sharedState: true,
 
     getDispatchEvent: ({ emit, serverMandated }) => {
         return {
@@ -32,13 +34,19 @@ export const RecordingDrained: EventNamespace<typeof EventTypes.RECORDING_DRAINE
         return stateTransactionUtil(state, transactionData, this.sharedState);
     },
 
-    getLocalPayload(_state: State): any {
-        return {};
+    getLocalPayload(state: State): any {
+        return { sharedSnapshot: state.getSharedStateSnapshot() };
     },
 
     executeAudio(): void {},
 
     executeUI(): void {},
 
-    executeSocket(): void {},
+    executeSocket(socketManager: SocketManager, transactionData: TransactionData, data: any): void {
+        executeSocketUtil(socketManager, {
+            transactionData,
+            sharedSnapshot: data.sharedSnapshot,
+            type: EventTypes.RECORDING_DRAINED,
+        });
+    },
 };

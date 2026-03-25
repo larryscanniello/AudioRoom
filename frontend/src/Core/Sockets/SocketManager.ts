@@ -85,6 +85,9 @@ export class SocketManager implements Observer {
             case EventTypes.RECORDING_FINISHED:
                 this.#context.dispatch(RecordingFinished.getDispatchEvent({emit: false,param:state.timeline,serverMandated: true}));
                 break;
+            case EventTypes.RECORDING_DRAINED:
+                // isDrainingRecording: false applied via StateSync
+                break;
             case EventTypes.SKIPBACK:
                 this.#context.dispatch(Skipback.getDispatchEvent({emit: false, param:null, serverMandated: true}));
                 this.#context.commMessage("Partner moved playhead to measure 1.1","white");
@@ -168,7 +171,9 @@ export class SocketManager implements Observer {
                 break;
             case EventTypes.RECORDING_FINISHED:
                 // No message
-                break;   
+                break;
+            case EventTypes.RECORDING_DRAINED:
+                break;
             case EventTypes.SKIPBACK:
                 this.#context.commMessage(`Partner playhead moved to measure ${this.#convertTimeToMeasures(state.playheadTimeSeconds)}`,"white");
                 break;

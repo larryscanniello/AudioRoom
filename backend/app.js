@@ -7,7 +7,18 @@ const pool = require('./db');
 require("dotenv").config();
 const pgSession = require('connect-pg-simple')(session);
 const cors = require("cors");
-const { validate: isUUID } = require("uuid");
+function generateRoomID() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const nums = '0123456789';
+    let id = '';
+    for (let i = 0; i < 2; i++) {
+        id += chars[Math.floor(Math.random() * chars.length)];
+    }
+    for (let i = 0; i < 2; i++) {
+        id += nums[Math.floor(Math.random() * nums.length)];
+    }
+    return id;
+}
 const http = require('http');
 const socketManager = require('./socketManager');
 
@@ -194,9 +205,10 @@ app.post('/logout', function(req, res, next){
 app.post('/newroom', async function(req,res,next){
   console.log(req.user.id);
   console.log(req.user.email);
+  const roomID = generateRoomID();
   const insert = await pool.query(
-      "INSERT INTO rooms (owner_id) VALUES ($1) RETURNING *",
-        [req.user.id]
+      "INSERT INTO rooms (id, owner_id) VALUES ($1, $2) RETURNING *",
+        [roomID, req.user.id]
     );
     const room = insert.rows[0];
     res.json(room)
@@ -204,7 +216,7 @@ app.post('/newroom', async function(req,res,next){
 
 app.get('/getroom/:id', async function(req,res,next){
   const roomID = req.params.id;
-  if (!isUUID(roomID)) {
+  if (!/^[A-Z0-9]{4}$/.test(roomID)) {
       return res.status(400).json({ error: "Invalid room ID format" });
     }
   const result = await pool.query(

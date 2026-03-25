@@ -141,11 +141,7 @@ export default function Room() {
 
     return <div>
         {validRoom ? <div className="flex flex-col h-screen">
-         <div className="flex w-full relative"
-          style={{
-          left: Math.max(0,(width-1050)/2)
-         }}
-         >
+         <div className="flex w-full justify-center">
         <div className="relative flex justify-center">
         <VideoBox 
         webRTCManagerRef={webRTCManagerRef}

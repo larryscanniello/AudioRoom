@@ -8,6 +8,7 @@ type TouchOverlayProps = {
     trackHeights: {
         stagingHeight: number;
         mixHeight: number;
+        measureTickHeight: number;
     };
 };
 
@@ -59,6 +60,7 @@ export default function TouchOverlay({ timelinePxLen, compactMode, uiControllerR
             }}
             data-stagingheight={trackHeights.stagingHeight}
             data-mixheight={trackHeights.mixHeight}
+            data-measuretickheight={trackHeights.measureTickHeight}
             onMouseDown={handleMouseDown}
         />
     );

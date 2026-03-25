@@ -11,7 +11,6 @@ import { SplitRegion } from "@/Core/Events/Audio/SplitRegion";
 import { paintPlayhead } from "@/Core/UI/DrawCallbacks/drawPlayhead";
 
 const EDGE_ZONE_PX = 8;
-const STAGING_TOP_PX = 35;   // matches renderStagingRegions.ts top style
 const MIN_REGION_SAMPLES = Math.round(0.1 * CONSTANTS.SAMPLE_RATE);
 const CLICK_THRESHOLD_PX = 4;
 
@@ -137,9 +136,10 @@ export class HandleRegionEdit {
 
         const stagingHeight = Number(overlay.dataset.stagingheight);
         if (isNaN(stagingHeight)) return null;
+        const stagingTopPx = Number(overlay.dataset.measuretickheight);
 
         // Only handle staging track for now
-        if (mouseY < STAGING_TOP_PX || mouseY >= STAGING_TOP_PX + stagingHeight) return null;
+        if (mouseY < stagingTopPx || mouseY >= stagingTopPx + stagingHeight) return null;
 
         const { viewportStart, viewportEnd, timelinePxLen } = this.#getViewportInfo(overlay);
         const regions = this.#context.query("timeline").staging[0] ?? [];
@@ -173,9 +173,10 @@ export class HandleRegionEdit {
 
         const stagingHeight = Number(overlay.dataset.stagingheight);
         if (isNaN(stagingHeight)) return null;
+        const stagingTopPx = Number(overlay.dataset.measuretickheight);
 
-        const slipY1 = STAGING_TOP_PX + stagingHeight - 22;
-        const slipY2 = STAGING_TOP_PX + stagingHeight - 2;
+        const slipY1 = stagingTopPx + stagingHeight - 22;
+        const slipY2 = stagingTopPx + stagingHeight - 2;
         if (mouseY < slipY1 || mouseY > slipY2) return null;
 
         const { viewportStart, viewportEnd, timelinePxLen } = this.#getViewportInfo(overlay);
@@ -255,7 +256,8 @@ export class HandleRegionEdit {
         const tipPx  = trimEnd ? regionRight : regionLeft;
         const basePx = trimEnd ? regionRight - depth : regionLeft + depth;
 
-        const cy = STAGING_TOP_PX + hit.stagingHeight / 2;
+        const stagingTopPx = Number(overlay.dataset.measuretickheight);
+        const cy = stagingTopPx + hit.stagingHeight / 2;
 
         ctx.fillStyle = 'rgba(255, 255, 255, 0.88)';
         ctx.beginPath();
@@ -404,7 +406,8 @@ export class HandleRegionEdit {
         if (!ctx) return;
         ctx.clearRect(0, 0, overlay.width, overlay.height);
         ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-        ctx.fillRect(ghostLeft, STAGING_TOP_PX, ghostWidth, this.#drag.stagingHeight);
+        const stagingTopPx = Number(overlay.dataset.measuretickheight);
+        ctx.fillRect(ghostLeft, stagingTopPx, ghostWidth, this.#drag.stagingHeight);
         this.#paintPlayheadOnOverlay(ctx, overlay);
     }
 

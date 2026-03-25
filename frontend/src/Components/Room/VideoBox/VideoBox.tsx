@@ -3,11 +3,12 @@ import { useEffect, useRef } from "react";
 
 interface VideoProps {
   webRTCManagerRef: React.RefObject<PeerJSManager | null>;
-  height: number;
   roomJoined: boolean;
+  height: number;
+  compactMode: number;
 }
 
-export default function VideoBox({webRTCManagerRef,height,roomJoined}: VideoProps) {
+export default function VideoBox({webRTCManagerRef, roomJoined, height, compactMode}: VideoProps) {
 
   const localStreamRef = useRef<HTMLVideoElement>(null);
   const remoteStreamRef = useRef<HTMLVideoElement>(null);
@@ -36,7 +37,7 @@ export default function VideoBox({webRTCManagerRef,height,roomJoined}: VideoProp
     return <div className="video-box relative flex justify-center"
                 style={{
                     width: 1050,
-                    height: height - 235 //(height < 700 ? 235 * (4 / 7) : 235),
+                    height: height - 235 * compactMode,
                 }}
                 >
     {remoteStream && (
@@ -47,7 +48,7 @@ export default function VideoBox({webRTCManagerRef,height,roomJoined}: VideoProp
                 className="bg-black"
                 style={{
                   width: 1050,
-                  height: height - 235, //(height < 700 ? 235 * (4 / 7) : 235),
+                  height: height - 235 * compactMode,
                   objectFit: "cover",
                 }}
               />
@@ -66,7 +67,7 @@ export default function VideoBox({webRTCManagerRef,height,roomJoined}: VideoProp
       style={{
         width: !remoteStream ? 1050 : undefined,
         height: !remoteStream
-          ? height - 235 //(height < 700 ? 235 * (4 / 7) : 235)
+          ? height - 235 * compactMode
           : undefined,
         objectFit: "cover",
       }}

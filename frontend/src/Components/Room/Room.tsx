@@ -13,6 +13,7 @@ import type { UIController } from "@/Core/UI/UIController.ts";
 import type { PeerJSManager } from "@/Core/WebRTC/PeerJSManager.ts";
 import RemoteVolumeSlider from "./VideoBox/VideoChatControls/RemoteVolumeSlider.tsx";
 import AudioBoard from "./AudioBoard/AudioBoard.tsx";
+import { CONSTANTS } from "@/Constants/constants.ts";
 
 export default function Room() {
     const [width,height] = useWindowSize();
@@ -22,7 +23,7 @@ export default function Room() {
     const [_dawInternalState, setDawInternalState] = useState<number>(0);
     const [micsMuted, setMicsMuted] = useState<{local: boolean, remote: boolean}>({local: false, remote: false});
     const [remoteVolume, setRemoteVolume] = useState<number>(100);
-
+    const [compactMode,setCompactMode] = useState<number>(() => window.innerHeight < CONSTANTS.WINDOW_HEIGHT_FOR_COMPACT_MODE ? 4/7 : 1);
 
     const gainNodesRef = useRef<{local: GainNode | null, remote: GainNode | null}>({local:null, remote:null});
     const builderRef = useRef<SessionBuilder|null>(null);
@@ -31,6 +32,14 @@ export default function Room() {
     const webRTCManagerRef = useRef<PeerJSManager|null>(null);
 
     const {roomID} = useParams();
+
+    useEffect(()=>{
+      if(height < CONSTANTS.WINDOW_HEIGHT_FOR_COMPACT_MODE){
+        setCompactMode(4/7);
+      }else{
+        setCompactMode(1);
+      }
+    },[width,height])
 
     useEffect(() => {
     
@@ -140,8 +149,9 @@ export default function Room() {
         <div className="relative flex justify-center">
         <VideoBox 
         webRTCManagerRef={webRTCManagerRef}
-        height={height}
         roomJoined={roomJoined}
+        height={height}
+        compactMode={compactMode}
           />
         {!roomJoined && <JoinRoomButton setRoomJoined={setRoomJoined} initDAW={initDAW} roomJoined={roomJoined}/>}
         {roomJoined && <div className="absolute bottom-2 left-2 flex items-center gap-4 bg-black/40 p-4 rounded-2xl border border-white/10 backdrop-blur-md"
@@ -154,7 +164,7 @@ export default function Room() {
         </div>}
         </div>
         </div>
-        {roomJoined && <AudioBoard audioControllerRef={audioControllerRef} uiControllerRef={uiControllerRef} webRTCManagerRef={webRTCManagerRef}/>} 
+        {roomJoined && <AudioBoard audioControllerRef={audioControllerRef} uiControllerRef={uiControllerRef} webRTCManagerRef={webRTCManagerRef} compactMode={compactMode}/>} 
         </div>
         : <div className="flex flex-col items-center">
             <div className="text-4xl pt-40">{errorMessage}</div>

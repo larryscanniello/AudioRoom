@@ -16,7 +16,7 @@ import ZoomSlider from "./BottomControls/BottomRight/ZoomSlider.tsx";
 
 import { CONSTANTS } from "@/Constants/constants.ts";
 
-import { useState, useEffect, } from "react";
+import { useEffect, } from "react";
 import MeasureTicks from "./Timeline/MeasureTicks.tsx";
 import TimelineContainer from "./Timeline/TimelineContainer.tsx";
 import StagingTrack from "./Timeline/StagingTrack.tsx";
@@ -37,13 +37,14 @@ import SnapToGrid from "./Timeline/SnapToGrid.tsx";
 type AudioBoardProps = {
     uiControllerRef:React.RefObject<UIController|null>,
     audioControllerRef:React.RefObject<AudioController|null>,
+    compactMode:number,
     webRTCManagerRef?:React.RefObject<PeerJSManager|null>,
 }
 
-export default function AudioBoard({uiControllerRef,audioControllerRef}:AudioBoardProps){
+export default function AudioBoard({uiControllerRef,audioControllerRef,compactMode}:AudioBoardProps){
     const [width,height] = useWindowSize();
 
-    const [compactMode,_setCompactMode] = useState<number>(1);
+    
 
     const timelinePxLen = Math.max(1050-CONSTANTS.LEFT_CONTROLS_WIDTH - 50,width-CONSTANTS.LEFT_CONTROLS_WIDTH - 50);
 

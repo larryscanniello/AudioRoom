@@ -13,6 +13,7 @@ import { Bounce } from "../Events/Audio/Bounce";
 import { RecordingFinished } from "../Events/Audio/RecordingFinished";
 import { OtherPersonRecording } from "../Events/Audio/OtherPersonRecording";
 import { MoveRegion } from "../Events/Audio/MoveRegion";
+import { UpdateRegionOffset } from "../Events/Audio/UpdateRegionOffset";
 import { UndoTimeline } from "../Events/Audio/UndoTimeline";
 import { RedoTimeline } from "../Events/Audio/RedoTimeline";
 
@@ -144,6 +145,10 @@ export class SocketManager implements Observer {
                 this.#context.dispatch(MoveRegion.getDispatchEvent({emit: false,param:state.timeline,serverMandated: true}));
                 this.#context.commMessage(`Partner moved a region`,"white");
                 break;
+            case EventTypes.UPDATE_REGION_OFFSET:
+                this.#context.dispatch(UpdateRegionOffset.getDispatchEvent({emit: false, param: state.timeline, serverMandated: true}));
+                this.#context.commMessage(`Partner slip edited a region`,"white");
+                break;
             case EventTypes.PASTE_REGION:
                 // Handled by state change
                 this.#context.commMessage(`Partner pasted a region`,"white");
@@ -210,6 +215,9 @@ export class SocketManager implements Observer {
                 break;
             case EventTypes.MOVE_REGION:
                 this.#context.commMessage(`Partner region moved`,"white");
+                break;
+            case EventTypes.UPDATE_REGION_OFFSET:
+                this.#context.commMessage(`Partner slip edited a region`,"white");
                 break;
             case EventTypes.PASTE_REGION:
                 this.#context.commMessage(`Partner region pasted`,"white");

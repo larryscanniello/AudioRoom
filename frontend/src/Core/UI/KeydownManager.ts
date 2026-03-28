@@ -32,6 +32,7 @@ export class KeydownManager {
             if (!ctrl && e.key.toLowerCase() === 'x') { e.preventDefault(); this.#handleRegionEdit.splitAtPlayhead(); return; }
         }
 
+        if (inInput) return;
         e.preventDefault();
         switch (e.key.toLowerCase()) {
             case 'enter':

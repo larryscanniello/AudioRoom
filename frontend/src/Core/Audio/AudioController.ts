@@ -55,9 +55,9 @@ export class AudioController{
         this.#context.dispatch(Skipback.getDispatchEvent({emit:true, param: null,serverMandated: false}));
     }
 
-    public bounce(){
+    public bounce(name: string){
         const timeline = this.#context.query("timeline");
-        const newTimeline = timelineReducer(timeline, { type: "bounce_to_mix" });
+        const newTimeline = timelineReducer(timeline, { type: "bounce_to_mix", name });
         const prevBounce = this.#context.query("bounce");
         const prevGlobalTake = this.#context.query("globalTake");
         const bounceState = {timeline: newTimeline, bounce: prevBounce + 1, globalTake: prevGlobalTake + 1};

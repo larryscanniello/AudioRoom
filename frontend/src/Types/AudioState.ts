@@ -63,6 +63,7 @@ export type TimelineSnapshot = {
 export interface TimelineState {
     readonly staging: readonly Region[][];
     readonly mix: readonly Region[][];
+    readonly bounceNames: readonly string[];
     readonly undoStack: readonly TimelineSnapshot[];
     readonly redoStack: readonly TimelineSnapshot[];
     readonly lastRecordedRegion: Region | null;

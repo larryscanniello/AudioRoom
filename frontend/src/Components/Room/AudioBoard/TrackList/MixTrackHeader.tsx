@@ -53,7 +53,9 @@ export default function MixTrackHeader({ audioControllerRef, compactMode }: MixT
     };
 
     const isMixMuted = audioController ? audioController.isMixTrackMuted() : false;
-    const bounceCount = audioController ? audioController.query("timeline").mix.length : 0;
+    const timeline = audioController ? audioController.query("timeline") : null;
+    const bounceCount = timeline ? timeline.mix.length : 0;
+    const bounceNames = timeline ? (timeline.bounceNames ?? []) : [];
 
     return <div style={{ width: `${CONSTANTS.LEFT_CONTROLS_WIDTH}`, height: Math.floor(58 * compactMode) }} className="border-b border-black flex flex-row items-center">
 
@@ -82,7 +84,7 @@ export default function MixTrackHeader({ audioControllerRef, compactMode }: MixT
                                     checked={checkedBounces.has(i)}
                                     onChange={() => toggleBounce(i)}
                                 />
-                                Bounce {i + 1}
+                                {bounceNames[i] ?? `Bounce ${i + 1}`}
                             </label>
                         ))
                     }

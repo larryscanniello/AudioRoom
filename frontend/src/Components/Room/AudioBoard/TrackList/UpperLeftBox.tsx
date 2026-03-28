@@ -5,17 +5,22 @@ import { ArrowDownToLine, CassetteTape, KeyboardMusic, Redo, Undo } from "lucide
 type UpperLeftBoxProps = {
     compactMode: number;
     audioControllerRef: React.RefObject<AudioController|null>;
+    onBounceClick?: () => void;
+}
 
-}   
-
-export default function UpperLeftBox({compactMode, audioControllerRef}: UpperLeftBoxProps){
+export default function UpperLeftBox({compactMode, audioControllerRef, onBounceClick}: UpperLeftBoxProps){
 
     const handleBounce = () => {
-            if(!audioControllerRef.current){
-                console.error("AudioController is null in UpperLeftBox handleBounce");
-                return;
-            }
-            audioControllerRef.current.bounce();
+        if (onBounceClick) {
+            onBounceClick();
+            return;
+        }
+        if(!audioControllerRef.current){
+            console.error("AudioController is null in UpperLeftBox handleBounce");
+            return;
+        }
+        const bounceNum = (audioControllerRef.current.query("bounce") ?? 0) + 1;
+        audioControllerRef.current.bounce(`Bounce ${bounceNum}`);
     }
 
     const handleUndo = () => {

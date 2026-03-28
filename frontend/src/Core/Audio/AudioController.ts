@@ -15,6 +15,7 @@ import timelineReducer from "../State/timelineReducer";
 import { Bounce } from "../Events/Audio/Bounce";
 import { DeleteStagingRegions } from "../Events/Audio/DeleteStagingRegions";
 import { DeleteMixRegions } from "../Events/Audio/DeleteMixRegions";
+import { DeleteMixBounces } from "../Events/Audio/DeleteMixBounces";
 import { UndoTimeline } from "../Events/Audio/UndoTimeline";
 import { RedoTimeline } from "../Events/Audio/RedoTimeline";
 import { TrimRegion } from "../Events/Audio/TrimRegion";
@@ -112,6 +113,12 @@ export class AudioController{
         const timeline = this.#context.query("timeline");
         const newTimeline = timelineReducer(timeline, { type: "delete_mix_regions" });
         this.#context.dispatch(DeleteMixRegions.getDispatchEvent({emit:true, param: newTimeline, serverMandated: false}));
+    }
+
+    public deleteMixBounces(bounceIndices: number[]) {
+        const timeline = this.#context.query("timeline");
+        const newTimeline = timelineReducer(timeline, { type: "delete_mix_bounces", bounceIndices });
+        this.#context.dispatch(DeleteMixBounces.getDispatchEvent({ emit: true, param: newTimeline, serverMandated: false }));
     }
 
     public undo() {

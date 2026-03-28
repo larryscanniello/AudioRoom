@@ -68,6 +68,18 @@ export default function timelineReducer(state: TimelineState, action: any): Time
             };
         }
 
+        case 'delete_mix_bounces': {
+            const indicesToRemove = new Set<number>(action.bounceIndices);
+            return {
+                staging: state.staging,
+                mix: state.mix.filter((_: readonly Region[], i: number) => !indicesToRemove.has(i)),
+                undoStack: [],
+                redoStack: [],
+                lastRecordedRegion: null,
+                lastMipmapRanges: [],
+            };
+        }
+
         case 'bounce_to_mix': {
             // Bounce is intentionally NOT undoable — it triggers OPFS audio rendering.
             // Clear both stacks so the user cannot undo past a bounce.

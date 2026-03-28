@@ -37,10 +37,10 @@ export function fillPlaybackBufferUtil(
             if (sliceLength < 0) break; 
             if (region && timelinePos >= region.start) {
                 // CASE: Fill from Take
-                if(track >= tracks.length || !(region.name in tracks[track].takeHandles)){
+                if(region.bounce >= tracks.length || !tracks[region.bounce] || !(region.name in tracks[region.bounce].takeHandles)){
                     writePtrPerTrack = writeSilenceToRingBuffer(sliceLength,writePtrPerTrack,track,buffer,TRACK_COUNT)
                 }else{
-                    const handle = tracks[track].takeHandles[region.name];
+                    const handle = tracks[region.bounce].takeHandles[region.name];
                     writePtrPerTrack = writeToRingBuffer(
                         sliceLength,
                         handle,

@@ -156,7 +156,7 @@ async function removeHandles(root:any){
 
 export type OPFSEventData = OPFSInitAudioData | OPFSInitUIData |
 AudioProcessorData | OPFSStopData | OPFSFillStagingMipMapData |
-OPFSBounceToMixData | DecodeAudioData | {type: "cleanup"} | {type: "stop_recording_drain"} | {
+OPFSBounceToMixData | OPFSRegenerateMixMipmapData | DecodeAudioData | {type: "cleanup"} | {type: "stop_recording_drain"} | {
     type: "fill_staging_mipmap_slip";
     timeline: { staging: readonly Region[][]; mix: readonly Region[][] };
     start: number;
@@ -194,6 +194,11 @@ type OPFSBounceToMixData = {
     type: "bounce_to_mix";
     bounce: number;
     mixTimelines: readonly Region[][];
+}
+
+type OPFSRegenerateMixMipmapData = {
+    type: "regenerate_mix_mipmap";
+    newMixTimelines: readonly Region[][];
 }
 
 type DecodeAudioData = { 
@@ -396,6 +401,32 @@ if (typeof self !== "undefined") { // for testing, otherwise in testing self is 
                 createNewTrack();
                 break;
 
+            case "regenerate_mix_mipmap":
+                if (!opfs.mipMapManager) {
+                    console.error("Can't regenerate mix mipmap - not initialized");
+                    return;
+                }
+                proceed.mix = "off";
+                opfs.timeline.posSample.mix = 0;
+                if (buffers.mix) {
+                    buffers.mix.fill(0);
+                    Atomics.store(pointers.mix.read, 0, 0);
+                    Atomics.store(pointers.mix.write, 0, 0);
+                    Atomics.store(pointers.mix.isFull, 0, 0);
+                }
+                opfs.timeline.mix = e.data.newMixTimelines;
+                const newEndSample = getMixTimelineEndSample(e.data.newMixTimelines);
+                opfs.mipMapManager.synchronize();
+                opfs.mipMapManager.write(
+                    { startSample: 0, endSample: newEndSample },
+                    e.data.newMixTimelines,
+                    opfs.bounces,
+                    "mix",
+                );
+                opfs.mipMapManager.synchronize();
+                postMessage({ type: "bounce_to_mix_done" });
+                break;
+
             case "fill_staging_mipmap":
                 if (!opfs.mipMapManager) {
                     console.error("Can't fill staging mipmap - not initialized");
@@ -533,7 +564,7 @@ export function fillMixPlaybackBuffer(
     const writePtr = Atomics.load(write,0);
     const readPtr = Atomics.load(read,0);
     const isFull = Atomics.load(isFullArr,0);
-    const timeOutms = (buffer.length/opfs.timeline.mix.length)*1000/48000/32;
+    const timeOutms = opfs.timeline.mix.length > 0 ? (buffer.length/opfs.timeline.mix.length)*1000/48000/32 : 0;
     if(isFull){
         if((proceed as Proceed).mix!=="off"){
             proceed.mix = "ready";
@@ -547,7 +578,7 @@ export function fillMixPlaybackBuffer(
         writePtr,
         readPtr,
         opfs.timeline.mix,
-        opfs.bounces.slice(0, opfs.bounces.length-1),
+        opfs.bounces,
         looping,
         opfs.timeline.posSample.mix,
         {start:opfs.timeline.startSample, end:opfs.timeline.endSample},
@@ -590,7 +621,7 @@ export function fillStagingPlaybackBuffer(
         writePtr,
         readPtr,
         opfs.timeline.staging,
-        opfs.bounces.slice(opfs.bounces.length-1),
+        opfs.bounces,
         looping,
         opfs.timeline.posSample.staging,
         {start:opfs.timeline.startSample, end:opfs.timeline.endSample},

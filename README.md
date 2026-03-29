@@ -1,22 +1,19 @@
-# AudioRoom (Active Development)
-
-**NOTE** This branch is under construction. I am currently undergoing a major refactor.
+# WaveReel (Active Development)
 
 A new way for musicians to collaborate over the web.
 
-AudioRoom is a browser-based digital audio workstation (DAW) that lets multiple users create, edit, and play loop-based music together while video chatting in real time. Built with Web Audio, custom DSP, and a real-time collaboration backend.
+WaveReel is a browser-based digital audio workstation (DAW) that lets multiple users create, edit, and play loop-based music together while video chatting in real time. Built with Web Audio and a real-time collaboration backend.
 
 ### Demo
 
-Live demo (previous version): [https://audio-board.vercel.app](https://audio-board.vercel.app)
 
-Video demo (previous version): [https://www.youtube.com/watch?v=oN72QALuHg8](https://www.youtube.com/watch?v=oN72QALuHg8)
+Video demo: [https://www.youtube.com/watch?v=dWoMVXEP15Y](https://www.youtube.com/watch?v=dWoMVXEP15Y)
 
 ### Features
 
 * Peer-to-peer video chat with WebRTC/PeerJS
 
-* Collaborative web DAW with two tracks, staging and mix. Anyone can record on the staging track, bounce and layer on the mix track
+* Collaborative web DAW with two tracks, staging and mix. Record and edit on the staging track, bounce and layer on the mix track. Tracks can be re-staged.
 
 * Recorded audio is compressed, streamed in real time, and inserted into collaborators’ timelines with sample-accurate synchronization
 
@@ -24,7 +21,7 @@ Video demo (previous version): [https://www.youtube.com/watch?v=oN72QALuHg8](htt
 
 * DSP latency measurement system that measures and compensates recording latency within 10 ms
 
-* In progress: Basic editing such as region moving, region resizing, cut and paste, undo
+* Basic editing such as region moving, region trim, slip edit (for latency compensation), cut and paste, undo
 
 
 ### High-Level Architecture
@@ -53,13 +50,11 @@ All of this processing happens on dedicated audio / worker threads, ensuring the
 
 ### Codebase Overview
 
-To see the main UI logic: 
+All of the React components are held in /src/Components.
 
-/frontend/Components/RoomComponents/AudioBoard.jsx
+All of the core DAW logic is held in /src/Core.
 
-To see the workers and audio processors:
-
-/frontend/public
+Workers such as the audio processor and OPFS worker are in src/Workers.
 
 ### Tests
 

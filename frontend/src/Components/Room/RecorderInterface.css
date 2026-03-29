@@ -1,9 +1,0 @@
-.scrollwindow {
-  overflow: auto;
-  scrollbar-width: none;
-}
-
-.scrollwindow::-webkit-scrollbar {
-  width:0;
-  height:0;
-}

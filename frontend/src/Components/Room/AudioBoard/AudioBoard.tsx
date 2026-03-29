@@ -4,10 +4,10 @@ import { AudioController } from "../../../Core/Audio/AudioController.ts";
 import { UIController } from "../../../Core/UI/UIController.ts";
 import { PeerJSManager } from "../../../Core/WebRTC/PeerJSManager.ts";
 
-import BounceOrchestrator from "./BounceOrchestrator";
-import type { BounceOrchestratorHandle } from "./BounceOrchestrator";
+import BounceOrchestrator from "./TrackList/UpperLeftBox/BounceOrchestrator.tsx";
+import type { BounceOrchestratorHandle } from "./TrackList/UpperLeftBox/BounceOrchestrator.tsx";
 import TrackList from "./TrackList/TrackList";
-import UpperLeftBox from "./TrackList/UpperLeftBox";
+import UpperLeftBox from "./TrackList/UpperLeftBox/UpperLeftBox.tsx";
 import StagingTrackHeader from "./TrackList/StagingTrackHeader";
 import MixTrackHeader from "./TrackList/MixTrackHeader";
 import Timeline from "./Timeline/Timeline";

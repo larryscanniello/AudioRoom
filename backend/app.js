@@ -181,10 +181,13 @@ app.get("/auth/google",
 // Google callback route
 app.get("/auth/google/callback",
   passport.authenticate("google", { failureRedirect: "/auth/google" }),
-  (req, res) => {
-    // At this point, user is authenticated
-    // You can redirect to frontend with a token
-    res.redirect(process.env.FRONTEND_URL+"/home");
+  async (req, res) => {
+    const roomID = generateRoomID();
+    await pool.query(
+      "INSERT INTO rooms (id, owner_id) VALUES ($1, $2)",
+      [roomID, req.user.id]
+    );
+    res.redirect(process.env.FRONTEND_URL + "/room/" + roomID);
   }
 );
 

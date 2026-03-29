@@ -184,6 +184,9 @@ export class SessionBuilder{
         }
         const UIhardware = {opfsWorker:this.#opfsWorker, mipMap}
         const uiEngine = new UIEngine(UIhardware,mediaProvider,context);
+        domHandlers.setGhostWaveformDrawer((ctx, region, ghostLeft, ghostWidth, stagingTopPx, stagingHeight, viewport, ghostStartSamples) =>
+            uiEngine.drawGhostWaveform(ctx, region, ghostLeft, ghostWidth, stagingTopPx, stagingHeight, viewport, ghostStartSamples)
+        );
         return {uiEngine, domHandlers};
     }
 

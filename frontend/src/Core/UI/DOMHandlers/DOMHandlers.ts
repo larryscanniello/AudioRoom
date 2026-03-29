@@ -5,6 +5,7 @@ import { HandlePlayheadMouseDown } from "./HandlePlayheadMouseDown";
 import { HandleBPMBoxMouseDown } from "./HandleBPMBoxMouseDown";
 import { HandleTimelineScroll } from "./HandleTimelineScroll";
 import { HandleRegionEdit } from "./HandleRegionEdit";
+import type { GhostWaveformDrawer } from "./HandleRegionEdit";
 import { HandleSlipEdit } from "./HandleSlipEdit";
 
 
@@ -29,6 +30,10 @@ export class DOMHandlers {
 
     public getHandleRegionEdit(): HandleRegionEdit {
         return this.#handleRegionEdit;
+    }
+
+    public setGhostWaveformDrawer(drawer: GhostWaveformDrawer) {
+        this.#handleRegionEdit.setGhostWaveformDrawer(drawer);
     }
 
 

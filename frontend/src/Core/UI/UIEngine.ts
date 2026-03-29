@@ -8,6 +8,8 @@ import { renderStagingRegions } from "./DrawCallbacks/renderStagingRegions";
 import { MipMapsDone } from "../Events/UI/MipMapsDone";
 import { RecordingDrained } from "../Events/Audio/RecordingDrained";
 import { SetLiveSlip } from "../Events/UI/SetLiveSlip";
+import { CONSTANTS } from "@/Constants/constants";
+import type { Region } from "@/Types/AudioState";
 
 import type { StateContainer } from "../State/State";
 import type React from "react";
@@ -94,6 +96,77 @@ export class UIEngine implements Observer{
             type: "fill_staging_mipmap",
             timeline,start,end
         });
+    }
+
+    public drawGhostWaveform(
+        ctx: CanvasRenderingContext2D,
+        region: Region,
+        ghostLeft: number,
+        ghostWidth: number,
+        stagingTopPx: number,
+        stagingHeight: number,
+        viewport: { startTime: number; samplesPerPx: number },
+        ghostStartSamples: number,
+    ) {
+        const mipMap = this.#mipMap.staging;
+        const WIDTH = ctx.canvas.offsetWidth;
+        const startTime = viewport.startTime;
+        const endTime = startTime + WIDTH * viewport.samplesPerPx / CONSTANTS.SAMPLE_RATE;
+        const vpStartSamples = Math.round(startTime * CONSTANTS.SAMPLE_RATE);
+        const vpEndSamples   = Math.round(endTime   * CONSTANTS.SAMPLE_RATE);
+
+        const resolutions = CONSTANTS.MIPMAP_RESOLUTIONS;
+        const pxPerTimeline = CONSTANTS.TIMELINE_LENGTH_IN_SECONDS * CONSTANTS.SAMPLE_RATE /
+                              (vpEndSamples - vpStartSamples) * WIDTH;
+        let currRes = 0;
+        while (currRes + 1 < resolutions.length && resolutions[currRes + 1] > pxPerTimeline) currRes++;
+
+        const halfLength    = CONSTANTS.MIPMAP_HALF_SIZE;
+        const iterateAmount = CONSTANTS.TIMELINE_LENGTH_IN_SECONDS * CONSTANTS.SAMPLE_RATE / halfLength;
+        const mipMapStart   = resolutions.slice(0, currRes).reduce((a, c) => a + c, 0);
+        const pxGap         = CONSTANTS.TIMELINE_LENGTH_IN_SECONDS / (endTime - startTime) * WIDTH / resolutions[currRes];
+
+        const validStart = mipMapStart + Math.floor(Math.floor(region.start / iterateAmount) / Math.pow(2, currRes + 1));
+        const validEnd   = mipMapStart + Math.floor(Math.floor(region.end   / iterateAmount) / Math.pow(2, currRes + 1));
+
+        // True (unclamped) left edge of the ghost — may be negative if scrolled past viewport
+        const ghostLeft_true = (ghostStartSamples / CONSTANTS.SAMPLE_RATE - startTime) / (endTime - startTime) * WIDTH;
+        const samplesPerCanvasPx = (vpEndSamples - vpStartSamples) / WIDTH;
+
+        Atomics.load(mipMap, 0);
+        ctx.save();
+
+        // Clip to ghost rect — prevents any float-edge bleed onto the playhead or outside bounds
+        ctx.beginPath();
+        ctx.rect(ghostLeft, stagingTopPx, ghostWidth, stagingHeight);
+        ctx.clip();
+
+        ctx.beginPath();
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.55)';
+        ctx.lineWidth   = 1;
+        ctx.lineCap     = 'round';
+
+        // Iterate only over the visible ghost columns, looking up the correct mipmap bucket
+        // for each canvas x position based on its offset from the true (unclamped) ghost start.
+        let k = Math.ceil(ghostLeft / pxGap);
+        while (k * pxGap < ghostLeft + ghostWidth) {
+            const x = k * pxGap;
+            const samplePos = region.start + Math.round((x - ghostLeft_true) * samplesPerCanvasPx);
+            if (samplePos < region.end) {
+                const mipIdx = mipMapStart + Math.floor(Math.floor(samplePos / iterateAmount) / Math.pow(2, currRes + 1));
+                if (mipIdx >= validStart && mipIdx < validEnd) {
+                    const maxAmp = mipMap[mipIdx]             / 127;
+                    const minAmp = mipMap[halfLength + mipIdx] / 127;
+                    const y1 = stagingTopPx + ((1 + minAmp) * stagingHeight) / 2;
+                    const y2 = stagingTopPx + ((1 + maxAmp) * stagingHeight) / 2;
+                    ctx.moveTo(x, y1);
+                    ctx.lineTo(x, y2);
+                }
+            }
+            k++;
+        }
+        ctx.stroke();
+        ctx.restore();
     }
 
     public renderNewRegionForSlip(start: number, end: number) {

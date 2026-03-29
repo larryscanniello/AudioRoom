@@ -22,8 +22,8 @@ export default function BouncePrompt({ bounceName, onNameChange, onConfirm, onCa
                     }}
                 />
                 <div className="flex gap-2 justify-end">
-                    <button className="text-xs px-2 py-1" onClick={onCancel}>Cancel</button>
-                    <button className="text-xs px-2 py-1 bg-white text-black rounded" onClick={onConfirm}>Bounce</button>
+                    <button className="text-xs px-2 py-1 hover:underline transition-all" onClick={onCancel}>Cancel</button>
+                    <button className="text-xs px-2 py-1 bg-white text-black rounded hover:bg-gray-100 transition-colors" onClick={onConfirm}>Bounce</button>
                 </div>
             </div>
         </div>

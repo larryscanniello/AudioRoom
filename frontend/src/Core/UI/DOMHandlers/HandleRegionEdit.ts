@@ -10,6 +10,17 @@ import { PasteRegion } from "@/Core/Events/Audio/PasteRegion";
 import { SplitRegion } from "@/Core/Events/Audio/SplitRegion";
 import { paintPlayhead } from "@/Core/UI/DrawCallbacks/drawPlayhead";
 
+export type GhostWaveformDrawer = (
+    ctx: CanvasRenderingContext2D,
+    region: Region,
+    ghostLeft: number,
+    ghostWidth: number,
+    stagingTopPx: number,
+    stagingHeight: number,
+    viewport: { startTime: number; samplesPerPx: number },
+    ghostStartSamples: number,
+) => void;
+
 const EDGE_ZONE_PX = 8;
 const MIN_REGION_SAMPLES = Math.round(0.1 * CONSTANTS.SAMPLE_RATE);
 const CLICK_THRESHOLD_PX = 4;
@@ -51,10 +62,15 @@ export class HandleRegionEdit {
 
     // Guard so we attach the hover listener only once per canvas instance
     #attachedOverlay: HTMLCanvasElement | null = null;
+    #ghostWaveformDrawer: GhostWaveformDrawer | null = null;
 
     constructor(context: GlobalContext) {
         this.#context = context;
         this.#refs = new Map();
+    }
+
+    setGhostWaveformDrawer(drawer: GhostWaveformDrawer) {
+        this.#ghostWaveformDrawer = drawer;
     }
 
     registerRef(ID: keyof typeof DOMElements, ref: React.RefObject<HTMLElement | null>) {
@@ -366,8 +382,8 @@ export class HandleRegionEdit {
 
     // ─── Drag lifecycle ───────────────────────────────────────────────────
 
-    #computeGhostBounds(mouseX: number, overlay: HTMLCanvasElement): { ghostLeft: number; ghostWidth: number } {
-        if (!this.#drag) return { ghostLeft: 0, ghostWidth: 0 };
+    #computeGhostBounds(mouseX: number, overlay: HTMLCanvasElement): { ghostLeft: number; ghostWidth: number; ghostStartSamples: number } {
+        if (!this.#drag) return { ghostLeft: 0, ghostWidth: 0, ghostStartSamples: 0 };
 
         const { viewportStart, viewportEnd, timelinePxLen } = this.#getViewportInfo(overlay);
         const deltaSamples = this.#pxToSamples(mouseX, viewportStart, viewportEnd, timelinePxLen)
@@ -381,13 +397,13 @@ export class HandleRegionEdit {
         let ghostEndSamples: number;
 
         if (this.#drag.mode === 'trim-start') {
-            ghostStartSamples = Math.max(minStart, Math.min(origStart + deltaSamples, origEnd - MIN_REGION_SAMPLES));
+            ghostStartSamples = this.#snapSamples(Math.max(minStart, Math.min(origStart + deltaSamples, origEnd - MIN_REGION_SAMPLES)));
             ghostEndSamples = origEnd;
         } else if (this.#drag.mode === 'trim-end') {
             ghostStartSamples = origStart;
-            ghostEndSamples = Math.min(maxEnd, Math.max(origEnd + deltaSamples, origStart + MIN_REGION_SAMPLES));
+            ghostEndSamples = this.#snapSamples(Math.min(maxEnd, Math.max(origEnd + deltaSamples, origStart + MIN_REGION_SAMPLES)));
         } else {
-            const newStart = Math.max(0, origStart + deltaSamples);
+            const newStart = this.#snapSamples(Math.max(0, origStart + deltaSamples));
             const actualDelta = newStart - origStart;
             ghostStartSamples = newStart;
             ghostEndSamples = origEnd + actualDelta;
@@ -397,17 +413,30 @@ export class HandleRegionEdit {
         const ghostRight = this.#samplesToPx(ghostEndSamples, viewportStart, viewportEnd, timelinePxLen);
         const ghostWidth = Math.max(0, ghostRight - ghostLeft);
 
-        return { ghostLeft, ghostWidth };
+        return { ghostLeft, ghostWidth, ghostStartSamples };
     }
 
-    #drawGhost(overlay: HTMLCanvasElement, ghostLeft: number, ghostWidth: number) {
+    #drawGhost(overlay: HTMLCanvasElement, ghostLeft: number, ghostWidth: number, ghostStartSamples: number) {
         if (!this.#drag) return;
         const ctx = overlay.getContext('2d');
         if (!ctx) return;
         ctx.clearRect(0, 0, overlay.width, overlay.height);
+        const stagingTopPx  = Number(overlay.dataset.measuretickheight);
+        const stagingHeight = this.#drag.stagingHeight;
         ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-        const stagingTopPx = Number(overlay.dataset.measuretickheight);
-        ctx.fillRect(ghostLeft, stagingTopPx, ghostWidth, this.#drag.stagingHeight);
+        ctx.fillRect(ghostLeft, stagingTopPx, ghostWidth, stagingHeight);
+        if (this.#drag.mode === 'move' && this.#ghostWaveformDrawer) {
+            this.#ghostWaveformDrawer(
+                ctx,
+                this.#drag.region,
+                ghostLeft,
+                ghostWidth,
+                stagingTopPx,
+                stagingHeight,
+                this.#context.query('viewport'),
+                ghostStartSamples,
+            );
+        }
         this.#paintPlayheadOnOverlay(ctx, overlay);
     }
 
@@ -439,8 +468,8 @@ export class HandleRegionEdit {
         const rect = overlay.getBoundingClientRect();
         const mouseX = e.clientX - rect.left;
 
-        const { ghostLeft, ghostWidth } = this.#computeGhostBounds(mouseX, overlay);
-        this.#drawGhost(overlay, ghostLeft, ghostWidth);
+        const { ghostLeft, ghostWidth, ghostStartSamples } = this.#computeGhostBounds(mouseX, overlay);
+        this.#drawGhost(overlay, ghostLeft, ghostWidth, ghostStartSamples);
     };
 
     #onMouseUp = (e: MouseEvent) => {

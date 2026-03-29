@@ -70,8 +70,9 @@ export default function MixTrackHeader({ audioControllerRef, compactMode }: MixT
                     <button
                         onClick={handleDelete}
                         disabled={checkedBounces.size === 0}
+                        className={checkedBounces.size === 0 ? "opacity-30" : "hover:opacity-60 transition-opacity"}
                     >
-                        <Trash2 size={14} className={checkedBounces.size === 0 ? "opacity-30" : ""}/>
+                        <Trash2 size={14}/>
                     </button>
                 </div>
                 <div className="overflow-y-auto max-h-40">

@@ -10,9 +10,9 @@ export default function RestageConflictPrompt({ onDeleteStaging, onBounceFirst, 
             <div className="bg-popover border border-black rounded p-4 flex flex-col gap-3 w-64">
                 <p className="text-xs font-medium">Staging has content.</p>
                 <div className="flex gap-2 justify-end">
-                    <button className="text-xs px-2 py-1" onClick={onCancel}>Cancel</button>
-                    <button className="text-xs px-2 py-1 bg-white text-black rounded" onClick={onDeleteStaging}>Delete staging</button>
-                    <button className="text-xs px-2 py-1 bg-white text-black rounded" onClick={onBounceFirst}>Bounce first</button>
+                    <button className="text-xs px-2 py-1 hover:underline transition-all" onClick={onCancel}>Cancel</button>
+                    <button className="text-xs px-2 py-1 bg-white text-black rounded hover:bg-gray-100 transition-colors" onClick={onDeleteStaging}>Delete staging</button>
+                    <button className="text-xs px-2 py-1 bg-white text-black rounded hover:bg-gray-100 transition-colors" onClick={onBounceFirst}>Bounce first</button>
                 </div>
             </div>
         </div>

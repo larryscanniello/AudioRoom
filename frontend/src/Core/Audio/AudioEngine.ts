@@ -8,6 +8,7 @@ export interface AudioEngine extends Observer{
     stop: (data: any) => void;
     bounce: (data: any) => void;
     regenerateMixMipmap: (data: any) => void;
+    reStage: (data: any) => void;
     toggleMetronome: () => void;
     otherPersonRecording: (data: any) => void; 
     startLatencyTest: () => void;

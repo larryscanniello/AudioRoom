@@ -156,7 +156,7 @@ async function removeHandles(root:any){
 
 export type OPFSEventData = OPFSInitAudioData | OPFSInitUIData |
 AudioProcessorData | OPFSStopData | OPFSFillStagingMipMapData |
-OPFSBounceToMixData | OPFSRegenerateMixMipmapData | DecodeAudioData | {type: "cleanup"} | {type: "stop_recording_drain"} | {
+OPFSBounceToMixData | OPFSRegenerateMixMipmapData | OPFSReStageData | DecodeAudioData | {type: "cleanup"} | {type: "stop_recording_drain"} | {
     type: "fill_staging_mipmap_slip";
     timeline: { staging: readonly Region[][]; mix: readonly Region[][] };
     start: number;
@@ -198,6 +198,12 @@ type OPFSBounceToMixData = {
 
 type OPFSRegenerateMixMipmapData = {
     type: "regenerate_mix_mipmap";
+    newMixTimelines: readonly Region[][];
+}
+
+type OPFSReStageData = {
+    type: "re_stage_bounce";
+    newStagingTimeline: readonly Region[][];
     newMixTimelines: readonly Region[][];
 }
 
@@ -426,6 +432,36 @@ if (typeof self !== "undefined") { // for testing, otherwise in testing self is 
                 opfs.mipMapManager.synchronize();
                 postMessage({ type: "bounce_to_mix_done" });
                 break;
+
+            case "re_stage_bounce": {
+                if (!opfs.mipMapManager) {
+                    console.error("Can't re-stage - not initialized");
+                    return;
+                }
+                proceed.mix = "off";
+                proceed.staging = "off";
+                opfs.timeline.posSample.mix = 0;
+                opfs.timeline.posSample.staging = 0;
+                buffers.mix.fill(0);
+                Atomics.store(pointers.mix.read, 0, 0);
+                Atomics.store(pointers.mix.write, 0, 0);
+                Atomics.store(pointers.mix.isFull, 0, 0);
+                buffers.staging.fill(0);
+                Atomics.store(pointers.staging.read, 0, 0);
+                Atomics.store(pointers.staging.write, 0, 0);
+                Atomics.store(pointers.staging.isFull, 0, 0);
+                opfs.timeline.mix = e.data.newMixTimelines;
+                opfs.timeline.staging = e.data.newStagingTimeline;
+                const reMixEnd = getMixTimelineEndSample(e.data.newMixTimelines);
+                opfs.mipMapManager.synchronize();
+                opfs.mipMapManager.write({ startSample: 0, endSample: reMixEnd }, e.data.newMixTimelines, opfs.bounces, "mix");
+                const reStagingRegions = e.data.newStagingTimeline;
+                const reStagingEnd = reStagingRegions[0]?.length > 0 ? reStagingRegions[0][reStagingRegions[0].length - 1].end : 0;
+                opfs.mipMapManager.write({ startSample: 0, endSample: reStagingEnd }, reStagingRegions, opfs.bounces, "staging");
+                opfs.mipMapManager.synchronize();
+                postMessage({ type: "re_stage_bounce_done" });
+                break;
+            }
 
             case "fill_staging_mipmap":
                 if (!opfs.mipMapManager) {

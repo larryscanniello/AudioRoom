@@ -287,6 +287,19 @@ export default function timelineReducer(state: TimelineState, action: any): Time
             };
         }
 
+        case 'restage_from_mix': {
+            const regions = state.mix[action.bounceIndex] ?? [];
+            return {
+                staging: [[...regions]],
+                mix: state.mix.filter((_: readonly Region[], i: number) => i !== action.bounceIndex),
+                bounceNames: (state.bounceNames ?? []).filter((_: string, i: number) => i !== action.bounceIndex),
+                undoStack: [],
+                redoStack: [],
+                lastRecordedRegion: null,
+                lastMipmapRanges: [],
+            };
+        }
+
         default:
             if (import.meta.env.PRODUCTION) {
                 return state;

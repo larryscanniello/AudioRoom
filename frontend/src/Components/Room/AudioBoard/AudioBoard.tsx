@@ -4,7 +4,8 @@ import { AudioController } from "../../../Core/Audio/AudioController.ts";
 import { UIController } from "../../../Core/UI/UIController.ts";
 import { PeerJSManager } from "../../../Core/WebRTC/PeerJSManager.ts";
 
-import BouncePrompt from "./BouncePrompt";
+import BounceOrchestrator from "./BounceOrchestrator";
+import type { BounceOrchestratorHandle } from "./BounceOrchestrator";
 import TrackList from "./TrackList/TrackList";
 import UpperLeftBox from "./TrackList/UpperLeftBox";
 import StagingTrackHeader from "./TrackList/StagingTrackHeader";
@@ -17,7 +18,7 @@ import ZoomSlider from "./BottomControls/BottomRight/ZoomSlider.tsx";
 
 import { CONSTANTS } from "@/Constants/constants.ts";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef } from "react";
 import MeasureTicks from "./Timeline/MeasureTicks.tsx";
 import TimelineContainer from "./Timeline/TimelineContainer.tsx";
 import StagingTrack from "./Timeline/StagingTrack.tsx";
@@ -44,24 +45,7 @@ type AudioBoardProps = {
 
 export default function AudioBoard({uiControllerRef,audioControllerRef,compactMode}:AudioBoardProps){
     const [width,height] = useWindowSize();
-    const [showBouncePrompt, setShowBouncePrompt] = useState(false);
-    const [bounceName, setBounceName] = useState("");
-
-    const bounceCount = audioControllerRef.current?.query("bounce") ?? 0;
-
-    // Close prompt when any bounce fires (partner or self)
-    useEffect(() => { setShowBouncePrompt(false); }, [bounceCount]);
-
-    const openBouncePrompt = () => {
-        setBounceName(`Bounce ${bounceCount + 1}`);
-        setShowBouncePrompt(true);
-    };
-
-    const handleConfirmBounce = () => {
-        const name = bounceName.trim() || `Bounce ${bounceCount + 1}`;
-        audioControllerRef.current?.bounce(name);
-        setShowBouncePrompt(false);
-    };
+    const bounceOrchestratorRef = useRef<BounceOrchestratorHandle | null>(null);
 
     const timelinePxLen = Math.max(1050-CONSTANTS.LEFT_CONTROLS_WIDTH - 50,width-CONSTANTS.LEFT_CONTROLS_WIDTH - 50);
 
@@ -102,7 +86,7 @@ export default function AudioBoard({uiControllerRef,audioControllerRef,compactMo
                     }}
                     >
                     <TrackList compactMode={compactMode}>
-                        <UpperLeftBox compactMode={compactMode} audioControllerRef={audioControllerRef} onBounceClick={openBouncePrompt}/>
+                        <UpperLeftBox compactMode={compactMode} audioControllerRef={audioControllerRef} onBounceClick={() => bounceOrchestratorRef.current?.onBounceClick()} onRestageRequest={(i) => bounceOrchestratorRef.current?.onRestageRequest(i)}/>
                         <div className="bg-[rgb(114,120,155)]"
                             style={{width:`${CONSTANTS.LEFT_CONTROLS_WIDTH}px`,height:Math.floor(115*compactMode)}}
                         >
@@ -145,13 +129,6 @@ export default function AudioBoard({uiControllerRef,audioControllerRef,compactMo
                     </BottomControls>
                 </div>
             </div>
-        {showBouncePrompt && (
-            <BouncePrompt
-                bounceName={bounceName}
-                onNameChange={setBounceName}
-                onConfirm={handleConfirmBounce}
-                onCancel={() => setShowBouncePrompt(false)}
-            />
-        )}
+        <BounceOrchestrator ref={bounceOrchestratorRef} audioControllerRef={audioControllerRef} />
         </div>
 }

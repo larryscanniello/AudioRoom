@@ -133,6 +133,10 @@ export class WorkletAudioEngine implements AudioEngine{
         this.#hardware.opfsWorker.postMessage(data);
     }
 
+    public reStage(data: { type: "re_stage_bounce"; newStagingTimeline: any; newMixTimelines: any }) {
+        this.#hardware.opfsWorker.postMessage(data);
+    }
+
     public toggleMetronome(): void {
         const isMetronomeOn = this.#context.query("isMetronomeOn");
         const param = this.#hardware.processorNode.parameters.get(MIXER_PARAMS.METRONOME_GAIN);

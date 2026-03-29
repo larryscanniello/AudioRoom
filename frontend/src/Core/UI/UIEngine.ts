@@ -71,6 +71,9 @@ export class UIEngine implements Observer{
             case "bounce_to_mix_done":
                 this.#context.dispatch(MipMapsDone.getDispatchEvent({emit: false, param: null}));
                 break;
+            case "re_stage_bounce_done":
+                this.#context.dispatch(MipMapsDone.getDispatchEvent({emit: false, param: null}));
+                break;
             case "recording_drained": {
                 const timeline = this.#context.query("timeline");
                 const lastRegion = timeline.lastRecordedRegion;

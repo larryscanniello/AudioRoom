@@ -73,7 +73,7 @@ export function renderMixRegion(
         const left = Math.max(0,(start - startTime) / (endTime-startTime)) * Number(ref.current.dataset.timelinepxlen);
         const leftOverflow = Math.max(0, startTime - start);
         const rightOverflow = Math.max(0, end - endTime)
-        const regionWidth = Math.min(1,(end - start - leftOverflow - rightOverflow) / (endTime-startTime)) * Number(ref.current.dataset.timelinepxlen);
+        const regionWidth = Math.max(0, Math.min(1,(end - start - leftOverflow - rightOverflow) / (endTime-startTime)) * Number(ref.current.dataset.timelinepxlen));
         /*let borderRadius;
             if(start < startTime && end > endTime){
                 borderRadius = "0px";
@@ -84,6 +84,10 @@ export function renderMixRegion(
             }else{
                 borderRadius = "7px";
             }*/
+        if (end < startTime) {
+            regionToDisplay.style.display = "none";
+            return;
+        }
         regionToDisplay.style.display = "block"
         regionToDisplay.style.left = "0";
         regionToDisplay.style.top = `${measureTickHeight + stagingHeight}px`;

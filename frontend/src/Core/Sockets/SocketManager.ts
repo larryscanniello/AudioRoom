@@ -16,6 +16,7 @@ import { MoveRegion } from "../Events/Audio/MoveRegion";
 import { UpdateRegionOffset } from "../Events/Audio/UpdateRegionOffset";
 import { UndoTimeline } from "../Events/Audio/UndoTimeline";
 import { RedoTimeline } from "../Events/Audio/RedoTimeline";
+import { ReStage } from "../Events/Audio/ReStage";
 
 export class SocketManager implements Observer {
     #socket: Socket;
@@ -129,6 +130,10 @@ export class SocketManager implements Observer {
                 this.#context.dispatch(Bounce.getDispatchEvent({emit: false, param: {timeline: newTimeline, bounce}, serverMandated: true}));
                 this.#context.commMessage(`Partner bounced to mix`,"white");
                 break;
+            case EventTypes.RESTAGE:
+                this.#context.dispatch(ReStage.getDispatchEvent({emit: false, param: state.timeline, serverMandated: true}));
+                this.#context.commMessage(`Partner restaged a bounce`,"white");
+                break;
             case EventTypes.UNDO_TIMELINE:
                 this.#context.dispatch(UndoTimeline.getDispatchEvent({emit: false,param:state.timeline,serverMandated: true}));
                 this.#context.commMessage(`Partner undid timeline edit`,"white");
@@ -203,6 +208,9 @@ export class SocketManager implements Observer {
                 break;
             case EventTypes.BOUNCE:
                 this.#context.commMessage(`Partner bounced to mix`,"white");
+                break;
+            case EventTypes.RESTAGE:
+                this.#context.commMessage(`Partner restaged a bounce`,"white");
                 break;
             case EventTypes.UNDO_TIMELINE:
                 this.#context.commMessage(`Partner timeline edit undone`,"white");

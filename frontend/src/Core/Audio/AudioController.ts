@@ -120,7 +120,7 @@ export class AudioController{
     public reStage(bounceIndex: number) {
         const timeline = this.#context.query("timeline");
         const newTimeline = timelineReducer(timeline, { type: "restage_from_mix", bounceIndex });
-        this.#context.dispatch(ReStage.getDispatchEvent({ emit: false, param: newTimeline, serverMandated: false }));
+        this.#context.dispatch(ReStage.getDispatchEvent({ emit: true, param: newTimeline, serverMandated: false }));
     }
 
     public deleteMixBounces(bounceIndices: number[]) {

@@ -8,7 +8,7 @@ import type { EventNamespace } from "../EventNamespace";
 import type { WorkletAudioEngine } from "@/Core/Audio/WorkletAudioEngine";
 
 export const ReStage: EventNamespace<typeof EventTypes.RESTAGE> = {
-    sharedState: false,
+    sharedState: true,
 
     getDispatchEvent: ({ param, emit, serverMandated }) => {
         return {

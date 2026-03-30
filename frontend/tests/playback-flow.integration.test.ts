@@ -1,8 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { fillPlaybackBufferUtil } from '../src/Workers/opfs_utils/fillPlaybackBufferUtil';
 import type { Region } from '../src/Types/AudioState';
-import { fillMixPlaybackBuffer, fillStagingPlaybackBuffer, proceed, opfs } from '../src/Workers/opfs_worker';
-import {readTo} from "../src/Workers/audioProcessorUtils/readTo"
+import { readTo } from "../src/Workers/audioProcessorUtils/readTo";
 
 /**
  * Integration test for the full playback flow:
@@ -31,26 +30,32 @@ function createTimelineObject(stagingNums:number[][],mixNums:number[][][],range:
     const timeline:TimelineState = {
         staging: [stagingNums.map((nums,i) => {
             const reg:Region = {
+                id: `staging_${i}`,
                 start: nums[0],
                 end: nums[1],
                 take: i,
                 bounce: mixNums.length,
                 name: `bounce_${mixNums.length}_take_${i}`,
-                offset: 0,
-            }
+                clipOffset: 0,
+                latencyOffset: 0,
+                audioLength: nums[1] - nums[0],
+            };
             return reg;
         })],
         //to handle empty mix, pass in [[]]
         mix: mixNums.map((track,i)=>
             track.map((nums,j)=>{
                 const reg:Region = {
+                    id: `mix_${i}_${j}`,
                     start: nums[0],
                     end: nums[1],
                     take: j,
                     bounce: i,
                     name: `bounce_${i}_take_${j}`,
-                    offset: 0,
-                }
+                    clipOffset: 0,
+                    latencyOffset: 0,
+                    audioLength: nums[1] - nums[0],
+                };
                 return reg;
             })
         ),
@@ -59,8 +64,8 @@ function createTimelineObject(stagingNums:number[][],mixNums:number[][][],range:
         posSample: {
             staging: range.start,
             mix: range.start,
-        }
-    }
+        },
+    };
 
     return timeline;
 }
@@ -86,7 +91,7 @@ function getBounceEntries(timeline:TimelineState,audioData:Float32Array[]):Bounc
         bounceEntries.push({
             dirHandle: {} as any,
             takeHandles: {},
-        })
+        });
         for(let j=0;j<timeline.mix[i].length;j++){
             const audioDataIndex = count;
             bounceEntries[i].takeHandles[`bounce_${i}_take_${j}`] = {
@@ -106,7 +111,7 @@ function getBounceEntries(timeline:TimelineState,audioData:Float32Array[]):Bounc
     bounceEntries.push({
         dirHandle: {} as any,
         takeHandles: {} as any,
-    })
+    });
 
     const totalMixRegions = timeline.mix.reduce((acc,curr)=>acc+curr.length,0);
 
@@ -120,116 +125,105 @@ function getBounceEntries(timeline:TimelineState,audioData:Float32Array[]):Bounc
                     }
                     return length;
             }),
-        }
-        count ++;
+        };
+        count++;
     }
     return bounceEntries;
 }
 
-function applyTimelineToOpfs(timeline: TimelineState) {
-    opfs.timeline.staging = timeline.staging;
-    opfs.timeline.mix = timeline.mix;
-    opfs.timeline.startSample = timeline.startSample;
-    opfs.timeline.endSample = timeline.endSample;
-    opfs.timeline.posSample.staging = timeline.posSample.staging;
-    opfs.timeline.posSample.mix = timeline.posSample.mix;
-}
-
 function runSimulation(
     timeline:TimelineState,
-    {stagingRead,stagingWrite,stagingIsFull}:{stagingRead:Uint32Array,stagingWrite:Uint32Array,stagingIsFull:Uint32Array},
-    {mixRead,mixWrite,mixIsFull}:{mixRead:Uint32Array,mixWrite:Uint32Array,mixIsFull:Uint32Array},
-    {stagingBuffer,mixBuffer}:{stagingBuffer:Float32Array,mixBuffer:Float32Array},
     bounceEntries:BounceEntry[],
     looping:boolean,
     simSamples:number,
 ):{mixRes:Float32Array,stagingRes:Float32Array}{
-    const mixReader = new Float32Array(PROCESS_FRAMES * timeline.mix.length);
-    const stagingReader = new Float32Array(PROCESS_FRAMES * timeline.staging.length);
+    const mixTrackCount = timeline.mix.length;
+    const stagingTrackCount = timeline.staging.length;
 
-    const simLength = simSamples;
-    const mixRes = new Float32Array(2 * simLength * timeline.mix.length);
-    const stagingRes = new Float32Array(2 * simLength);
+    // Allocate SABs sized as BUFFER_SIZE * TRACK_COUNT so that
+    // buffer.length / TRACK_COUNT = BUFFER_SIZE exactly — this ensures
+    // readTo.js (no Math.floor) and fillPlaybackBufferUtil (Math.floor) agree on trackBufferLen.
+    const mixSAB = new SharedArrayBuffer(BUFFER_SIZE * 4 * mixTrackCount + 12);
+    const mixRead = new Int32Array(mixSAB, 0, 1);
+    const mixWrite = new Int32Array(mixSAB, 4, 1);
+    const mixIsFull = new Int32Array(mixSAB, 8, 1);
+    const mixBuffer = new Float32Array(mixSAB, 12);
 
-    // Initialize proceed flags for testing
-    proceed.mix = "ready";
-    proceed.staging = "ready";
+    const stagingSAB = new SharedArrayBuffer(BUFFER_SIZE * 4 * stagingTrackCount + 12);
+    const stagingRead = new Int32Array(stagingSAB, 0, 1);
+    const stagingWrite = new Int32Array(stagingSAB, 4, 1);
+    const stagingIsFull = new Int32Array(stagingSAB, 8, 1);
+    const stagingBuffer = new Float32Array(stagingSAB, 12);
 
-    // Set the module-level opfs.timeline state
-    applyTimelineToOpfs(timeline);
+    const readsNeeded = Math.ceil(simSamples / PROCESS_FRAMES);
+    const mixRes = new Float32Array(readsNeeded * PROCESS_FRAMES * mixTrackCount);
+    const stagingRes = new Float32Array(readsNeeded * PROCESS_FRAMES);
 
-    fillMixPlaybackBuffer(mixRead,mixWrite,mixIsFull,mixBuffer,timeline.mix.length,bounceEntries,looping);
-    fillStagingPlaybackBuffer(stagingRead,stagingWrite,stagingIsFull,stagingBuffer,timeline.staging.length,bounceEntries,looping);
+    const mixReader = new Float32Array(PROCESS_FRAMES * mixTrackCount);
+    const stagingReader = new Float32Array(PROCESS_FRAMES * stagingTrackCount);
+
+    const timelineRange = { start: timeline.startSample, end: timeline.endSample };
+    let mixPos = timeline.posSample.mix;
+    let stagingPos = timeline.posSample.staging;
     let mixCount = 0;
     let stagingCount = 0;
-    const start = (vi.getMockedSystemTime() as Date).getTime();
-    while((vi.getMockedSystemTime() as Date).getTime()-start<simLength*1000/48000){
-        const wasMixRead = readTo(mixReader,{read:mixRead,write:mixWrite,isFull:mixIsFull},mixBuffer,timeline.mix.length);
-        const wasStagingRead = readTo(stagingReader,{read:stagingRead,write:stagingWrite,isFull:stagingIsFull},stagingBuffer,timeline.staging.length);
 
-        if(wasMixRead){
-            const mixResTrackLen = mixRes.length/timeline.mix.length;
-            for(let k=0;k<timeline.mix.length;k++){
-                for(let j=0;j<128;j++){
-                    mixRes[k*mixResTrackLen + (128*mixCount) +j] = mixReader[k*128+j];
+    const maxIter = readsNeeded * 4 + 10;
+    for (let iter = 0; iter < maxIter; iter++) {
+        // Fill mix buffer if there is space
+        if (!Atomics.load(mixIsFull, 0)) {
+            const { newWritePtr, timelinePos } = fillPlaybackBufferUtil(
+                mixBuffer, mixTrackCount,
+                Atomics.load(mixWrite, 0), Atomics.load(mixRead, 0),
+                timeline.mix, bounceEntries,
+                looping, mixPos, timelineRange
+            );
+            mixPos = timelinePos;
+            Atomics.store(mixWrite, 0, newWritePtr);
+            Atomics.store(mixIsFull, 0, 1);
+        }
+
+        // Fill staging buffer if there is space
+        if (!Atomics.load(stagingIsFull, 0)) {
+            const { newWritePtr, timelinePos } = fillPlaybackBufferUtil(
+                stagingBuffer, stagingTrackCount,
+                Atomics.load(stagingWrite, 0), Atomics.load(stagingRead, 0),
+                timeline.staging, bounceEntries,
+                looping, stagingPos, timelineRange
+            );
+            stagingPos = timelinePos;
+            Atomics.store(stagingWrite, 0, newWritePtr);
+            Atomics.store(stagingIsFull, 0, 1);
+        }
+
+        // Read from mix into accumulator
+        const wasMixRead = readTo(mixReader, { read: mixRead, write: mixWrite, isFull: mixIsFull }, mixBuffer, mixTrackCount);
+        if (wasMixRead && mixCount < readsNeeded) {
+            const mixResTrackLen = mixRes.length / mixTrackCount;
+            for (let k = 0; k < mixTrackCount; k++) {
+                for (let j = 0; j < PROCESS_FRAMES; j++) {
+                    mixRes[k * mixResTrackLen + mixCount * PROCESS_FRAMES + j] = mixReader[k * PROCESS_FRAMES + j];
                 }
             }
-            mixCount += 1;
+            mixCount++;
         }
-        if(wasStagingRead){
-            stagingRes.set(stagingReader,stagingCount * 128);
-            stagingCount += 1;
+
+        // Read from staging into accumulator
+        const wasStagingRead = readTo(stagingReader, { read: stagingRead, write: stagingWrite, isFull: stagingIsFull }, stagingBuffer, stagingTrackCount);
+        if (wasStagingRead && stagingCount < readsNeeded) {
+            stagingRes.set(stagingReader.subarray(0, PROCESS_FRAMES), stagingCount * PROCESS_FRAMES);
+            stagingCount++;
         }
-        vi.advanceTimersByTime(1000*128/48000);
+
+        if (mixCount >= readsNeeded && stagingCount >= readsNeeded) break;
     }
-    return {stagingRes,mixRes};
+
+    return {stagingRes, mixRes};
 }
 
 describe('Basic Region Playback', () => {
-    let mixWrite: Uint32Array;
-    let mixRead: Uint32Array;
-    let mixIsFull: Uint32Array;
-    let mixBuffer: Float32Array
-    let stagingWrite: Uint32Array;
-    let stagingRead: Uint32Array;
-    let stagingIsFull: Uint32Array;
-    let stagingBuffer: Float32Array
-    let stagingPtrs:{
-        stagingRead:Uint32Array,
-        stagingWrite:Uint32Array,
-        stagingIsFull:Uint32Array,
-    };
-    let mixPtrs:{
-        mixRead:Uint32Array,
-        mixWrite:Uint32Array,
-        mixIsFull:Uint32Array,
-    }
-    let buffers:{
-        stagingBuffer: Float32Array,
-        mixBuffer: Float32Array,
-    };
-
-
     beforeEach(() => {
-        // Create mock audio data (1 second at 48kHz)
-        vi.useFakeTimers();
-        const mixSAB = new SharedArrayBuffer(BUFFER_SIZE*4+12);
-        mixRead = new Uint32Array(mixSAB,0,1);
-        mixWrite = new Uint32Array(mixSAB,4,1);
-        mixIsFull = new Uint32Array(mixSAB,8,1);
-        mixBuffer = new Float32Array(mixSAB,12);
-        const stagingSAB = new SharedArrayBuffer(BUFFER_SIZE*4+12);
-        stagingRead = new Uint32Array(stagingSAB,0,1);
-        stagingWrite = new Uint32Array(stagingSAB,4,1);
-        stagingIsFull = new Uint32Array(stagingSAB,8,1);
-        stagingBuffer = new Float32Array(stagingSAB,12);
-
-        mixPtrs = {mixRead,mixWrite,mixIsFull};
-        stagingPtrs = {stagingRead,stagingWrite,stagingIsFull};
-        buffers = {mixBuffer,stagingBuffer};
-
-    
-
+        vi.clearAllMocks();
     });
 
     it('should read a single mix region the size of the buffer', () => {
@@ -242,7 +236,7 @@ describe('Basic Region Playback', () => {
         const looping = false;
         const simSamples = BUFFER_SIZE;
 
-        const {stagingRes,mixRes} = runSimulation(timeline,stagingPtrs,mixPtrs,buffers,bounceEntries,looping,simSamples);
+        const {stagingRes,mixRes} = runSimulation(timeline,bounceEntries,looping,simSamples);
 
         stagingRes.forEach(v => expect(v).toBe(0));
         for(let i=0; i<simSamples;i++){
@@ -251,7 +245,7 @@ describe('Basic Region Playback', () => {
         for(let i=simSamples;i<mixRes.length;i++){
              expect(mixRes[i]).toBe(0);
         }
-               
+
     });
 
     it('should read a single mix region twice the size of the buffer', () => {
@@ -264,7 +258,7 @@ describe('Basic Region Playback', () => {
         const looping = false;
         const simSamples = BUFFER_SIZE*2;
 
-        const {stagingRes,mixRes} = runSimulation(timeline,stagingPtrs,mixPtrs,buffers,bounceEntries,looping,simSamples);
+        const {stagingRes,mixRes} = runSimulation(timeline,bounceEntries,looping,simSamples);
 
         stagingRes.forEach(v => expect(v).toBe(0));
         for(let i=0; i<simSamples;i++){
@@ -273,9 +267,9 @@ describe('Basic Region Playback', () => {
         for(let i=simSamples;i<mixRes.length;i++){
             expect(mixRes[i]).toBe(0);
         }
-               
+
     });
-    
+
     it('should read a single staging region the size of the buffer',()=>{
         const staging = [[0,BUFFER_SIZE]];
         const mix = [[]];
@@ -286,7 +280,7 @@ describe('Basic Region Playback', () => {
         const looping = false;
         const simSamples = BUFFER_SIZE;
 
-        const {stagingRes,mixRes} = runSimulation(timeline,stagingPtrs,mixPtrs,buffers,bounceEntries,looping,simSamples);
+        const {stagingRes,mixRes} = runSimulation(timeline,bounceEntries,looping,simSamples);
 
         for(let i=0; i<simSamples;i++){
             expect(stagingRes[i]).toBeCloseTo(.001,5);
@@ -296,7 +290,7 @@ describe('Basic Region Playback', () => {
             expect(stagingRes[i]).toBe(0);
              expect(mixRes[i]).toBe(0);
         }
-    })
+    });
 
     it('should read a single staging region twice the size of the buffer',()=>{
         const staging = [[0,BUFFER_SIZE*2]];
@@ -308,7 +302,7 @@ describe('Basic Region Playback', () => {
         const looping = false;
         const simSamples = BUFFER_SIZE*2;
 
-        const {stagingRes,mixRes} = runSimulation(timeline,stagingPtrs,mixPtrs,buffers,bounceEntries,looping,simSamples);
+        const {stagingRes,mixRes} = runSimulation(timeline,bounceEntries,looping,simSamples);
 
         for(let i=0; i<simSamples;i++){
             expect(stagingRes[i]).toBeCloseTo(.001,5);
@@ -318,8 +312,7 @@ describe('Basic Region Playback', () => {
             expect(stagingRes[i]).toBe(0);
              expect(mixRes[i]).toBe(0);
         }
-    })
-
+    });
 
     it('should read a single staging region 3.5 times the size of the buffer',()=>{
         const staging = [[0,BUFFER_SIZE*3.5]];
@@ -331,7 +324,7 @@ describe('Basic Region Playback', () => {
         const looping = false;
         const simSamples = BUFFER_SIZE*3.5;
 
-        const {stagingRes,mixRes} = runSimulation(timeline,stagingPtrs,mixPtrs,buffers,bounceEntries,looping,simSamples);
+        const {stagingRes,mixRes} = runSimulation(timeline,bounceEntries,looping,simSamples);
 
         for(let i=0; i<simSamples;i++){
             expect(stagingRes[i]).toBeCloseTo(.001,5);
@@ -341,7 +334,7 @@ describe('Basic Region Playback', () => {
             expect(stagingRes[i]).toBe(0);
              expect(mixRes[i]).toBe(0);
         }
-    })
+    });
 
     it('should read a single mix region 3.5 times the size of the buffer',()=>{
         const staging = [[]];
@@ -353,7 +346,7 @@ describe('Basic Region Playback', () => {
         const looping = false;
         const simSamples = BUFFER_SIZE*3.5;
 
-        const {stagingRes,mixRes} = runSimulation(timeline,stagingPtrs,mixPtrs,buffers,bounceEntries,looping,simSamples);
+        const {stagingRes,mixRes} = runSimulation(timeline,bounceEntries,looping,simSamples);
 
         for(let i=0; i<simSamples;i++){
             expect(stagingRes[i]).toBe(0);
@@ -363,7 +356,7 @@ describe('Basic Region Playback', () => {
             expect(stagingRes[i]).toBe(0);
             expect(mixRes[i]).toBe(0);
         }
-    })
+    });
 
     it('should read a single mix region that is .3 times the size of the buffer',()=>{
         const staging = [[]];
@@ -375,7 +368,7 @@ describe('Basic Region Playback', () => {
         const looping = false;
         const simSamples = Math.floor(BUFFER_SIZE*.3);
 
-        const {stagingRes,mixRes} = runSimulation(timeline,stagingPtrs,mixPtrs,buffers,bounceEntries,looping,simSamples);
+        const {stagingRes,mixRes} = runSimulation(timeline,bounceEntries,looping,simSamples);
 
         for(let i=0; i<simSamples;i++){
             expect(stagingRes[i]).toBe(0);
@@ -385,7 +378,7 @@ describe('Basic Region Playback', () => {
             expect(stagingRes[i]).toBe(0);
             expect(mixRes[i]).toBe(0);
         }
-    })
+    });
 
     it('should read a single staging region that is .3 times the size of the buffer',()=>{
         const staging = [[0,Math.floor(BUFFER_SIZE*.3)]];
@@ -397,7 +390,7 @@ describe('Basic Region Playback', () => {
         const looping = false;
         const simSamples = Math.floor(BUFFER_SIZE*.3);
 
-        const {stagingRes,mixRes} = runSimulation(timeline,stagingPtrs,mixPtrs,buffers,bounceEntries,looping,simSamples);
+        const {stagingRes,mixRes} = runSimulation(timeline,bounceEntries,looping,simSamples);
 
         for(let i=0; i<simSamples;i++){
             expect(stagingRes[i]).toBeCloseTo(.001,5);
@@ -407,7 +400,7 @@ describe('Basic Region Playback', () => {
             expect(stagingRes[i]).toBe(0);
             expect(mixRes[i]).toBe(0);
         }
-    })
+    });
 
     it('should read a single staging region that doesnt start at the beginning and handle silence appropriately',()=>{
         const staging = [[BUFFER_SIZE/2,3*BUFFER_SIZE/2]];
@@ -419,7 +412,7 @@ describe('Basic Region Playback', () => {
         const looping = false;
         const simSamples = 2*BUFFER_SIZE;
 
-        const {stagingRes,mixRes} = runSimulation(timeline,stagingPtrs,mixPtrs,buffers,bounceEntries,looping,simSamples);
+        const {stagingRes,mixRes} = runSimulation(timeline,bounceEntries,looping,simSamples);
 
         for(let i=0; i<BUFFER_SIZE/2;i++){
             expect(stagingRes[i]).toBe(0);
@@ -434,9 +427,9 @@ describe('Basic Region Playback', () => {
             expect(stagingRes[i]).toBe(0);
             expect(mixRes[i]).toBe(0);
         }
-    })
+    });
 
-    
+
     it('should read a single mix region that doesnt start at the beginning and handle silence appropriately',()=>{
         const staging = [[]];
         const mix = [[[BUFFER_SIZE/2,3*BUFFER_SIZE/2]]];
@@ -447,7 +440,7 @@ describe('Basic Region Playback', () => {
         const looping = false;
         const simSamples = 2*BUFFER_SIZE;
 
-        const {stagingRes,mixRes} = runSimulation(timeline,stagingPtrs,mixPtrs,buffers,bounceEntries,looping,simSamples);
+        const {stagingRes,mixRes} = runSimulation(timeline,bounceEntries,looping,simSamples);
 
         for(let i=0; i<BUFFER_SIZE/2;i++){
             expect(stagingRes[i]).toBe(0);
@@ -462,7 +455,7 @@ describe('Basic Region Playback', () => {
             expect(stagingRes[i]).toBe(0);
             expect(mixRes[i]).toBe(0);
         }
-    })
+    });
 
     it('should read simultaneous mix and staging region',()=>{
         const staging = [[BUFFER_SIZE/2,3*BUFFER_SIZE/2]];
@@ -474,7 +467,7 @@ describe('Basic Region Playback', () => {
         const looping = false;
         const simSamples = 2*BUFFER_SIZE;
 
-        const {stagingRes,mixRes} = runSimulation(timeline,stagingPtrs,mixPtrs,buffers,bounceEntries,looping,simSamples);
+        const {stagingRes,mixRes} = runSimulation(timeline,bounceEntries,looping,simSamples);
 
         for(let i=0; i<BUFFER_SIZE/2;i++){
             expect(stagingRes[i]).toBe(0);
@@ -489,13 +482,13 @@ describe('Basic Region Playback', () => {
             expect(stagingRes[i]).toBe(0);
             expect(mixRes[i]).toBe(0);
         }
-    })
+    });
 
     it('should read 16 mix regions simultaneous with a staging region',()=>{
         const staging = [[BUFFER_SIZE/2,3*BUFFER_SIZE/2]];
         const mix = [];
         for(let i=0;i<16;i++){
-            mix.push([[BUFFER_SIZE/2,3*BUFFER_SIZE/2]])
+            mix.push([[BUFFER_SIZE/2,3*BUFFER_SIZE/2]]);
         }
 
         const timeline: TimelineState = createTimelineObject(staging,mix,{start:0,end:2*BUFFER_SIZE});
@@ -504,7 +497,7 @@ describe('Basic Region Playback', () => {
         const looping = false;
         const simSamples = 2*BUFFER_SIZE;
 
-        const {stagingRes,mixRes} = runSimulation(timeline,stagingPtrs,mixPtrs,buffers,bounceEntries,looping,simSamples);
+        const {stagingRes,mixRes} = runSimulation(timeline,bounceEntries,looping,simSamples);
 
         for(let i=0; i<BUFFER_SIZE/2;i++){
             expect(stagingRes[i]).toBe(0);
@@ -514,7 +507,7 @@ describe('Basic Region Playback', () => {
         const len = mixRes.length/16;
         for(let i=BUFFER_SIZE/2; i<3*BUFFER_SIZE/2;i++){
             for(let j=0;j<16;j++){
-                expect(mixRes[j*len + i]).toBeCloseTo(.001*(j+1),5)
+                expect(mixRes[j*len + i]).toBeCloseTo(.001*(j+1),5);
             }
             expect(stagingRes[i]).toBeCloseTo(17 *.001,5);
         }
@@ -525,16 +518,14 @@ describe('Basic Region Playback', () => {
     });
 
     it('should zero-fill the remainder of a block when a region ends mid-block', () => {
-        ; // 1 full block + 1 sample
         const staging = [[1, 129]];
         const mix = [[]];
 
         const timeline = createTimelineObject(staging, mix, { start: 0, end: BUFFER_SIZE });
         const audioData = getAudioData(timeline);
         const bounceEntries = getBounceEntries(timeline, audioData);
-        const simSamples = BUFFER_SIZE;
-        
-        const { stagingRes } = runSimulation(timeline, stagingPtrs, mixPtrs, buffers, bounceEntries, false, BUFFER_SIZE);
+
+        const { stagingRes } = runSimulation(timeline, bounceEntries, false, BUFFER_SIZE);
 
         expect(stagingRes[0]).toBe(0);
         for(let i=1;i<129;i++){
@@ -545,19 +536,18 @@ describe('Basic Region Playback', () => {
 
     it('should wrap around correctly when looping is enabled', () => {
         const timelineEnd = 100;
-        const staging = [[10, 20]]; // Region at the very start
+        const staging = [[10, 20]];
         const mix = [[[10,20]]];
 
         const timeline = createTimelineObject(staging, mix, { start: 0, end: timelineEnd });
         timeline.posSample.staging = 95;
         timeline.posSample.mix = 95;
-        
+
         const audioData = getAudioData(timeline);
         const bounceEntries = getBounceEntries(timeline, audioData);
         const simSamples = 300;
 
-        // Run for 128 samples. Should see 50 samples of silence, then 78 samples of the start
-        const { stagingRes, mixRes } = runSimulation(timeline, stagingPtrs, mixPtrs, buffers, bounceEntries, true, simSamples);
+        const { stagingRes, mixRes } = runSimulation(timeline, bounceEntries, true, simSamples);
 
         for(let i=0;i<3;i++){
             for(let j=0;j<15;j++){
@@ -572,7 +562,6 @@ describe('Basic Region Playback', () => {
                 expect(stagingRes[i*100 + j]).toBe(0);
                 expect(mixRes[i*100 + j]).toBe(0);
             }
-            
         }
     });
 
@@ -584,7 +573,7 @@ describe('Basic Region Playback', () => {
         const bounceEntries = getBounceEntries(timeline, audioData);
         const simSamples = 200;
 
-        const { stagingRes,mixRes } = runSimulation(timeline, stagingPtrs, mixPtrs, buffers, bounceEntries, false, simSamples);
+        const { stagingRes,mixRes } = runSimulation(timeline, bounceEntries, false, simSamples);
 
         for(let i=0;i<50;i++){
             expect(stagingRes[i]).toBeCloseTo(.003,5);
@@ -598,7 +587,6 @@ describe('Basic Region Playback', () => {
             expect(stagingRes[i]).toBe(0);
             expect(mixRes[i]).toBe(0);
         }
-        
     });
 
     it('should handle regions that with a small gap in between', () => {
@@ -609,7 +597,7 @@ describe('Basic Region Playback', () => {
         const bounceEntries = getBounceEntries(timeline, audioData);
         const simSamples = 200;
 
-        const { stagingRes,mixRes } = runSimulation(timeline, stagingPtrs, mixPtrs, buffers, bounceEntries, false, simSamples);
+        const { stagingRes,mixRes } = runSimulation(timeline, bounceEntries, false, simSamples);
 
         for(let i=0;i<50;i++){
             expect(stagingRes[i]).toBeCloseTo(.003,5);
@@ -635,7 +623,7 @@ describe('Basic Region Playback', () => {
         const bounceEntries = getBounceEntries(timeline, audioData);
         const simSamples = 128;
 
-        const { stagingRes,mixRes } = runSimulation(timeline, stagingPtrs, mixPtrs, buffers, bounceEntries, false, simSamples);
+        const { stagingRes,mixRes } = runSimulation(timeline, bounceEntries, false, simSamples);
 
         for(let i=0;i<20;i++){
             expect(stagingRes[i]).toBeCloseTo(.002,5);
@@ -645,7 +633,6 @@ describe('Basic Region Playback', () => {
             expect(stagingRes[i]).toBe(0);
             expect(mixRes[i]).toBe(0);
         }
-
     });
 
     it('should handle regions that extend past timeline end', () => {
@@ -656,7 +643,7 @@ describe('Basic Region Playback', () => {
         const bounceEntries = getBounceEntries(timeline, audioData);
         const simSamples = 128;
 
-        const { stagingRes,mixRes } = runSimulation(timeline, stagingPtrs, mixPtrs, buffers, bounceEntries, false, simSamples);
+        const { stagingRes,mixRes } = runSimulation(timeline, bounceEntries, false, simSamples);
 
         for(let i=0;i<100;i++){
             expect(stagingRes[i]).toBeCloseTo(.002,5);
@@ -680,7 +667,7 @@ describe('Basic Region Playback', () => {
         const bounceEntries = getBounceEntries(timeline, audioData);
         const simSamples = 128;
 
-        const { mixRes } = runSimulation(timeline, stagingPtrs, mixPtrs, buffers, bounceEntries, false, simSamples);
+        const { mixRes } = runSimulation(timeline, bounceEntries, false, simSamples);
 
         const mixResTrackLen = mixRes.length/timeline.mix.length;
 
@@ -705,7 +692,6 @@ describe('Basic Region Playback', () => {
         for(let i=2*mixResTrackLen+50;i<2*mixResTrackLen+100;i++){
             expect(mixRes[i]).toBeCloseTo(.003,5);
         }
-
     });
 
     it('should handle different non-overlapping regions across multiple mix tracks', () => {
@@ -720,7 +706,7 @@ describe('Basic Region Playback', () => {
         const bounceEntries = getBounceEntries(timeline, audioData);
         const simSamples = 128;
 
-        const { mixRes } = runSimulation(timeline, stagingPtrs, mixPtrs, buffers, bounceEntries, false, simSamples);
+        const { mixRes } = runSimulation(timeline, bounceEntries, false, simSamples);
 
         const mixResTrackLen = mixRes.length/timeline.mix.length;
 
@@ -739,7 +725,5 @@ describe('Basic Region Playback', () => {
         for(let i=2*mixResTrackLen+60;i<2*mixResTrackLen+80;i++){
             expect(mixRes[i]).toBeCloseTo(.003,5);
         }
-
     });
-
 });

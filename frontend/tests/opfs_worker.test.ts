@@ -13,6 +13,9 @@ import { writeToOPFSUtil } from '../src/Workers/opfs_utils/writeToOPFSUtil';
  * - Ring buffer wrap-around logic
  * - Chunked writes when data crosses buffer boundary
  * - File appending using handle.getSize() for position
+ *
+ * Signature: writeToOPFSUtil(samplesToWrite, buffer, readPtr, handle, mipMapManager, timelineStartSample, mipMapOffset)
+ * mipMapManager is passed as null in all tests — mipmap side-effects are tested separately.
  */
 
 describe('writeToOPFSUtil', () => {
@@ -39,10 +42,9 @@ describe('writeToOPFSUtil', () => {
         it('should write samples without wrap-around', () => {
             const buffer = new Float32Array([1, 2, 3, 4, 5]);
             const readPtr = 0;
-            const writePtr = 0;
             const samplesToWrite = 3;
 
-            const newReadPtr = writeToOPFSUtil(samplesToWrite, buffer, readPtr, writePtr, mockFileHandle);
+            const newReadPtr = writeToOPFSUtil(samplesToWrite, buffer, readPtr, mockFileHandle, null, 0, 0);
 
             expect(mockFileHandle.write).toHaveBeenCalledTimes(1);
             expect(newReadPtr).toBe(3);
@@ -53,7 +55,7 @@ describe('writeToOPFSUtil', () => {
 
         it('should write all samples from buffer', () => {
             const buffer = new Float32Array([7, 8, 9]);
-            const newReadPtr = writeToOPFSUtil(3, buffer, 0, 0, mockFileHandle);
+            const newReadPtr = writeToOPFSUtil(3, buffer, 0, mockFileHandle, null, 0, 0);
 
             expect(newReadPtr).toBe(0); // Wraps around to 0
             expect(mockFileHandle.write).toHaveBeenCalledTimes(1);
@@ -61,7 +63,7 @@ describe('writeToOPFSUtil', () => {
 
         it('should handle single sample write', () => {
             const buffer = new Float32Array([42]);
-            const newReadPtr = writeToOPFSUtil(1, buffer, 0, 0, mockFileHandle);
+            const newReadPtr = writeToOPFSUtil(1, buffer, 0, mockFileHandle, null, 0, 0);
 
             expect(newReadPtr).toBe(0);
             expect(mockFileHandle.write).toHaveBeenCalledTimes(1);
@@ -75,7 +77,7 @@ describe('writeToOPFSUtil', () => {
             const readPtr = 3;
             const samplesToWrite = 4;
 
-            const newReadPtr = writeToOPFSUtil(samplesToWrite, buffer, readPtr, 2, mockFileHandle);
+            const newReadPtr = writeToOPFSUtil(samplesToWrite, buffer, readPtr, mockFileHandle, null, 0, 0);
 
             expect(newReadPtr).toBe(2); // (3 + 4) % 5 = 2
             expect(mockFileHandle.write).toHaveBeenCalledTimes(2); // Two chunks due to wrap
@@ -86,14 +88,14 @@ describe('writeToOPFSUtil', () => {
             const readPtr = 4; // Near the end
             const samplesToWrite = 3;
 
-            const newReadPtr = writeToOPFSUtil(samplesToWrite, buffer, readPtr, 2, mockFileHandle);
+            const newReadPtr = writeToOPFSUtil(samplesToWrite, buffer, readPtr, mockFileHandle, null, 0, 0);
 
             expect(newReadPtr).toBe(2);
             expect(mockFileHandle.write).toHaveBeenCalledTimes(2);
             console.log('ar',audioRes)
             expect(audioRes[10]).toBe(50); // First write from position 4
-            expect(audioRes[20]).toBe(10); // Second write from position 0
-            expect(audioRes[21]).toBe(20); // Second write from position 1
+            expect(audioRes[30]).toBe(10); // Second write from position 0 (getSize called twice per iteration: 10, 20, 30, ...)
+            expect(audioRes[31]).toBe(20); // Second write from position 1
         });
 
         it('should handle multiple wrap-arounds', () => {
@@ -101,21 +103,20 @@ describe('writeToOPFSUtil', () => {
             const readPtr = 2;
             const samplesToWrite = 8;
 
-            const newReadPtr = writeToOPFSUtil(samplesToWrite, buffer, readPtr, 0, mockFileHandle);
+            const newReadPtr = writeToOPFSUtil(samplesToWrite, buffer, readPtr, mockFileHandle, null, 0, 0);
 
             expect(newReadPtr).toBe(1); // (2 + 8) % 3 = 1
             expect(mockFileHandle.write).toHaveBeenCalled();
         });
 
-        it('should correctly handle writePtr near buffer end', () => {
+        it('should correctly handle readPtr near buffer end', () => {
             const buffer = new Float32Array(10);
             for (let i = 0; i < 10; i++) buffer[i] = i * 10;
 
             const readPtr = 0;
-            const writePtr = 8;
             const samplesToWrite = 5;
 
-            const newReadPtr = writeToOPFSUtil(samplesToWrite, buffer, readPtr, writePtr, mockFileHandle);
+            const newReadPtr = writeToOPFSUtil(samplesToWrite, buffer, readPtr, mockFileHandle, null, 0, 0);
 
             expect(newReadPtr).toBe(5);
             expect(mockFileHandle.write).toHaveBeenCalled();
@@ -125,7 +126,7 @@ describe('writeToOPFSUtil', () => {
     describe('Edge cases', () => {
         it('should handle zero samples to write', () => {
             const buffer = new Float32Array([1, 2, 3]);
-            const newReadPtr = writeToOPFSUtil(0, buffer, 0, 0, mockFileHandle);
+            const newReadPtr = writeToOPFSUtil(0, buffer, 0, mockFileHandle, null, 0, 0);
 
             expect(newReadPtr).toBe(0);
             expect(mockFileHandle.write).not.toHaveBeenCalled();
@@ -134,7 +135,7 @@ describe('writeToOPFSUtil', () => {
         it('should handle large buffer with small write', () => {
             const buffer = new Float32Array(1000);
             buffer[500] = 99;
-            const newReadPtr = writeToOPFSUtil(1, buffer, 500, 0, mockFileHandle);
+            const newReadPtr = writeToOPFSUtil(1, buffer, 500, mockFileHandle, null, 0, 0);
 
             expect(newReadPtr).toBe(501);
             expect(audioRes[10]).toBe(99);
@@ -142,7 +143,7 @@ describe('writeToOPFSUtil', () => {
 
         it('should handle readPtr at buffer end minus one', () => {
             const buffer = new Float32Array([1, 2, 3, 4, 5]);
-            const newReadPtr = writeToOPFSUtil(2, buffer, 4, 0, mockFileHandle);
+            const newReadPtr = writeToOPFSUtil(2, buffer, 4, mockFileHandle, null, 0, 0);
 
             expect(newReadPtr).toBe(1);
         });
@@ -153,7 +154,7 @@ describe('writeToOPFSUtil', () => {
             const buffer = new Float32Array([100, 200, 300]);
             mockFileHandle.getSize.mockReturnValue(50);
 
-            writeToOPFSUtil(3, buffer, 0, 0, mockFileHandle);
+            writeToOPFSUtil(3, buffer, 0, mockFileHandle, null, 0, 0);
 
             expect(mockFileHandle.write).toHaveBeenCalledWith(
                 expect.any(Float32Array),
@@ -169,7 +170,7 @@ describe('writeToOPFSUtil', () => {
                 fileSize += subarray.length;
             });
 
-            writeToOPFSUtil(5, buffer, 0, 0, mockFileHandle);
+            writeToOPFSUtil(5, buffer, 0, mockFileHandle, null, 0, 0);
 
             expect(mockFileHandle.write).toHaveBeenCalledWith(
                 expect.any(Float32Array),
@@ -185,7 +186,7 @@ describe('writeToOPFSUtil', () => {
                 fileSize += subarray.length;
             });
 
-            writeToOPFSUtil(7, buffer, 3, 0, mockFileHandle);
+            writeToOPFSUtil(7, buffer, 3, mockFileHandle, null, 0, 0);
 
             expect(mockFileHandle.write).toHaveBeenCalledTimes(2);
         });
@@ -195,26 +196,26 @@ describe('writeToOPFSUtil', () => {
 
         it('should maintain data order across wrap-around', () => {
             const buffer = new Float32Array([10, 20, 30, 40]);
-            writeToOPFSUtil(6, buffer, 3, 1, mockFileHandle);
+            writeToOPFSUtil(6, buffer, 3, mockFileHandle, null, 0, 0);
 
             expect(audioRes[10]).toBe(40);
-            expect(audioRes[20]).toBe(10);
-            expect(audioRes[21]).toBe(20);
-            expect(audioRes[22]).toBe(30);
+            expect(audioRes[30]).toBe(10); // Second chunk at position 30 (getSize called twice per iteration)
+            expect(audioRes[31]).toBe(20);
+            expect(audioRes[32]).toBe(30);
         });
 
         it('should not modify original buffer', () => {
             const buffer = new Float32Array([5, 6, 7, 8]);
             const originalBuffer = new Float32Array(buffer);
 
-            writeToOPFSUtil(3, buffer, 0, 0, mockFileHandle);
+            writeToOPFSUtil(3, buffer, 0, mockFileHandle, null, 0, 0);
 
             expect(buffer).toEqual(originalBuffer);
         });
 
         it('should handle negative values correctly', () => {
             const buffer = new Float32Array([-1.5, -2.5, -3.5]);
-            writeToOPFSUtil(3, buffer, 0, 0, mockFileHandle);
+            writeToOPFSUtil(3, buffer, 0, mockFileHandle, null, 0, 0);
 
             expect(audioRes[10]).toBe(-1.5);
             expect(audioRes[11]).toBe(-2.5);
@@ -223,7 +224,7 @@ describe('writeToOPFSUtil', () => {
 
         it('should handle very small float values', () => {
             const buffer = new Float32Array([0.00001, 0.00002, 0.00003]);
-            writeToOPFSUtil(3, buffer, 0, 0, mockFileHandle);
+            writeToOPFSUtil(3, buffer, 0, mockFileHandle, null, 0, 0);
 
             expect(audioRes[10]).toBeCloseTo(0.00001);
             expect(audioRes[11]).toBeCloseTo(0.00002);
@@ -234,14 +235,14 @@ describe('writeToOPFSUtil', () => {
     describe('Pointer arithmetic', () => {
         it('should return correct pointer after exact buffer length write', () => {
             const buffer = new Float32Array([1, 2, 3, 4, 5]);
-            const newReadPtr = writeToOPFSUtil(5, buffer, 0, 0, mockFileHandle);
+            const newReadPtr = writeToOPFSUtil(5, buffer, 0, mockFileHandle, null, 0, 0);
 
             expect(newReadPtr).toBe(0);
         });
 
         it('should handle readPtr starting mid-buffer', () => {
             const buffer = new Float32Array([1, 2, 3, 4, 5, 6, 7, 8]);
-            const newReadPtr = writeToOPFSUtil(3, buffer, 5, 0, mockFileHandle);
+            const newReadPtr = writeToOPFSUtil(3, buffer, 5, mockFileHandle, null, 0, 0);
 
             expect(newReadPtr).toBe(0); // (5 + 3) % 8 = 0
         });
@@ -255,7 +256,7 @@ describe('writeToOPFSUtil', () => {
 
             testCases.forEach(({ bufferSize, readPtr, samples, expected }) => {
                 const buffer = new Float32Array(bufferSize);
-                const result = writeToOPFSUtil(samples, buffer, readPtr, 0, mockFileHandle);
+                const result = writeToOPFSUtil(samples, buffer, readPtr, mockFileHandle, null, 0, 0);
                 expect(result).toBe(expected);
             });
         });
@@ -264,14 +265,14 @@ describe('writeToOPFSUtil', () => {
     describe('Chunk writing logic', () => {
         it('should write single chunk when no wrap occurs', () => {
             const buffer = new Float32Array([1, 2, 3, 4, 5, 6, 7, 8]);
-            writeToOPFSUtil(4, buffer, 0, 2, mockFileHandle);
+            writeToOPFSUtil(4, buffer, 0, mockFileHandle, null, 0, 0);
 
             expect(mockFileHandle.write).toHaveBeenCalledTimes(1);
         });
 
         it('should write two chunks when wrap occurs', () => {
             const buffer = new Float32Array([1, 2, 3, 4, 5]);
-            writeToOPFSUtil(3, buffer, 4, 0, mockFileHandle);
+            writeToOPFSUtil(3, buffer, 4, mockFileHandle, null, 0, 0);
 
             expect(mockFileHandle.write).toHaveBeenCalledTimes(2);
         });
@@ -283,14 +284,14 @@ describe('writeToOPFSUtil', () => {
                 writeCalls.push(subarray.length);
             });
 
-            writeToOPFSUtil(3, buffer, 4, 0, mockFileHandle);
+            writeToOPFSUtil(3, buffer, 4, mockFileHandle, null, 0, 0);
 
             expect(writeCalls).toEqual([1, 2]); // First chunk: 1 sample, second chunk: 2 samples
         });
 
-        it('should handle writePtr affecting chunk boundaries', () => {
+        it('should handle large write within buffer bounds', () => {
             const buffer = new Float32Array(20);
-            writeToOPFSUtil(15, buffer, 0, 18, mockFileHandle);
+            writeToOPFSUtil(15, buffer, 0, mockFileHandle, null, 0, 0);
 
             expect(mockFileHandle.write).toHaveBeenCalled();
         });

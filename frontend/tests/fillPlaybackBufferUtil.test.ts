@@ -11,7 +11,9 @@ function createMockTimeline(regionsToAdd: number[][][], timelineStart: number, t
             bounce: i,
             take: j,
             name: `bounce_${i}_take_${j}`,
-            offset: 0,
+            clipOffset: 0,
+            latencyOffset: 0,
+            audioLength: end - start,
         }))
     );
 
@@ -389,7 +391,7 @@ describe('fillPlaybackBufferUtil', () => {
     it('handles region offset correctly when reading from take', () => {
         const { timeline, tracks } = createMockTimeline([[[20, 40]]], 0, 100);
         
-        timeline.mix[0][0].offset = 10;
+        timeline.mix[0][0].clipOffset = 10;
         
         const readSpy = tracks[0].takeHandles["bounce_0_take_0"].read;
         

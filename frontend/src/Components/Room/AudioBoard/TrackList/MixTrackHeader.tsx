@@ -24,6 +24,7 @@ export default function MixTrackHeader({ audioControllerRef, compactMode }: MixT
         e.preventDefault();
         if(audioController){
             audioController.muteMixToggle();
+            setIsMixMuted(prev => !prev);
         }else{
             console.error("AudioController is null in MixTrackHeader handleMuteToggle");
         }
@@ -52,7 +53,7 @@ export default function MixTrackHeader({ audioControllerRef, compactMode }: MixT
         });
     };
 
-    const isMixMuted = audioController ? audioController.isMixTrackMuted() : false;
+    const [isMixMuted, setIsMixMuted] = useState(audioController?.isMixTrackMuted() ?? false);
     const timeline = audioController ? audioController.query("timeline") : null;
     const bounceCount = timeline ? timeline.mix.length : 0;
     const bounceNames = timeline ? (timeline.bounceNames ?? []) : [];

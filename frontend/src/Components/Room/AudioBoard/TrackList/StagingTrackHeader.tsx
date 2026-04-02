@@ -33,6 +33,7 @@ export default function StagingTrackHeader({audioControllerRef,compactMode}: Sta
         e.preventDefault();
         if(audioController){
             audioController.muteStagingToggle();
+            setIsStagingMuted(prev => !prev);
         }else{
             console.error("AudioController is null in StagingTrackHeader handleMuteToggle");
         }
@@ -46,7 +47,7 @@ export default function StagingTrackHeader({audioControllerRef,compactMode}: Sta
         }
     }
 
-    const isStagingMuted = audioController ? audioController.isStagingTrackMuted() : false;
+    const [isStagingMuted, setIsStagingMuted] = useState(audioController?.isStagingTrackMuted() ?? false);
     const hasRegions = audioController ? audioController.query("timeline").staging.some(layer => layer.length > 0) : false;
 
     return <div style={{width:`${CONSTANTS.LEFT_CONTROLS_WIDTH}`,height:Math.floor(58*compactMode)}} className="border-b border-black flex flex-row items-center">

@@ -242,20 +242,11 @@ export class UIEngine implements Observer{
     }
 
     startPlayhead(timeline: {start: number, end: number}){
-        const playheadRef = this.#refs.get(DOMCommands.DRAW_PLAYHEAD);
-        const waveformRef = this.#refs.get(DOMCommands.DRAW_TRACK_ONE_WAVEFORMS);
-        if(!playheadRef || !playheadRef.current || !waveformRef || !waveformRef.current){
-            console.error("Playhead or waveform ref not found when starting playhead loop, playheadRef:", playheadRef, "waveformRef:", waveformRef);
-            return;
-        }
+        const playheadRef = this.#refs.get(DOMCommands.DRAW_PLAYHEAD) ?? { current: null };
+        const waveformRef = this.#refs.get(DOMCommands.DRAW_TRACK_ONE_WAVEFORMS) ?? { current: null };
         const audioCtx = this.#mediaProvider.getAudioContext();
         this.#playheadManager.playheadData = {isMoving:true, startTime: audioCtx.currentTime};
-        if(!playheadRef ||!playheadRef.current || !waveformRef.current){
-            console.error("Playhead or waveform ref not found when starting playhead loop");
-            return;
-        }
-        this.#playheadManager.playheadLoop(playheadRef, waveformRef,timeline);
-        
+        this.#playheadManager.playheadLoop(playheadRef, waveformRef, timeline);
     }
 
     stopPlayhead(){

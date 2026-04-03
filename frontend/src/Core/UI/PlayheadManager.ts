@@ -14,16 +14,11 @@ export class PlayheadManager {
      }
 
     playheadLoop(playheadRef:React.RefObject<HTMLElement|null>,
-                    waveformRef:React.RefObject<HTMLElement|null>, 
+                    waveformRef:React.RefObject<HTMLElement|null>,
                     timeline: {start: number, end: number}){
         {
             const { isMoving, startTime } = this.playheadData;
 
-            if(!playheadRef.current || !waveformRef.current){
-                console.error(`In playhead loop, playheadRef or waveformRef is null. playheadRef: ${playheadRef.current}, waveformRef: ${waveformRef.current}`);
-                return;
-            }
-            
             const audioCtx = this.#audioCtx;
             const elapsed = audioCtx.currentTime - startTime;
             const looping = this.#context.query("isLooping");
@@ -46,6 +41,9 @@ export class PlayheadManager {
                 this.#context.dispatch(RecordingProgress.getDispatchEvent({ param, emit: false }));
             }
 
+            // Refs may be null when a non-DAW view (e.g. mixer) is shown and canvases are
+            // unmounted. UIEngine.draw already guards null refs gracefully, so dispatching
+            // PlayheadMoveAuto above is safe — we just skip the explicit error log.
             if(isMoving){
                 requestAnimationFrame(() => this.playheadLoop(playheadRef, waveformRef,timeline));
             }

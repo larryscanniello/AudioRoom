@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState } from "react"; // checkedBounces still uses useState
 import { Slider } from "@/Components/ui/slider";
 import { CONSTANTS } from "@/Constants/constants.ts";
 import type { AudioController } from "@/Core/Audio/AudioController";
@@ -24,7 +24,6 @@ export default function MixTrackHeader({ audioControllerRef, compactMode }: MixT
         e.preventDefault();
         if(audioController){
             audioController.muteMixToggle();
-            setIsMixMuted(prev => !prev);
         }else{
             console.error("AudioController is null in MixTrackHeader handleMuteToggle");
         }
@@ -32,9 +31,17 @@ export default function MixTrackHeader({ audioControllerRef, compactMode }: MixT
 
     const handleVolSlider = (value: number[]) => {
         if(audioController){
-            audioController.changeMixVolume(value[0]);
+            audioController.changeMixVolumeLocal(value[0]);
         }else{
             console.error("AudioController is null in MixTrackHeader handleVolSlider");
+        }
+    };
+
+    const handleVolSliderCommit = (value: number[]) => {
+        if(audioController){
+            audioController.changeMixVolume(value[0]);
+        }else{
+            console.error("AudioController is null in MixTrackHeader handleVolSliderCommit");
         }
     };
 
@@ -53,7 +60,7 @@ export default function MixTrackHeader({ audioControllerRef, compactMode }: MixT
         });
     };
 
-    const [isMixMuted, setIsMixMuted] = useState(audioController?.isMixTrackMuted() ?? false);
+    const isMixMuted = audioController?.query("mixMuted") ?? false;
     const timeline = audioController ? audioController.query("timeline") : null;
     const bounceCount = timeline ? timeline.mix.length : 0;
     const bounceNames = timeline ? (timeline.bounceNames ?? []) : [];
@@ -101,8 +108,9 @@ export default function MixTrackHeader({ audioControllerRef, compactMode }: MixT
             M
         </button>
         <Slider className="ml-2 mr-2"
-            defaultValue={[1.0]} max={1.0} min={0.0} step={.025}
+            value={[audioController?.query("mixMasterVolume") ?? 1.0]} max={1.0} min={0.0} step={.025}
             onValueChange={(value: number[]) => handleVolSlider(value)}
+            onValueCommit={(value: number[]) => handleVolSliderCommit(value)}
         >
         </Slider>
     </div>;

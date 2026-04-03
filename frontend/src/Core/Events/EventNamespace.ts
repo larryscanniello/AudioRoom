@@ -48,6 +48,10 @@ export const EventTypes = {
     RECORDING_DRAINED: "RECORDING_DRAINED",
     DELETE_MIX_BOUNCES: "DELETE_MIX_BOUNCES",
     RESTAGE: "RESTAGE",
+    TOGGLE_MIX_MUTE: "TOGGLE_MIX_MUTE",
+    TOGGLE_STAGING_MUTE: "TOGGLE_STAGING_MUTE",
+    CHANGE_MIX_VOLUME: "CHANGE_MIX_VOLUME",
+    CHANGE_STAGING_VOLUME: "CHANGE_STAGING_VOLUME",
 } as const;
 
 export type EventParams = {
@@ -92,6 +96,10 @@ export type EventParams = {
     [EventTypes.RECORDING_DRAINED]: null,
     [EventTypes.DELETE_MIX_BOUNCES]: TimelineState,
     [EventTypes.RESTAGE]: TimelineState,
+    [EventTypes.TOGGLE_MIX_MUTE]: boolean,
+    [EventTypes.TOGGLE_STAGING_MUTE]: boolean,
+    [EventTypes.CHANGE_MIX_VOLUME]: number,
+    [EventTypes.CHANGE_STAGING_VOLUME]: number,
 }
 /*
     I decided to go with a fat event model. Everything you need to know about an event

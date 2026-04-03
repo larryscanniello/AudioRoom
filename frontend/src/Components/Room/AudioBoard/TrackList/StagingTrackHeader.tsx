@@ -33,7 +33,6 @@ export default function StagingTrackHeader({audioControllerRef,compactMode}: Sta
         e.preventDefault();
         if(audioController){
             audioController.muteStagingToggle();
-            setIsStagingMuted(prev => !prev);
         }else{
             console.error("AudioController is null in StagingTrackHeader handleMuteToggle");
         }
@@ -41,13 +40,21 @@ export default function StagingTrackHeader({audioControllerRef,compactMode}: Sta
 
     const handleVolSlider = (value:number[]) => {
         if(audioController){
-            audioController.changeStagingVolume(value[0]);
+            audioController.changeStagingVolumeLocal(value[0]);
         }else{
             console.error("AudioController is null in StagingTrackHeader handleVolSlider");
         }
     }
 
-    const [isStagingMuted, setIsStagingMuted] = useState(audioController?.isStagingTrackMuted() ?? false);
+    const handleVolSliderCommit = (value:number[]) => {
+        if(audioController){
+            audioController.changeStagingVolume(value[0]);
+        }else{
+            console.error("AudioController is null in StagingTrackHeader handleVolSliderCommit");
+        }
+    }
+
+    const isStagingMuted = audioController?.query("stagingMuted") ?? false;
     const hasRegions = audioController ? audioController.query("timeline").staging.some(layer => layer.length > 0) : false;
 
     return <div style={{width:`${CONSTANTS.LEFT_CONTROLS_WIDTH}`,height:Math.floor(58*compactMode)}} className="border-b border-black flex flex-row items-center">
@@ -90,8 +97,9 @@ export default function StagingTrackHeader({audioControllerRef,compactMode}: Sta
             M
         </button>
         <Slider className="ml-2 mr-2"
-            defaultValue={[1.0]} max={1.0} min={0.0} step={.025}
+            value={[audioController?.query("stagingMasterVolume") ?? 1.0]} max={1.0} min={0.0} step={.025}
             onValueChange={(value:number[]) => handleVolSlider(value)}
+            onValueCommit={(value:number[]) => handleVolSliderCommit(value)}
         >
         </Slider>
 

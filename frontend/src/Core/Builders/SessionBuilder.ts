@@ -172,7 +172,7 @@ export class SessionBuilder{
             const hardware = {audioContext, processorNode, source, memory: this.#memory, opfsWorker: this.#opfsWorker, clickBuffer};
             audioEngine = new WorkletAudioEngine({hardware,mixer,mediaProvider,context: globalContext});
         }
-        const audioController = new AudioController(audioEngine, globalContext,mixer);
+        const audioController = new AudioController(audioEngine, globalContext);
         return {audioController, audioEngine};
     }
 

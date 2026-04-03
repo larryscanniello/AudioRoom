@@ -9,7 +9,6 @@ import { Loop } from "../Events/Audio/Loop";
 import type { StateContainer } from "../State/State";
 import type { GlobalContext } from "../Mediator"
 import type { AudioEngine } from "./AudioEngine";
-import type { Mixer } from "./Mixer";
 
 import timelineReducer from "../State/timelineReducer";
 import { Bounce } from "../Events/Audio/Bounce";
@@ -23,17 +22,19 @@ import { TrimRegion } from "../Events/Audio/TrimRegion";
 import { MoveRegion } from "../Events/Audio/MoveRegion";
 import { ToggleSnapToGrid } from "../Events/Audio/SnapToGrid";
 import { StartLatencyTest } from "../Events/Audio/StartLatencyTest";
+import { ToggleMixMute } from "../Events/Audio/ToggleMixMute";
+import { ToggleStagingMute } from "../Events/Audio/ToggleStagingMute";
+import { ChangeMixVolume } from "../Events/Audio/ChangeMixVolume";
+import { ChangeStagingVolume } from "../Events/Audio/ChangeStagingVolume";
 
 
 export class AudioController{
     #context: GlobalContext;
-    #mixer: Mixer;
     #audioEngine: AudioEngine;
 
-    constructor(audioEngine: AudioEngine,context:GlobalContext,mixer:Mixer) {
+    constructor(audioEngine: AudioEngine,context:GlobalContext) {
         this.#audioEngine = audioEngine;
         this.#context = context;
-        this.#mixer = mixer;
     }
 
     public play() {
@@ -77,27 +78,27 @@ export class AudioController{
     }
 
     public changeStagingVolume(volume: number) {
-        this.#mixer.setStagingMasterVolume(volume);
+        this.#context.dispatch(ChangeStagingVolume.getDispatchEvent({ emit: true, param: volume, serverMandated: false }));
+    }
+
+    public changeStagingVolumeLocal(volume: number) {
+        this.#context.dispatch(ChangeStagingVolume.getDispatchEvent({ emit: false, param: volume, serverMandated: false }));
     }
 
     public changeMixVolume(volume: number) {
-        this.#mixer.setMixMasterVolume(volume);
+        this.#context.dispatch(ChangeMixVolume.getDispatchEvent({ emit: true, param: volume, serverMandated: false }));
+    }
+
+    public changeMixVolumeLocal(volume: number) {
+        this.#context.dispatch(ChangeMixVolume.getDispatchEvent({ emit: false, param: volume, serverMandated: false }));
     }
 
     public muteStagingToggle() {
-        this.#mixer.muteStagingToggle();
+        this.#context.dispatch(ToggleStagingMute.getDispatchEvent({ emit: true, param: !this.#context.query("stagingMuted"), serverMandated: false }));
     }
 
     public muteMixToggle() {
-        this.#mixer.muteMixToggle();
-    }
-
-    public isStagingTrackMuted(): boolean {
-        return this.#context.query("stagingMuted");
-    }
-
-    public isMixTrackMuted(): boolean {
-        return this.#context.query("mixMuted");
+        this.#context.dispatch(ToggleMixMute.getDispatchEvent({ emit: true, param: !this.#context.query("mixMuted"), serverMandated: false }));
     }
 
     public startLatencyTest(){

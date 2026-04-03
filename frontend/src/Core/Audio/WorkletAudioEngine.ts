@@ -147,6 +147,22 @@ export class WorkletAudioEngine implements AudioEngine{
         this.#hardware.processorNode.port.postMessage({ type: "START_LATENCY_TEST" });
     }
 
+    public setMixMuted(muted: boolean): void {
+        this._mixer.setMixMuted(muted);
+    }
+
+    public setStagingMuted(muted: boolean): void {
+        this._mixer.setStagingMuted(muted);
+    }
+
+    public setMixVolume(volume: number): void {
+        this._mixer.setMixMasterVolume(volume);
+    }
+
+    public setStagingVolume(volume: number): void {
+        this._mixer.setStagingMasterVolume(volume);
+    }
+
     public handlePacket(data: DecodeAudioData){
         this.#hardware.opfsWorker.postMessage(data);
     }

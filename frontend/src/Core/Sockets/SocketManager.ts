@@ -17,6 +17,10 @@ import { UpdateRegionOffset } from "../Events/Audio/UpdateRegionOffset";
 import { UndoTimeline } from "../Events/Audio/UndoTimeline";
 import { RedoTimeline } from "../Events/Audio/RedoTimeline";
 import { ReStage } from "../Events/Audio/ReStage";
+import { ToggleMixMute } from "../Events/Audio/ToggleMixMute";
+import { ToggleStagingMute } from "../Events/Audio/ToggleStagingMute";
+import { ChangeMixVolume } from "../Events/Audio/ChangeMixVolume";
+import { ChangeStagingVolume } from "../Events/Audio/ChangeStagingVolume";
 
 export class SocketManager implements Observer {
     #socket: Socket;
@@ -162,6 +166,22 @@ export class SocketManager implements Observer {
                 // Handled by state change
                 this.#context.commMessage(`Partner deleted a region`,"white");
                 break;
+            case EventTypes.TOGGLE_MIX_MUTE:
+                this.#context.dispatch(ToggleMixMute.getDispatchEvent({ emit: false, param: state.mixMuted, serverMandated: true }));
+                this.#context.commMessage(`Partner ${state.mixMuted ? "muted" : "unmuted"} mix`, "white");
+                break;
+            case EventTypes.TOGGLE_STAGING_MUTE:
+                this.#context.dispatch(ToggleStagingMute.getDispatchEvent({ emit: false, param: state.stagingMuted, serverMandated: true }));
+                this.#context.commMessage(`Partner ${state.stagingMuted ? "muted" : "unmuted"} staging`, "white");
+                break;
+            case EventTypes.CHANGE_MIX_VOLUME:
+                this.#context.dispatch(ChangeMixVolume.getDispatchEvent({ emit: false, param: state.mixMasterVolume, serverMandated: true }));
+                this.#context.commMessage(`Partner changed mix vol to ${Math.round(state.mixMasterVolume * 100)}%`, "white");
+                break;
+            case EventTypes.CHANGE_STAGING_VOLUME:
+                this.#context.dispatch(ChangeStagingVolume.getDispatchEvent({ emit: false, param: state.stagingMasterVolume, serverMandated: true }));
+                this.#context.commMessage(`Partner changed staging vol to ${Math.round(state.stagingMasterVolume * 100)}%`, "white");
+                break;
             default:
                 console.warn("Received unhandled socket event type:", type);
         }
@@ -232,6 +252,18 @@ export class SocketManager implements Observer {
                 break;
             case EventTypes.DELETE_REGION:
                 this.#context.commMessage(`Partner region deleted`,"white");
+                break;
+            case EventTypes.TOGGLE_MIX_MUTE:
+                this.#context.commMessage(`Partner mix ${state.mixMuted ? "muted" : "unmuted"}`, "white");
+                break;
+            case EventTypes.TOGGLE_STAGING_MUTE:
+                this.#context.commMessage(`Partner staging ${state.stagingMuted ? "muted" : "unmuted"}`, "white");
+                break;
+            case EventTypes.CHANGE_MIX_VOLUME:
+                this.#context.commMessage(`Partner mix vol changed to ${Math.round(state.mixMasterVolume * 100)}%`, "white");
+                break;
+            case EventTypes.CHANGE_STAGING_VOLUME:
+                this.#context.commMessage(`Partner staging vol changed to ${Math.round(state.stagingMasterVolume * 100)}%`, "white");
                 break;
             default:
                 console.warn("Received unhandled event acknowledgement type:", type);

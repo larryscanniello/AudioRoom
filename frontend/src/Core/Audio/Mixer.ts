@@ -34,23 +34,13 @@ export class Mixer {
         }
     }
 
-    muteStagingToggle() {
-        const muted = !this.#stagingMasterVolume.muted;
+    setStagingMuted(muted: boolean) {
         this.#stagingMasterVolume.muted = muted;
         this.#stagingMasterVolume.param.value = muted ? 0 : this.#context.query("stagingMasterVolume");
     }
 
-    muteMixToggle() {
-        const muted = !this.#mixMasterVolume.muted;
+    setMixMuted(muted: boolean) {
         this.#mixMasterVolume.muted = muted;
         this.#mixMasterVolume.param.value = muted ? 0 : this.#context.query("mixMasterVolume");
-    }
-
-    isStagingTrackMuted(): boolean {
-        return this.#stagingMasterVolume.muted;
-    }
-
-    isMixTrackMuted(): boolean {
-        return this.#mixMasterVolume.muted;
     }
 }

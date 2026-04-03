@@ -1,5 +1,6 @@
 
 import type { Observer } from "@/Types/Observer";
+import type { MixerState } from "@/Types/AudioState";
 
 export interface AudioEngine extends Observer{
 
@@ -16,5 +17,6 @@ export interface AudioEngine extends Observer{
     setStagingMuted(muted: boolean): void;
     setMixVolume(volume: number): void;
     setStagingVolume(volume: number): void;
+    syncMixerVolumes(mixerState: MixerState): void;
     init(): void;
 }

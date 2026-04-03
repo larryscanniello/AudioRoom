@@ -110,4 +110,21 @@ interface StopAudioProcessorData {
 }
 
 
+export type ChannelType = 'track' | 'aux' | 'master'
+
+export type Channel = {
+    id: string
+    type: ChannelType
+    trackIndex?: number
+    volume: number
+    pan: number
+    mute: boolean
+    solo: boolean
+    sends: { auxId: string; level: number }[]
+}
+
+export type MixerState = {
+    channels: Channel[]
+}
+
 export type { Pointers, Buffers, TimeSignature, Absolute, AudioProcessorData, StopAudioProcessorData};

@@ -158,8 +158,15 @@ export class SessionBuilder{
             if(!stagingMasterVolumeParam || !mixMasterVolumeParam){
                 throw new Error("Master volume parameters not found in audio worklet processor");
             }
-            const volumeParams = {stagingMasterVolumeParam, mixMasterVolumeParam};
-            mixer = new Mixer(this.#config.numberOfMixTracks, audioContext,volumeParams,globalContext);
+            const trackVolumeParams: AudioParam[] = [];
+            for (let i = 0; i < this.#config.numberOfMixTracks; i++) {
+                const key = `TRACK_${i}_VOLUME` as keyof typeof MIXER_PARAMS;
+                const param = processorNode.parameters.get(MIXER_PARAMS[key]);
+                if (!param) throw new Error(`Track volume param TRACK_${i}_VOLUME not found in audio worklet processor`);
+                trackVolumeParams.push(param);
+            }
+            const volumeParams = { stagingMasterVolumeParam, mixMasterVolumeParam, trackVolumeParams };
+            mixer = new Mixer(this.#config.numberOfMixTracks, audioContext, volumeParams, globalContext);
             if(!this.#opfsWorker){
                 this.#opfsWorker = new OPFSWorker();
             }

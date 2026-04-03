@@ -150,6 +150,13 @@ class AudioProcessor extends AudioWorkletProcessor {
   nextClickSample: number;
 
   static get parameterDescriptors(): AudioParamDescriptor[] {
+    const trackParams: AudioParamDescriptor[] = Array.from({ length: 16 }, (_, i) => ({
+      name: `TRACK_${i}_VOLUME`,
+      defaultValue: 1.0,
+      minValue: 0,
+      maxValue: 1.0,
+      automationRate: "k-rate" as const,
+    }));
     return [
       {
         name: "MIX_MASTER_VOLUME",
@@ -172,6 +179,7 @@ class AudioProcessor extends AudioWorkletProcessor {
         maxValue: 1.0,
         automationRate: "k-rate",
       },
+      ...trackParams,
     ];
   }
 
@@ -486,7 +494,8 @@ class AudioProcessor extends AudioWorkletProcessor {
     }
 
     const stagingGain = parameters["STAGING_MASTER_VOLUME"][0];
-    const mixGain = parameters["MIX_MASTER_VOLUME"][0];
+    const masterGain = parameters["MIX_MASTER_VOLUME"][0];
+    const trackGains: number[] = Array.from({ length: CONSTANTS.MIX_MAX_TRACKS }, (_, i) => parameters[`TRACK_${i}_VOLUME`][0]);
 
     const output = outputs[0];
 
@@ -496,7 +505,7 @@ class AudioProcessor extends AudioWorkletProcessor {
         output[channel][i] = (this.state.isPlaying ? this.readers.staging![i] * stagingGain : 0);
 
         for (let track = 0; track < CONSTANTS.MIX_MAX_TRACKS; track++) {
-          output[channel][i] += this.readers.mix![track * this.PROCESS_FRAMES + i] * mixGain;
+          output[channel][i] += this.readers.mix![track * this.PROCESS_FRAMES + i] * trackGains[track] * masterGain;
         }
       }
     }

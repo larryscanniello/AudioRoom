@@ -3,7 +3,7 @@ import { Mixer } from "./Mixer";
 import { MediaProvider } from "../MediaProvider";
 import { MIXER_PARAMS } from "@/Constants/MixerParams";
 
-import type { Pointers, Buffers, DecodeAudioData } from "../../Types/AudioState";
+import type { Pointers, Buffers, DecodeAudioData, MixerState } from "../../Types/AudioState";
 import type { AudioProcessorData,StopAudioProcessorData } from "../../Types/AudioState";
 import type { AudioEngine } from "./AudioEngine";
 import type { DispatchEvent, GlobalContext } from "../Mediator";
@@ -161,6 +161,10 @@ export class WorkletAudioEngine implements AudioEngine{
 
     public setStagingVolume(volume: number): void {
         this._mixer.setStagingMasterVolume(volume);
+    }
+
+    public syncMixerVolumes(mixerState: MixerState): void {
+        this._mixer.syncMixerVolumes(mixerState);
     }
 
     public handlePacket(data: DecodeAudioData){

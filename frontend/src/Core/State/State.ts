@@ -1,4 +1,4 @@
-import type { TimelineState } from "../../Types/AudioState"; // Assuming type exists based on AudioEngine
+import type { TimelineState, MixerState, Channel } from "../../Types/AudioState"; // Assuming type exists based on AudioEngine
 
 
 export interface StateContainer {
@@ -33,6 +33,7 @@ export interface StateContainer {
     mixMasterVolume: number;
     stagingMuted: boolean;
     mixMuted: boolean;
+    mixerState: MixerState;
     remoteStreamAttached: boolean;
     liveRecording: {start: number, end:number};
     liveSlip: { regionId: string; delta: number } | null;
@@ -103,6 +104,19 @@ export class State {
             mixMasterVolume: 1.0,
             stagingMuted: false,
             mixMuted: false,
+            mixerState: {
+                channels: [
+                    { id: 'staging', type: 'track', volume: 1.0, pan: 0, mute: false, solo: false, sends: [] },
+                    ...Array.from({ length: 16 }, (_, i): Channel => ({
+                        id: `track-${i}`, type: 'track', trackIndex: i,
+                        volume: 1.0, pan: 0, mute: false, solo: false, sends: [],
+                    })),
+                    { id: 'aux-0', type: 'aux', volume: 1.0, pan: 0, mute: false, solo: false, sends: [] },
+                    { id: 'aux-1', type: 'aux', volume: 1.0, pan: 0, mute: false, solo: false, sends: [] },
+                    { id: 'aux-2', type: 'aux', volume: 1.0, pan: 0, mute: false, solo: false, sends: [] },
+                    { id: 'master', type: 'master', volume: 1.0, pan: 0, mute: false, solo: false, sends: [] },
+                ],
+            },
             remoteStreamAttached: false,
             liveRecording: {start: 0, end: 0},
             liveSlip: null,
@@ -118,14 +132,14 @@ export class State {
             "bpm","isLooping","isStreaming","isMetronomeOn",
             "snapToGrid","timeline","latency",
             "commMessage","stagingMasterVolume","mixMasterVolume",
-            "stagingMuted","mixMuted","playheadTimeSeconds","remoteStreamAttached",
+            "stagingMuted","mixMuted","mixerState","playheadTimeSeconds","remoteStreamAttached",
         ]);
         this.#sharedState = new Set([
             "bpm","isLooping","timeSignature","timeline",
             "isPlaying","isRecording","isDrainingRecording","bounce","take","globalTake","globalPlayCount",
             "playheadTimeSeconds","mouseDragStart","mouseDragEnd",
             "numConnectedUsers","roomID","stagingMasterVolume",
-            "mixMasterVolume","stagingMuted","mixMuted","liveRecording",
+            "mixMasterVolume","stagingMuted","mixMuted","mixerState","liveRecording",
         ]);
         this.#state.roomID = roomID;
     }

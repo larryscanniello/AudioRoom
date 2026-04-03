@@ -26,6 +26,8 @@ import { ToggleMixMute } from "../Events/Audio/ToggleMixMute";
 import { ToggleStagingMute } from "../Events/Audio/ToggleStagingMute";
 import { ChangeMixVolume } from "../Events/Audio/ChangeMixVolume";
 import { ChangeStagingVolume } from "../Events/Audio/ChangeStagingVolume";
+import { ChangeChannelVolume } from "../Events/Audio/ChangeChannelVolume";
+import mixerReducer from "../State/mixerReducer";
 
 
 export class AudioController{
@@ -91,6 +93,16 @@ export class AudioController{
 
     public changeMixVolumeLocal(volume: number) {
         this.#context.dispatch(ChangeMixVolume.getDispatchEvent({ emit: false, param: volume, serverMandated: false }));
+    }
+
+    public changeChannelVolumeLocal(channelId: string, volume: number) {
+        const newMixerState = mixerReducer(this.#context.query("mixerState"), { type: 'change_channel_volume', channelId, volume });
+        this.#context.dispatch(ChangeChannelVolume.getDispatchEvent({ emit: false, param: newMixerState, serverMandated: false }));
+    }
+
+    public changeChannelVolume(channelId: string, volume: number) {
+        const newMixerState = mixerReducer(this.#context.query("mixerState"), { type: 'change_channel_volume', channelId, volume });
+        this.#context.dispatch(ChangeChannelVolume.getDispatchEvent({ emit: true, param: newMixerState, serverMandated: false }));
     }
 
     public muteStagingToggle() {

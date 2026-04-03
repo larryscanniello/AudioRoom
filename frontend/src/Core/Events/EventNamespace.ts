@@ -3,7 +3,7 @@ import type { AudioEngine } from "../Audio/AudioEngine";
 import type { UIEngine } from "../UI/UIEngine";
 import type { SocketManager } from "../Sockets/SocketManager";
 import type { DispatchEvent } from "../Mediator";
-import type { TimelineState } from "@/Types/AudioState";
+import type { TimelineState, MixerState } from "@/Types/AudioState";
 import type { WebRTCManager } from "../WebRTC/WebRTCManager";
 
 export const EventTypes = {
@@ -52,6 +52,7 @@ export const EventTypes = {
     TOGGLE_STAGING_MUTE: "TOGGLE_STAGING_MUTE",
     CHANGE_MIX_VOLUME: "CHANGE_MIX_VOLUME",
     CHANGE_STAGING_VOLUME: "CHANGE_STAGING_VOLUME",
+    CHANGE_CHANNEL_VOLUME: "CHANGE_CHANNEL_VOLUME",
 } as const;
 
 export type EventParams = {
@@ -100,6 +101,7 @@ export type EventParams = {
     [EventTypes.TOGGLE_STAGING_MUTE]: boolean,
     [EventTypes.CHANGE_MIX_VOLUME]: number,
     [EventTypes.CHANGE_STAGING_VOLUME]: number,
+    [EventTypes.CHANGE_CHANNEL_VOLUME]: MixerState,
 }
 /*
     I decided to go with a fat event model. Everything you need to know about an event

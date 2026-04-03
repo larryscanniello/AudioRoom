@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { CONSTANTS } from "@/Constants/constants.ts";
 import type { AudioController } from "@/Core/Audio/AudioController";
-import { ArrowDownToLine, ArrowUpFromLine, CassetteTape, KeyboardMusic, Redo, Undo } from "lucide-react";
+import { ArrowDownToLine, ArrowUpFromLine, CassetteTape, KeyboardMusic, Redo, SlidersVertical, Undo } from "lucide-react";
 import {
     Popover,
     PopoverContent,
@@ -13,9 +13,10 @@ type UpperLeftBoxProps = {
     audioControllerRef: React.RefObject<AudioController|null>;
     onBounceClick?: () => void;
     onRestageRequest?: (index: number) => void;
+    onMixerOpen?: () => void;
 }
 
-export default function UpperLeftBox({compactMode, audioControllerRef, onBounceClick, onRestageRequest}: UpperLeftBoxProps){
+export default function UpperLeftBox({compactMode, audioControllerRef, onBounceClick, onRestageRequest, onMixerOpen}: UpperLeftBoxProps){
 
     const [selectedRestage, setSelectedRestage] = useState<number | null>(null);
     const [restageOpen, setRestageOpen] = useState(false);
@@ -67,16 +68,19 @@ export default function UpperLeftBox({compactMode, audioControllerRef, onBounceC
                 style={{width:`${CONSTANTS.LEFT_CONTROLS_WIDTH}px`,height:Math.floor(35*compactMode)}}
             >
                 <div>
-                <button className="pr-2" onClick={handleUndo}>
+                <button className="pr-1" onClick={handleUndo}>
                     <Undo className={`scale-75 ${thingsToUndo === 0 ? 'opacity-25' : ''}`}/>
                 </button>
-                <button className="pr-2" onClick={handleRedo}>
+                <button className="pr-1" onClick={handleRedo}>
                     <Redo className={`scale-75 ${thingsToRedo === 0 ? 'opacity-25' : ''}`}/>
                 </button>
-                <button className="pr-3.5">
+                <button className="pr-1">
                     <KeyboardMusic className="scale-75"/>
                 </button>
-                <button className="relative w-8 h-5" title="Bounce to mix"
+                <button className="pr-1" onClick={onMixerOpen}>
+                    <SlidersVertical className="scale-75"/>
+                </button>
+                <button className="relative w-6 h-5" title="Bounce to mix"
                 onClick={handleBounce}
                 >
                         <ArrowDownToLine className="absolute scale-50 -top-2.5 -left-1"/>
@@ -84,7 +88,7 @@ export default function UpperLeftBox({compactMode, audioControllerRef, onBounceC
                 </button>
                 <Popover open={restageOpen} onOpenChange={(open) => { setRestageOpen(open); if (!open) setSelectedRestage(null); }}>
                     <PopoverTrigger asChild>
-                        <button className="relative w-8 h-5" title="Re-stage from mix">
+                        <button className="relative w-6 h-5" title="Re-stage from mix">
                             <ArrowUpFromLine className="absolute scale-50 -top-2.5 -left-1"/>
                             <CassetteTape className="absolute scale-75 top-0 -left-1"/>
                         </button>

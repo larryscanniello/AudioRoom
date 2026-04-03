@@ -18,7 +18,8 @@ import ZoomSlider from "./BottomControls/BottomRight/ZoomSlider.tsx";
 
 import { CONSTANTS } from "@/Constants/constants.ts";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import Mixer from "./Mixer/Mixer";
 import MeasureTicks from "./Timeline/MeasureTicks.tsx";
 import TimelineContainer from "./Timeline/TimelineContainer.tsx";
 import StagingTrack from "./Timeline/StagingTrack.tsx";
@@ -46,17 +47,17 @@ type AudioBoardProps = {
 export default function AudioBoard({uiControllerRef,audioControllerRef,compactMode}:AudioBoardProps){
     const [width,height] = useWindowSize();
     const bounceOrchestratorRef = useRef<BounceOrchestratorHandle | null>(null);
+    const [view, setView] = useState<"daw" | "mixer">("daw");
 
     const timelinePxLen = Math.max(1050-CONSTANTS.LEFT_CONTROLS_WIDTH - 50,width-CONSTANTS.LEFT_CONTROLS_WIDTH - 50);
 
     useEffect(()=>{
-        if(uiControllerRef.current){
+        if(uiControllerRef.current && view === "daw"){
             uiControllerRef.current.drawAllCanvases();
         }
-    },[height,width])
-    
+    },[height,width,view])
 
-    if(uiControllerRef.current){
+    if(uiControllerRef.current && view === "daw"){
         uiControllerRef.current.drawAllCanvases();
     }
 
@@ -72,61 +73,66 @@ export default function AudioBoard({uiControllerRef,audioControllerRef,compactMo
 
     return <div className="relative">
             <div className="w-full grid place-items-center items-center">
-                <div 
+                <div
                 className={`grid bg-gray-700 border-gray-500 border-4 rounded-2xl shadow-gray shadow-md`}
                     style={{
-                        gridTemplateRows: `1px ${Math.floor(172*compactMode)}px`,
-                        width: `${Math.max(1050,width)}px`, 
-                        height: Math.floor(232*compactMode) 
+                        ...(view === "daw" ? { gridTemplateRows: `1px ${Math.floor(172*compactMode)}px` } : {}),
+                        width: `${Math.max(1050,width)}px`,
+                        height: Math.floor(232*compactMode)
                     }}>
-                    <div className={`relative row-start-2 grid pt-3 `}
-                    style={{
-                        gridTemplateColumns: `20px ${CONSTANTS.LEFT_CONTROLS_WIDTH}px 0px`,
-                        height: Math.floor(172*compactMode)
-                    }}
-                    >
-                    <TrackList compactMode={compactMode}>
-                        <UpperLeftBox compactMode={compactMode} audioControllerRef={audioControllerRef} onBounceClick={() => bounceOrchestratorRef.current?.onBounceClick()} onRestageRequest={(i) => bounceOrchestratorRef.current?.onRestageRequest(i)}/>
-                        <div className="bg-[rgb(114,120,155)]"
-                            style={{width:`${CONSTANTS.LEFT_CONTROLS_WIDTH}px`,height:Math.floor(115*compactMode)}}
-                        >
-                            <StagingTrackHeader audioControllerRef={audioControllerRef} compactMode={compactMode}/>
-                            <MixTrackHeader audioControllerRef={audioControllerRef} compactMode={compactMode}/>
-                        </div>
-                    </TrackList>
-                    <Timeline timelinePxLen={timelinePxLen} compactMode={compactMode}>
-                        <TouchOverlay timelinePxLen={timelinePxLen} compactMode={compactMode} trackHeights={trackHeights} uiControllerRef={uiControllerRef}/>
-                        <MeasureTicks timelinePxLen={timelinePxLen} compactMode={compactMode} uiControllerRef={uiControllerRef} />
-                        <TimelineContainer timelinePxLen={timelinePxLen} compactMode={compactMode} uiControllerRef={uiControllerRef} />
-                        <div className="row-start-2 col-start-3">
-                            <StagingTrack timelinePxLen={timelinePxLen} trackHeights={trackHeights} uiControllerRef={uiControllerRef} />
-                            <MixTrack timelinePxLen={timelinePxLen} trackHeights={trackHeights} uiControllerRef={uiControllerRef}/>
-                        </div>
-                        {/*<Playhead compactMode={compactMode} windowLen={timelinePxLen} UIControllerRef={uiControllerRef} />*/}
-                    </Timeline>
-                    <SnapToGrid audioControllerRef={audioControllerRef} compactMode={compactMode}/>
-                    </div>
-                    <BottomControls compactMode={compactMode}>
-                        <Transport compactMode={compactMode}>
-                            <Play audioControllerRef={audioControllerRef} compactMode={compactMode}/>
-                            <ButtonGroupSeparator/>
-                            <Stop audioControllerRef={audioControllerRef} compactMode={compactMode}/>
-                            <ButtonGroupSeparator/>
-                            <Record audioControllerRef={audioControllerRef} compactMode={compactMode}/>
-                            <ButtonGroupSeparator/>
-                            <Skipback audioControllerRef={audioControllerRef} compactMode={compactMode}/>
-                            <ButtonGroupSeparator/>
-                            <Loop audioControllerRef={audioControllerRef} compactMode={compactMode}/>
-                            <ButtonGroupSeparator/>
-                            <Metronome audioControllerRef={audioControllerRef} compactMode={compactMode}/>
-                            <ButtonGroupSeparator/>
-                            <BPM uiControllerRef={uiControllerRef} compactMode={compactMode}/>
-                        </Transport>
-                        <ZoomSlider uiControllerRef={uiControllerRef} compactMode={compactMode} timelinePxLen={timelinePxLen}/>
-                        <Settings compactMode={compactMode}/>
-                        <Latency compactMode={compactMode} audioControllerRef={audioControllerRef}/>
-                        <CommMessage uiControllerRef={uiControllerRef} compactMode={compactMode}/>
-                    </BottomControls>
+                    {view === "mixer"
+                        ? <Mixer audioControllerRef={audioControllerRef} onClose={() => setView("daw")} />
+                        : <>
+                            <div className={`relative row-start-2 grid pt-3 `}
+                            style={{
+                                gridTemplateColumns: `20px ${CONSTANTS.LEFT_CONTROLS_WIDTH}px 0px`,
+                                height: Math.floor(172*compactMode)
+                            }}
+                            >
+                            <TrackList compactMode={compactMode}>
+                                <UpperLeftBox compactMode={compactMode} audioControllerRef={audioControllerRef} onBounceClick={() => bounceOrchestratorRef.current?.onBounceClick()} onRestageRequest={(i) => bounceOrchestratorRef.current?.onRestageRequest(i)} onMixerOpen={() => setView("mixer")}/>
+                                <div className="bg-[rgb(114,120,155)]"
+                                    style={{width:`${CONSTANTS.LEFT_CONTROLS_WIDTH}px`,height:Math.floor(115*compactMode)}}
+                                >
+                                    <StagingTrackHeader audioControllerRef={audioControllerRef} compactMode={compactMode}/>
+                                    <MixTrackHeader audioControllerRef={audioControllerRef} compactMode={compactMode}/>
+                                </div>
+                            </TrackList>
+                            <Timeline timelinePxLen={timelinePxLen} compactMode={compactMode}>
+                                <TouchOverlay timelinePxLen={timelinePxLen} compactMode={compactMode} trackHeights={trackHeights} uiControllerRef={uiControllerRef}/>
+                                <MeasureTicks timelinePxLen={timelinePxLen} compactMode={compactMode} uiControllerRef={uiControllerRef} />
+                                <TimelineContainer timelinePxLen={timelinePxLen} compactMode={compactMode} uiControllerRef={uiControllerRef} />
+                                <div className="row-start-2 col-start-3">
+                                    <StagingTrack timelinePxLen={timelinePxLen} trackHeights={trackHeights} uiControllerRef={uiControllerRef} />
+                                    <MixTrack timelinePxLen={timelinePxLen} trackHeights={trackHeights} uiControllerRef={uiControllerRef}/>
+                                </div>
+                                {/*<Playhead compactMode={compactMode} windowLen={timelinePxLen} UIControllerRef={uiControllerRef} />*/}
+                            </Timeline>
+                            <SnapToGrid audioControllerRef={audioControllerRef} compactMode={compactMode}/>
+                            </div>
+                            <BottomControls compactMode={compactMode}>
+                                <Transport compactMode={compactMode}>
+                                    <Play audioControllerRef={audioControllerRef} compactMode={compactMode}/>
+                                    <ButtonGroupSeparator/>
+                                    <Stop audioControllerRef={audioControllerRef} compactMode={compactMode}/>
+                                    <ButtonGroupSeparator/>
+                                    <Record audioControllerRef={audioControllerRef} compactMode={compactMode}/>
+                                    <ButtonGroupSeparator/>
+                                    <Skipback audioControllerRef={audioControllerRef} compactMode={compactMode}/>
+                                    <ButtonGroupSeparator/>
+                                    <Loop audioControllerRef={audioControllerRef} compactMode={compactMode}/>
+                                    <ButtonGroupSeparator/>
+                                    <Metronome audioControllerRef={audioControllerRef} compactMode={compactMode}/>
+                                    <ButtonGroupSeparator/>
+                                    <BPM uiControllerRef={uiControllerRef} compactMode={compactMode}/>
+                                </Transport>
+                                <ZoomSlider uiControllerRef={uiControllerRef} compactMode={compactMode} timelinePxLen={timelinePxLen}/>
+                                <Settings compactMode={compactMode}/>
+                                <Latency compactMode={compactMode} audioControllerRef={audioControllerRef}/>
+                                <CommMessage uiControllerRef={uiControllerRef} compactMode={compactMode}/>
+                            </BottomControls>
+                        </>
+                    }
                 </div>
             </div>
         <BounceOrchestrator ref={bounceOrchestratorRef} audioControllerRef={audioControllerRef} />

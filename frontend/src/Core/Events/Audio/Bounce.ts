@@ -28,6 +28,7 @@ export const Bounce: EventNamespace<typeof EventTypes.BOUNCE> = {
                     { key: 'take', value: 0 },
                     { key: 'bounce', value: param.bounce },
                     { key: 'timeline', value: param.timeline },
+                    { key: 'mixerState', value: param.mixerState },
                 ]
             },
             getEventNamespace: () => { return Bounce; }

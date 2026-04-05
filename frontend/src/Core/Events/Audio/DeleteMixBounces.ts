@@ -17,7 +17,10 @@ export const DeleteMixBounces: EventNamespace<typeof EventTypes.DELETE_MIX_BOUNC
             serverMandated,
             transactionData: {
                 transactionQueries: [],
-                mutations: [{ key: 'timeline', value: param }],
+                mutations: [
+                    { key: 'timeline', value: param.timeline },
+                    { key: 'mixerState', value: param.mixerState },
+                ],
             },
             getEventNamespace: () => { return DeleteMixBounces; }
         };

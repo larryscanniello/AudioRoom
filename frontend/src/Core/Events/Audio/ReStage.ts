@@ -17,7 +17,10 @@ export const ReStage: EventNamespace<typeof EventTypes.RESTAGE> = {
             serverMandated,
             transactionData: {
                 transactionQueries: [],
-                mutations: [{ key: 'timeline', value: param }],
+                mutations: [
+                    { key: 'timeline', value: param.timeline },
+                    { key: 'mixerState', value: param.mixerState },
+                ],
             },
             getEventNamespace: () => { return ReStage; }
         };

@@ -66,7 +66,8 @@ export class AudioController{
         const newTimeline = timelineReducer(timeline, { type: "bounce_to_mix", name });
         const prevBounce = this.#context.query("bounce");
         const prevGlobalTake = this.#context.query("globalTake");
-        const bounceState = {timeline: newTimeline, bounce: prevBounce + 1, globalTake: prevGlobalTake + 1};
+        const newMixerState = mixerReducer(this.#context.query("mixerState"), { type: 'bounce_effects', newTrackId: `track-${prevBounce}` });
+        const bounceState = { timeline: newTimeline, bounce: prevBounce + 1, globalTake: prevGlobalTake + 1, mixerState: newMixerState };
         this.#context.dispatch(Bounce.getDispatchEvent({emit:true, param: bounceState,serverMandated: false}));
     }
 
@@ -153,13 +154,15 @@ export class AudioController{
     public reStage(bounceIndex: number) {
         const timeline = this.#context.query("timeline");
         const newTimeline = timelineReducer(timeline, { type: "restage_from_mix", bounceIndex });
-        this.#context.dispatch(ReStage.getDispatchEvent({ emit: true, param: newTimeline, serverMandated: false }));
+        const newMixerState = mixerReducer(this.#context.query("mixerState"), { type: 'restage_effects', trackId: `track-${bounceIndex}` });
+        this.#context.dispatch(ReStage.getDispatchEvent({ emit: true, param: { timeline: newTimeline, mixerState: newMixerState }, serverMandated: false }));
     }
 
     public deleteMixBounces(bounceIndices: number[]) {
         const timeline = this.#context.query("timeline");
         const newTimeline = timelineReducer(timeline, { type: "delete_mix_bounces", bounceIndices });
-        this.#context.dispatch(DeleteMixBounces.getDispatchEvent({ emit: true, param: newTimeline, serverMandated: false }));
+        const newMixerState = mixerReducer(this.#context.query("mixerState"), { type: 'delete_bounce_channels', deletedIndices: bounceIndices });
+        this.#context.dispatch(DeleteMixBounces.getDispatchEvent({ emit: true, param: { timeline: newTimeline, mixerState: newMixerState }, serverMandated: false }));
     }
 
     public undo() {

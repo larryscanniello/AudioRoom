@@ -131,11 +131,11 @@ export class SocketManager implements Observer {
             case EventTypes.BOUNCE:
                 const newTimeline = state.timeline;
                 const bounce = state.bounce;
-                this.#context.dispatch(Bounce.getDispatchEvent({emit: false, param: {timeline: newTimeline, bounce}, serverMandated: true}));
+                this.#context.dispatch(Bounce.getDispatchEvent({emit: false, param: {timeline: newTimeline, bounce, mixerState: state.mixerState}, serverMandated: true}));
                 this.#context.commMessage(`Partner bounced to mix`,"white");
                 break;
             case EventTypes.RESTAGE:
-                this.#context.dispatch(ReStage.getDispatchEvent({emit: false, param: state.timeline, serverMandated: true}));
+                this.#context.dispatch(ReStage.getDispatchEvent({emit: false, param: {timeline: state.timeline, mixerState: state.mixerState}, serverMandated: true}));
                 this.#context.commMessage(`Partner restaged a bounce`,"white");
                 break;
             case EventTypes.UNDO_TIMELINE:

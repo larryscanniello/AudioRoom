@@ -20,6 +20,8 @@ type TrackStripProps = {
     effects: (EffectSlotConfig | null)[];
     sends?: { auxId: string; level: number }[];
     audioControllerRef: React.RefObject<AudioController | null>;
+    onVolumeChange?: (v: number) => void;
+    onVolumeCommit?: (v: number) => void;
 };
 
 export function applyEffectSelect(
@@ -37,7 +39,7 @@ export function applyEffectSelect(
     return next;
 }
 
-function TrackStrip({ name, channelId, volume, effects, sends, audioControllerRef }: TrackStripProps) {
+function TrackStrip({ name, channelId, volume, effects, sends, audioControllerRef, onVolumeChange, onVolumeCommit }: TrackStripProps) {
     function handleEffectSelect(slotIndex: number, effectType: EffectType | null) {
         audioControllerRef.current?.setEffectChain(channelId, applyEffectSelect(effects, slotIndex, effectType));
     }
@@ -83,10 +85,14 @@ function TrackStrip({ name, channelId, volume, effects, sends, audioControllerRe
                     step={0.025}
                     className="h-full min-h-0"
                     onValueChange={(value: number[]) => {
-                        audioControllerRef.current?.changeChannelVolumeLocal(channelId, value[0]);
+                        onVolumeChange
+                            ? onVolumeChange(value[0])
+                            : audioControllerRef.current?.changeChannelVolumeLocal(channelId, value[0]);
                     }}
                     onValueCommit={(value: number[]) => {
-                        audioControllerRef.current?.changeChannelVolume(channelId, value[0]);
+                        onVolumeCommit
+                            ? onVolumeCommit(value[0])
+                            : audioControllerRef.current?.changeChannelVolume(channelId, value[0]);
                     }}
                 />
             </div>
@@ -119,10 +125,12 @@ export default function Mixer({ audioControllerRef, compactMode: _compactMode, o
                 <TrackStrip
                     name="Staging"
                     channelId="staging"
-                    volume={getVolume('staging')}
+                    volume={audioControllerRef.current?.query("stagingMasterVolume") ?? 1}
                     effects={getEffects('staging')}
                     sends={getSends('staging')}
                     audioControllerRef={audioControllerRef}
+                    onVolumeChange={(v) => audioControllerRef.current?.changeStagingVolumeLocal(v)}
+                    onVolumeCommit={(v) => audioControllerRef.current?.changeStagingVolume(v)}
                 />
                 {Array.from({ length: bounceCount }, (_, i) => (
                     <TrackStrip
@@ -151,20 +159,38 @@ export default function Mixer({ audioControllerRef, compactMode: _compactMode, o
                 ))}
             </div>
 
-            {/* Master — pinned right, X button only here */}
+            {/* Mix + Master — pinned right, X button only here */}
             <div className="shrink-0 flex flex-col h-full px-2 border-l border-gray-600">
                 <div className="flex items-center justify-end h-8 shrink-0">
                     <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">
                         <X size={16} />
                     </button>
                 </div>
-                <TrackStrip
-                    name="Master"
-                    channelId="master"
-                    volume={getVolume('master')}
-                    effects={getEffects('master')}
-                    audioControllerRef={audioControllerRef}
-                />
+                <div className="flex-1 min-h-0 flex flex-row gap-1">
+                    {/* Mix bus — slim strip, no effects/sends */}
+                    <div className="shrink-0 flex flex-col items-center w-10 h-full pt-2 pb-1 gap-1">
+                        <div className="flex-1 min-h-0 flex items-center justify-center">
+                            <Slider
+                                orientation="vertical"
+                                value={[audioControllerRef.current?.query("mixMasterVolume") ?? 1]}
+                                min={0}
+                                max={1.0}
+                                step={0.025}
+                                className="h-full min-h-0"
+                                onValueChange={(v: number[]) => audioControllerRef.current?.changeMixVolumeLocal(v[0])}
+                                onValueCommit={(v: number[]) => audioControllerRef.current?.changeMixVolume(v[0])}
+                            />
+                        </div>
+                        <span className="text-xs text-gray-400 text-center w-full py-0.5 leading-none">Mix</span>
+                    </div>
+                    <TrackStrip
+                        name="Master"
+                        channelId="master"
+                        volume={getVolume('master')}
+                        effects={getEffects('master')}
+                        audioControllerRef={audioControllerRef}
+                    />
+                </div>
             </div>
         </div>
     );

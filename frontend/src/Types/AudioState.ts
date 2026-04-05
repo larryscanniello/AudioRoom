@@ -112,6 +112,21 @@ interface StopAudioProcessorData {
 
 export type ChannelType = 'track' | 'aux' | 'master'
 
+export type EffectType = 'lowpass' | 'highpass' | 'delay' | 'distortion';
+
+export interface EffectSlotConfig {
+    effectType: EffectType;
+    enabled: boolean;
+    params?: Record<string, number>;
+}
+
+export const DEFAULT_EFFECT_PARAMS: Record<EffectType, Record<string, number>> = {
+    lowpass:    { cutoffHz: 2000, resonance: 0.7, wet: 0.8 },
+    highpass:   { cutoffHz: 200,  resonance: 0.7, wet: 0.8 },
+    delay:      { timeMs: 500,    feedback: 0.4,  wet: 0.5 },
+    distortion: { drive: 5,       wet: 0.5 },
+};
+
 export type Channel = {
     id: string
     type: ChannelType
@@ -121,6 +136,7 @@ export type Channel = {
     mute: boolean
     solo: boolean
     sends: { auxId: string; level: number }[]
+    effects: (EffectSlotConfig | null)[]
 }
 
 export type MixerState = {

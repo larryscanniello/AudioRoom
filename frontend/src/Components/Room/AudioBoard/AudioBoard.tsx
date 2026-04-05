@@ -71,17 +71,19 @@ export default function AudioBoard({uiControllerRef,audioControllerRef,compactMo
         mixHeight: mixTrackHeight,
     }
 
+    const commMessage = uiControllerRef.current?.query("commMessage") ?? { text: '', color: 'white' };
+
     return <div className="relative">
             <div className="w-full grid place-items-center items-center">
                 <div
-                className={`grid bg-gray-700 border-gray-500 border-4 rounded-2xl shadow-gray shadow-md`}
+                className={`relative grid bg-gray-700 border-gray-500 border-4 rounded-2xl shadow-gray shadow-md`}
                     style={{
                         ...(view === "daw" ? { gridTemplateRows: `1px ${Math.floor(172*compactMode)}px` } : {}),
                         width: `${Math.max(1050,width)}px`,
                         height: Math.floor(232*compactMode)
                     }}>
                     {view === "mixer"
-                        ? <Mixer audioControllerRef={audioControllerRef} onClose={() => setView("daw")} />
+                        ? <Mixer audioControllerRef={audioControllerRef} compactMode={compactMode} onClose={() => setView("daw")} />
                         : <>
                             <div className={`relative row-start-2 grid pt-3 `}
                             style={{
@@ -133,6 +135,13 @@ export default function AudioBoard({uiControllerRef,audioControllerRef,compactMo
                             </BottomControls>
                         </>
                     }
+                    {view === "mixer" && commMessage.text && (
+                        <div className="absolute bottom-2 left-0 right-0 flex justify-center pointer-events-none z-10">
+                            <span className="text-xs px-2 py-1 rounded bg-black/60 fade-in-element" style={{ color: commMessage.color }}>
+                                {commMessage.text}
+                            </span>
+                        </div>
+                    )}
                 </div>
             </div>
         <BounceOrchestrator ref={bounceOrchestratorRef} audioControllerRef={audioControllerRef} />

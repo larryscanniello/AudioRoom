@@ -28,6 +28,7 @@ import { ChangeMixVolume } from "../Events/Audio/ChangeMixVolume";
 import { ChangeStagingVolume } from "../Events/Audio/ChangeStagingVolume";
 import { ChangeChannelVolume } from "../Events/Audio/ChangeChannelVolume";
 import mixerReducer from "../State/mixerReducer";
+import type { EffectSlotConfig } from "../../Types/AudioState";
 
 
 export class AudioController{
@@ -103,6 +104,25 @@ export class AudioController{
     public changeChannelVolume(channelId: string, volume: number) {
         const newMixerState = mixerReducer(this.#context.query("mixerState"), { type: 'change_channel_volume', channelId, volume });
         this.#context.dispatch(ChangeChannelVolume.getDispatchEvent({ emit: true, param: newMixerState, serverMandated: false }));
+    }
+
+    public updateEffectParam(channelId: string, slotIndex: number, param: string, value: number): void {
+        const newMixerState = mixerReducer(this.#context.query("mixerState"), { type: 'update_effect_param', channelId, slotIndex, param, value });
+        this.#context.dispatch(ChangeChannelVolume.getDispatchEvent({ emit: false, param: newMixerState, serverMandated: false }));
+    }
+
+    public updateAuxSend(channelId: string, sendIndex: number, auxId: string, level: number): void {
+        const newMixerState = mixerReducer(this.#context.query("mixerState"), { type: 'update_aux_send', channelId, sendIndex, auxId, level });
+        this.#context.dispatch(ChangeChannelVolume.getDispatchEvent({ emit: false, param: newMixerState, serverMandated: false }));
+    }
+
+    public setEffectChain(channelId: string, effects: (EffectSlotConfig | null)[]): void {
+        const newMixerState = mixerReducer(this.#context.query("mixerState"), { type: 'set_effect_chain', channelId, effects });
+        this.#context.dispatch(ChangeChannelVolume.getDispatchEvent({ emit: false, param: newMixerState, serverMandated: false }));
+        const trackIndex = parseInt(channelId.split('-')[1], 10);
+        if (!isNaN(trackIndex)) {
+            this.#audioEngine.setEffectChain(trackIndex, effects);
+        }
     }
 
     public muteStagingToggle() {

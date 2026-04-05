@@ -18,6 +18,14 @@ const MIPMAP_RESOLUTIONS = resolutions;
 const MIN_SAMPLES_PER_PX = 10;
 const EVENT_QUEUE_LENGTH = 100000;
 
+export const MAX_EFFECT_SLOTS  = 3;
+export const MAX_AUX_SENDS     = 2;
+export const NUM_AUX_CHANNELS  = 3;
+export const MAX_EFFECT_PARAMS = 8;
+export const MAX_TRACKS        = 16;
+export const SAB_STRIDE_TRACK  = MAX_EFFECT_SLOTS * MAX_EFFECT_PARAMS; // 64
+export const SAB_TOTAL_FLOATS  = MAX_TRACKS * SAB_STRIDE_TRACK;        // 1024
+
 export const CONSTANTS = {
     SAMPLE_RATE,
     TIMELINE_LENGTH_IN_SECONDS,

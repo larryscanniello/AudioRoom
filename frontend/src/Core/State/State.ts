@@ -106,15 +106,15 @@ export class State {
             mixMuted: false,
             mixerState: {
                 channels: [
-                    { id: 'staging', type: 'track', volume: 1.0, pan: 0, mute: false, solo: false, sends: [] },
+                    { id: 'staging', type: 'track', volume: 1.0, pan: 0, mute: false, solo: false, sends: [{ auxId: 'aux-0', level: 0 }, { auxId: 'aux-1', level: 0 }], effects: [] },
                     ...Array.from({ length: 16 }, (_, i): Channel => ({
                         id: `track-${i}`, type: 'track', trackIndex: i,
-                        volume: 1.0, pan: 0, mute: false, solo: false, sends: [],
+                        volume: 1.0, pan: 0, mute: false, solo: false, sends: [{ auxId: 'aux-0', level: 0 }, { auxId: 'aux-1', level: 0 }], effects: [],
                     })),
-                    { id: 'aux-0', type: 'aux', volume: 1.0, pan: 0, mute: false, solo: false, sends: [] },
-                    { id: 'aux-1', type: 'aux', volume: 1.0, pan: 0, mute: false, solo: false, sends: [] },
-                    { id: 'aux-2', type: 'aux', volume: 1.0, pan: 0, mute: false, solo: false, sends: [] },
-                    { id: 'master', type: 'master', volume: 1.0, pan: 0, mute: false, solo: false, sends: [] },
+                    { id: 'aux-0', type: 'aux', volume: 1.0, pan: 0, mute: false, solo: false, sends: [], effects: [] },
+                    { id: 'aux-1', type: 'aux', volume: 1.0, pan: 0, mute: false, solo: false, sends: [], effects: [] },
+                    { id: 'aux-2', type: 'aux', volume: 1.0, pan: 0, mute: false, solo: false, sends: [], effects: [] },
+                    { id: 'master', type: 'master', volume: 1.0, pan: 0, mute: false, solo: false, sends: [], effects: [] },
                 ],
             },
             remoteStreamAttached: false,

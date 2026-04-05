@@ -1,6 +1,6 @@
 
 import type { Observer } from "@/Types/Observer";
-import type { MixerState } from "@/Types/AudioState";
+import type { MixerState, EffectSlotConfig } from "@/Types/AudioState";
 
 export interface AudioEngine extends Observer{
 
@@ -11,12 +11,13 @@ export interface AudioEngine extends Observer{
     regenerateMixMipmap: (data: any) => void;
     reStage: (data: any) => void;
     toggleMetronome: () => void;
-    otherPersonRecording: (data: any) => void; 
+    otherPersonRecording: (data: any) => void;
     startLatencyTest: () => void;
     setMixMuted(muted: boolean): void;
     setStagingMuted(muted: boolean): void;
     setMixVolume(volume: number): void;
     setStagingVolume(volume: number): void;
     syncMixerVolumes(mixerState: MixerState): void;
+    setEffectChain(trackIndex: number, chain: (EffectSlotConfig | null)[]): void;
     init(): void;
 }

@@ -63,10 +63,11 @@ export class AudioController{
     public bounce(name: string){
         const timeline = this.#context.query("timeline");
         if ((timeline.staging[0]?.length ?? 0) === 0) return;
-        const newTimeline = timelineReducer(timeline, { type: "bounce_to_mix", name });
+        const bounceId = crypto.randomUUID();
+        const newTimeline = timelineReducer(timeline, { type: "bounce_to_mix", name, bounceId });
         const prevBounce = this.#context.query("bounce");
         const prevGlobalTake = this.#context.query("globalTake");
-        const newMixerState = mixerReducer(this.#context.query("mixerState"), { type: 'bounce_effects', newTrackId: `track-${prevBounce}` });
+        const newMixerState = mixerReducer(this.#context.query("mixerState"), { type: 'bounce_effects', newTrackId: bounceId });
         const bounceState = { timeline: newTimeline, bounce: prevBounce + 1, globalTake: prevGlobalTake + 1, mixerState: newMixerState };
         this.#context.dispatch(Bounce.getDispatchEvent({emit:true, param: bounceState,serverMandated: false}));
     }
@@ -110,6 +111,12 @@ export class AudioController{
     public updateEffectParam(channelId: string, slotIndex: number, param: string, value: number): void {
         const newMixerState = mixerReducer(this.#context.query("mixerState"), { type: 'update_effect_param', channelId, slotIndex, param, value });
         this.#context.dispatch(ChangeChannelVolume.getDispatchEvent({ emit: false, param: newMixerState, serverMandated: false }));
+        if (channelId === 'staging') {
+            this.#audioEngine.setStagingEffectParam(slotIndex, param, value);
+        } else {
+            const trackIndex = this.#context.query("timeline").mix.findIndex(l => l.id === channelId);
+            if (trackIndex >= 0) this.#audioEngine.setEffectParam(trackIndex, slotIndex, param, value);
+        }
     }
 
     public updateAuxSend(channelId: string, sendIndex: number, auxId: string, level: number): void {
@@ -120,9 +127,11 @@ export class AudioController{
     public setEffectChain(channelId: string, effects: (EffectSlotConfig | null)[]): void {
         const newMixerState = mixerReducer(this.#context.query("mixerState"), { type: 'set_effect_chain', channelId, effects });
         this.#context.dispatch(ChangeChannelVolume.getDispatchEvent({ emit: false, param: newMixerState, serverMandated: false }));
-        const trackIndex = parseInt(channelId.split('-')[1], 10);
-        if (!isNaN(trackIndex)) {
-            this.#audioEngine.setEffectChain(trackIndex, effects);
+        if (channelId === 'staging') {
+            this.#audioEngine.setStagingEffectChain(effects);
+        } else {
+            const trackIndex = this.#context.query("timeline").mix.findIndex(l => l.id === channelId);
+            if (trackIndex >= 0) this.#audioEngine.setEffectChain(trackIndex, effects);
         }
     }
 
@@ -151,17 +160,17 @@ export class AudioController{
         this.#context.dispatch(DeleteMixRegions.getDispatchEvent({emit:true, param: newTimeline, serverMandated: false}));
     }
 
-    public reStage(bounceIndex: number) {
+    public reStage(bounceId: string) {
         const timeline = this.#context.query("timeline");
-        const newTimeline = timelineReducer(timeline, { type: "restage_from_mix", bounceIndex });
-        const newMixerState = mixerReducer(this.#context.query("mixerState"), { type: 'restage_effects', trackId: `track-${bounceIndex}` });
+        const newTimeline = timelineReducer(timeline, { type: "restage_from_mix", bounceId });
+        const newMixerState = mixerReducer(this.#context.query("mixerState"), { type: 'restage_effects', trackId: bounceId });
         this.#context.dispatch(ReStage.getDispatchEvent({ emit: true, param: { timeline: newTimeline, mixerState: newMixerState }, serverMandated: false }));
     }
 
-    public deleteMixBounces(bounceIndices: number[]) {
+    public deleteMixBounces(bounceIds: string[]) {
         const timeline = this.#context.query("timeline");
-        const newTimeline = timelineReducer(timeline, { type: "delete_mix_bounces", bounceIndices });
-        const newMixerState = mixerReducer(this.#context.query("mixerState"), { type: 'delete_bounce_channels', deletedIndices: bounceIndices });
+        const newTimeline = timelineReducer(timeline, { type: "delete_mix_bounces", ids: bounceIds });
+        const newMixerState = mixerReducer(this.#context.query("mixerState"), { type: 'delete_bounce_channels', deletedIds: bounceIds });
         this.#context.dispatch(DeleteMixBounces.getDispatchEvent({ emit: true, param: { timeline: newTimeline, mixerState: newMixerState }, serverMandated: false }));
     }
 

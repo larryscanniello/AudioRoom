@@ -22,6 +22,8 @@ function createRingSAB(
 
   const instanceReadPtr = opts?.hasInstanceRead !== false ? readPtr : undefined;
 
+  const globalCountPtr = makeSharedInt32(1);
+
   const ring = new RingSAB(
     sab,
     {
@@ -29,6 +31,7 @@ function createRingSAB(
       read2: read2Ptr,
       write: writePtr,
       isFull: isFullPtr,
+      globalCount: globalCountPtr,
     },
     instanceReadPtr
   );

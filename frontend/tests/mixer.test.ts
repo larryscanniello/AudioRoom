@@ -2,12 +2,13 @@ import { describe, it, expect } from 'vitest';
 import { applyEffectSelect } from '../src/Components/Room/AudioBoard/Mixer/Mixer';
 import mixerReducer from '../src/Core/State/mixerReducer';
 import type { EffectSlotConfig, MixerState, EffectType, Channel } from '../src/Types/AudioState';
-import { DEFAULT_EFFECT_PARAMS } from '../src/Types/AudioState';
+import { DEFAULT_EFFECT_PARAMS } from '../src/Core/Effects/effectCatalog';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function fx(effectType: EffectSlotConfig['effectType']): EffectSlotConfig {
-    return { effectType, enabled: true, params: { ...DEFAULT_EFFECT_PARAMS[effectType] } };
+function fx(effectType: string): EffectSlotConfig {
+    const defaultParams = (DEFAULT_EFFECT_PARAMS as Record<string, Record<string, number>>)[effectType] ?? {};
+    return { effectType: effectType as EffectType, enabled: true, params: { ...defaultParams } };
 }
 
 function makeState(channelId: string, overrides: Partial<{ volume: number; effects: EffectSlotConfig[]; sends: { auxId: string; level: number }[] }> = {}): MixerState {
@@ -34,24 +35,24 @@ describe('applyEffectSelect', () => {
     });
 
     it('appends an effect to a non-empty chain', () => {
-        const result = applyEffectSelect([fx('lowpass')], 1, 'delay');
+        const result = applyEffectSelect([fx('lowpass')], 1, 'delay' as EffectType);
         expect(result).toEqual([fx('lowpass'), fx('delay')]);
     });
 
     it('replaces an effect at a given slot', () => {
-        const result = applyEffectSelect([fx('lowpass'), fx('delay')], 0, 'distortion');
+        const result = applyEffectSelect([fx('lowpass'), fx('delay')], 0, 'distortion' as EffectType);
         expect(result).toEqual([fx('distortion'), fx('delay')]);
     });
 
     it('replacing a slot does not remove effects after it', () => {
         const chain = [fx('lowpass'), fx('highpass'), fx('delay')];
-        const result = applyEffectSelect(chain, 0, 'distortion');
+        const result = applyEffectSelect(chain, 0, 'distortion' as EffectType);
         expect(result).toEqual([fx('distortion'), fx('highpass'), fx('delay')]);
     });
 
     it('replacing the middle slot leaves surrounding effects intact', () => {
         const chain = [fx('lowpass'), fx('highpass'), fx('delay')];
-        const result = applyEffectSelect(chain, 1, 'distortion');
+        const result = applyEffectSelect(chain, 1, 'distortion' as EffectType);
         expect(result).toEqual([fx('lowpass'), fx('distortion'), fx('delay')]);
     });
 
@@ -85,14 +86,14 @@ describe('applyEffectSelect', () => {
 
     it('an effect can be added back into a null gap', () => {
         const chain: (EffectSlotConfig | null)[] = [fx('lowpass'), null, fx('delay')];
-        const result = applyEffectSelect(chain, 1, 'distortion');
+        const result = applyEffectSelect(chain, 1, 'distortion' as EffectType);
         expect(result).toEqual([fx('lowpass'), fx('distortion'), fx('delay')]);
     });
 
     it('does not mutate the original effects array', () => {
         const original = [fx('lowpass'), fx('delay')];
         const copy = [...original];
-        applyEffectSelect(original, 0, 'distortion');
+        applyEffectSelect(original, 0, 'distortion' as EffectType);
         expect(original).toEqual(copy);
     });
 });
@@ -140,30 +141,49 @@ describe('mixerReducer — set_effect_chain', () => {
 
 const DEFAULT_SENDS = [{ auxId: 'aux-0', level: 0 }, { auxId: 'aux-1', level: 0 }];
 
+const UUID_0 = 'uuid-track-0';
+const UUID_1 = 'uuid-track-1';
+const UUID_2 = 'uuid-track-2';
+
 function makeFullState(): MixerState {
     return {
         channels: [
             { id: 'staging', type: 'track', volume: 1.0, pan: 0, mute: false, solo: false, sends: [...DEFAULT_SENDS], effects: [fx('lowpass'), fx('delay')] },
-            { id: 'track-0', type: 'track', trackIndex: 0, volume: 1.0, pan: 0, mute: false, solo: false, sends: [...DEFAULT_SENDS], effects: [] },
-            { id: 'track-1', type: 'track', trackIndex: 1, volume: 1.0, pan: 0, mute: false, solo: false, sends: [...DEFAULT_SENDS], effects: [fx('distortion')] },
-            { id: 'track-2', type: 'track', trackIndex: 2, volume: 1.0, pan: 0, mute: false, solo: false, sends: [...DEFAULT_SENDS], effects: [fx('highpass')] },
+            { id: UUID_0, type: 'track', volume: 1.0, pan: 0, mute: false, solo: false, sends: [...DEFAULT_SENDS], effects: [] },
+            { id: UUID_1, type: 'track', volume: 1.0, pan: 0, mute: false, solo: false, sends: [...DEFAULT_SENDS], effects: [fx('distortion')] },
+            { id: UUID_2, type: 'track', volume: 1.0, pan: 0, mute: false, solo: false, sends: [...DEFAULT_SENDS], effects: [fx('highpass')] },
             { id: 'master', type: 'master', volume: 1.0, pan: 0, mute: false, solo: false, sends: [], effects: [] },
         ],
     };
 }
 
 describe('mixerReducer — bounce_effects', () => {
-    it('copies staging effects and sends to the new track channel', () => {
+    it('creates a new channel with staging effects and sends', () => {
+        const state: MixerState = {
+            channels: [
+                { id: 'staging', type: 'track', volume: 1.0, pan: 0, mute: false, solo: false, sends: [...DEFAULT_SENDS], effects: [fx('lowpass'), fx('delay')] },
+            ],
+        };
+        const newId = 'new-bounce-uuid';
+        const next = mixerReducer(state, { type: 'bounce_effects', newTrackId: newId });
+        const newChannel = next.channels.find((ch: Channel) => ch.id === newId)!;
+        expect(newChannel).toBeDefined();
+        expect(newChannel.effects).toEqual([fx('lowpass'), fx('delay')]);
+        expect(newChannel.sends).toEqual(DEFAULT_SENDS);
+    });
+
+    it('appends the new channel (does not replace existing ones)', () => {
         const state = makeFullState();
-        const next = mixerReducer(state, { type: 'bounce_effects', newTrackId: 'track-0' });
-        const track0 = next.channels.find((ch: Channel) => ch.id === 'track-0')!;
-        expect(track0.effects).toEqual([fx('lowpass'), fx('delay')]);
-        expect(track0.sends).toEqual(DEFAULT_SENDS);
+        const newId = 'brand-new-uuid';
+        const next = mixerReducer(state, { type: 'bounce_effects', newTrackId: newId });
+        expect(next.channels.find((ch: Channel) => ch.id === UUID_0)).toBeDefined();
+        expect(next.channels.find((ch: Channel) => ch.id === UUID_1)).toBeDefined();
+        expect(next.channels.find((ch: Channel) => ch.id === newId)).toBeDefined();
     });
 
     it('clears staging effects after bounce', () => {
         const state = makeFullState();
-        const next = mixerReducer(state, { type: 'bounce_effects', newTrackId: 'track-0' });
+        const next = mixerReducer(state, { type: 'bounce_effects', newTrackId: 'new-uuid' });
         const staging = next.channels.find((ch: Channel) => ch.id === 'staging')!;
         expect(staging.effects).toEqual([]);
     });
@@ -172,24 +192,16 @@ describe('mixerReducer — bounce_effects', () => {
         const state: MixerState = {
             channels: [
                 { id: 'staging', type: 'track', volume: 1.0, pan: 0, mute: false, solo: false, sends: [{ auxId: 'aux-1', level: 0.8 }, { auxId: 'aux-2', level: 0.3 }], effects: [fx('delay')] },
-                { id: 'track-0', type: 'track', trackIndex: 0, volume: 1.0, pan: 0, mute: false, solo: false, sends: [...DEFAULT_SENDS], effects: [] },
             ],
         };
-        const next = mixerReducer(state, { type: 'bounce_effects', newTrackId: 'track-0' });
+        const next = mixerReducer(state, { type: 'bounce_effects', newTrackId: 'new-uuid' });
         const staging = next.channels.find((ch: Channel) => ch.id === 'staging')!;
         expect(staging.sends).toEqual(DEFAULT_SENDS);
     });
 
-    it('does not affect other channels', () => {
-        const state = makeFullState();
-        const next = mixerReducer(state, { type: 'bounce_effects', newTrackId: 'track-0' });
-        const track1 = next.channels.find((ch: Channel) => ch.id === 'track-1')!;
-        expect(track1.effects).toEqual([fx('distortion')]);
-    });
-
     it('does not mutate original state', () => {
         const state = makeFullState();
-        mixerReducer(state, { type: 'bounce_effects', newTrackId: 'track-0' });
+        mixerReducer(state, { type: 'bounce_effects', newTrackId: 'new-uuid' });
         expect(state.channels.find((ch: Channel) => ch.id === 'staging')!.effects).toEqual([fx('lowpass'), fx('delay')]);
     });
 });
@@ -197,98 +209,74 @@ describe('mixerReducer — bounce_effects', () => {
 describe('mixerReducer — restage_effects', () => {
     it('copies track effects and sends to staging', () => {
         const state = makeFullState();
-        const next = mixerReducer(state, { type: 'restage_effects', trackId: 'track-1' });
+        const next = mixerReducer(state, { type: 'restage_effects', trackId: UUID_1 });
         const staging = next.channels.find((ch: Channel) => ch.id === 'staging')!;
         expect(staging.effects).toEqual([fx('distortion')]);
         expect(staging.sends).toEqual(DEFAULT_SENDS);
     });
 
-    it('clears the restaged track effects', () => {
+    it('removes the restaged track channel', () => {
         const state = makeFullState();
-        const next = mixerReducer(state, { type: 'restage_effects', trackId: 'track-1' });
-        const track1 = next.channels.find((ch: Channel) => ch.id === 'track-1')!;
-        expect(track1.effects).toEqual([]);
-    });
-
-    it('resets track sends to defaults after restage', () => {
-        const state: MixerState = {
-            channels: [
-                { id: 'staging', type: 'track', volume: 1.0, pan: 0, mute: false, solo: false, sends: [...DEFAULT_SENDS], effects: [] },
-                { id: 'track-0', type: 'track', trackIndex: 0, volume: 1.0, pan: 0, mute: false, solo: false, sends: [{ auxId: 'aux-2', level: 0.6 }, { auxId: 'aux-1', level: 0.2 }], effects: [fx('highpass')] },
-            ],
-        };
-        const next = mixerReducer(state, { type: 'restage_effects', trackId: 'track-0' });
-        const track0 = next.channels.find((ch: Channel) => ch.id === 'track-0')!;
-        expect(track0.sends).toEqual(DEFAULT_SENDS);
+        const next = mixerReducer(state, { type: 'restage_effects', trackId: UUID_1 });
+        expect(next.channels.find((ch: Channel) => ch.id === UUID_1)).toBeUndefined();
     });
 
     it('overwrites existing staging effects', () => {
         const state = makeFullState(); // staging starts with [lowpass, delay]
-        const next = mixerReducer(state, { type: 'restage_effects', trackId: 'track-2' });
+        const next = mixerReducer(state, { type: 'restage_effects', trackId: UUID_2 });
         const staging = next.channels.find((ch: Channel) => ch.id === 'staging')!;
         expect(staging.effects).toEqual([fx('highpass')]);
     });
 
     it('does not affect unrelated channels', () => {
         const state = makeFullState();
-        const next = mixerReducer(state, { type: 'restage_effects', trackId: 'track-1' });
-        const track2 = next.channels.find((ch: Channel) => ch.id === 'track-2')!;
+        const next = mixerReducer(state, { type: 'restage_effects', trackId: UUID_1 });
+        const track2 = next.channels.find((ch: Channel) => ch.id === UUID_2)!;
         expect(track2.effects).toEqual([fx('highpass')]);
     });
 
     it('does not mutate original state', () => {
         const state = makeFullState();
-        mixerReducer(state, { type: 'restage_effects', trackId: 'track-1' });
-        expect(state.channels.find((ch: Channel) => ch.id === 'track-1')!.effects).toEqual([fx('distortion')]);
+        mixerReducer(state, { type: 'restage_effects', trackId: UUID_1 });
+        expect(state.channels.find((ch: Channel) => ch.id === UUID_1)!.effects).toEqual([fx('distortion')]);
     });
 });
 
 describe('mixerReducer — delete_bounce_channels', () => {
-    it('reduces the track count by the number of deleted indices', () => {
+    it('removes channels by UUID', () => {
         const state = makeFullState();
-        const next = mixerReducer(state, { type: 'delete_bounce_channels', deletedIndices: [1] });
-        expect(next.channels.filter((ch: Channel) => ch.id.startsWith('track-'))).toHaveLength(2);
+        const next = mixerReducer(state, { type: 'delete_bounce_channels', deletedIds: [UUID_1] });
+        expect(next.channels.find((ch: Channel) => ch.id === UUID_1)).toBeUndefined();
+        expect(next.channels.find((ch: Channel) => ch.id === UUID_0)).toBeDefined();
+        expect(next.channels.find((ch: Channel) => ch.id === UUID_2)).toBeDefined();
     });
 
-    it('reindexes surviving tracks contiguously', () => {
+    it('surviving channels keep their original IDs (no re-indexing)', () => {
         const state = makeFullState();
-        const next = mixerReducer(state, { type: 'delete_bounce_channels', deletedIndices: [1] });
-        const trackIds = next.channels.filter((ch: Channel) => ch.id.startsWith('track-')).map((ch: Channel) => ch.id);
-        expect(trackIds).toEqual(['track-0', 'track-1']);
+        const next = mixerReducer(state, { type: 'delete_bounce_channels', deletedIds: [UUID_1] });
+        expect(next.channels.find((ch: Channel) => ch.id === UUID_2)!.effects).toEqual([fx('highpass')]);
     });
 
-    it('former track-2 becomes track-1 when track-1 is deleted, preserving its effects', () => {
+    it('deletes multiple ids at once', () => {
         const state = makeFullState();
-        const next = mixerReducer(state, { type: 'delete_bounce_channels', deletedIndices: [1] });
-        const newTrack1 = next.channels.find((ch: Channel) => ch.id === 'track-1')!;
-        expect(newTrack1.effects).toEqual([fx('highpass')]);
+        const next = mixerReducer(state, { type: 'delete_bounce_channels', deletedIds: [UUID_0, UUID_2] });
+        expect(next.channels.find((ch: Channel) => ch.id === UUID_0)).toBeUndefined();
+        expect(next.channels.find((ch: Channel) => ch.id === UUID_2)).toBeUndefined();
+        expect(next.channels.find((ch: Channel) => ch.id === UUID_1)!.effects).toEqual([fx('distortion')]);
     });
 
-    it('deletes multiple indices at once and reindexes correctly', () => {
+    it('deleting all track channels leaves only non-track channels', () => {
         const state = makeFullState();
-        const next = mixerReducer(state, { type: 'delete_bounce_channels', deletedIndices: [0, 2] });
-        const trackIds = next.channels.filter((ch: Channel) => ch.id.startsWith('track-')).map((ch: Channel) => ch.id);
-        expect(trackIds).toEqual(['track-0']);
-        expect(next.channels.find((ch: Channel) => ch.id === 'track-0')!.effects).toEqual([fx('distortion')]);
-    });
-
-    it('deleting all tracks leaves no track channels', () => {
-        const state = makeFullState();
-        const next = mixerReducer(state, { type: 'delete_bounce_channels', deletedIndices: [0, 1, 2] });
-        expect(next.channels.filter((ch: Channel) => ch.id.startsWith('track-'))).toHaveLength(0);
-    });
-
-    it('does not affect non-track channels (staging, master)', () => {
-        const state = makeFullState();
-        const next = mixerReducer(state, { type: 'delete_bounce_channels', deletedIndices: [0, 1, 2] });
+        const next = mixerReducer(state, { type: 'delete_bounce_channels', deletedIds: [UUID_0, UUID_1, UUID_2] });
         expect(next.channels.find((ch: Channel) => ch.id === 'staging')).toBeDefined();
         expect(next.channels.find((ch: Channel) => ch.id === 'master')).toBeDefined();
+        expect(next.channels.filter((ch: Channel) => ch.type === 'track' && ch.id !== 'staging')).toHaveLength(0);
     });
 
     it('does not mutate original state', () => {
         const state = makeFullState();
-        mixerReducer(state, { type: 'delete_bounce_channels', deletedIndices: [0] });
-        expect(state.channels.filter((ch: Channel) => ch.id.startsWith('track-'))).toHaveLength(3);
+        mixerReducer(state, { type: 'delete_bounce_channels', deletedIds: [UUID_0] });
+        expect(state.channels.find((ch: Channel) => ch.id === UUID_0)).toBeDefined();
     });
 });
 

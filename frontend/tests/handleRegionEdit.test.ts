@@ -122,7 +122,6 @@ function emptyTimeline(): TimelineState {
     return {
         staging: [[]],
         mix: [],
-        bounceNames: [],
         undoStack: [],
         redoStack: [],
         lastRecordedRegion: null,

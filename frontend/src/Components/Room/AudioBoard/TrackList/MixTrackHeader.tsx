@@ -18,7 +18,7 @@ type MixTrackHeaderProps = {
 export default function MixTrackHeader({ audioControllerRef, compactMode }: MixTrackHeaderProps) {
 
     const audioController = audioControllerRef.current;
-    const [checkedBounces, setCheckedBounces] = useState<Set<number>>(new Set());
+    const [checkedBounces, setCheckedBounces] = useState<Set<string>>(new Set());
 
     const handleMuteToggle = (e: React.MouseEvent<HTMLButtonElement>) => {
         e.preventDefault();
@@ -52,18 +52,17 @@ export default function MixTrackHeader({ audioControllerRef, compactMode }: MixT
         }
     };
 
-    const toggleBounce = (i: number) => {
+    const toggleBounce = (id: string) => {
         setCheckedBounces(prev => {
             const next = new Set(prev);
-            next.has(i) ? next.delete(i) : next.add(i);
+            next.has(id) ? next.delete(id) : next.add(id);
             return next;
         });
     };
 
     const isMixMuted = audioController?.query("mixMuted") ?? false;
     const timeline = audioController ? audioController.query("timeline") : null;
-    const bounceCount = timeline ? timeline.mix.length : 0;
-    const bounceNames = timeline ? (timeline.bounceNames ?? []) : [];
+    const bounceLayers = timeline?.mix ?? [];
 
     return <div style={{ width: `${CONSTANTS.LEFT_CONTROLS_WIDTH}`, height: Math.floor(58 * compactMode) }} className="border-b border-black flex flex-row items-center">
 
@@ -84,16 +83,16 @@ export default function MixTrackHeader({ audioControllerRef, compactMode }: MixT
                     </button>
                 </div>
                 <div className="overflow-y-auto max-h-40">
-                    {bounceCount === 0
+                    {bounceLayers.length === 0
                         ? <p className="text-xs p-2 text-gray-400">No bounces yet</p>
-                        : Array.from({ length: bounceCount }, (_, i) => (
-                            <label key={i} className="flex items-center gap-2 px-2 py-1 text-xs cursor-pointer hover:bg-gray-400">
+                        : bounceLayers.map(layer => (
+                            <label key={layer.id} className="flex items-center gap-2 px-2 py-1 text-xs cursor-pointer hover:bg-gray-400">
                                 <input
                                     type="checkbox"
-                                    checked={checkedBounces.has(i)}
-                                    onChange={() => toggleBounce(i)}
+                                    checked={checkedBounces.has(layer.id)}
+                                    onChange={() => toggleBounce(layer.id)}
                                 />
-                                {bounceNames[i] ?? `Bounce ${i + 1}`}
+                                {layer.name}
                             </label>
                         ))
                     }

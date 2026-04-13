@@ -1,9 +1,8 @@
 
 import { Mixer } from "./Mixer";
 import { MediaProvider } from "../MediaProvider";
-import { MIXER_PARAMS } from "@/Constants/MixerParams";
 
-import type { Pointers, Buffers, DecodeAudioData, MixerState, EffectSlotConfig } from "../../Types/AudioState";
+import type { Pointers, Buffers, BounceLayer, DecodeAudioData, MixerState, EffectSlotConfig } from "../../Types/AudioState";
 import type { AudioProcessorData,StopAudioProcessorData } from "../../Types/AudioState";
 import type { AudioEngine } from "./AudioEngine";
 import type { DispatchEvent, GlobalContext } from "../Mediator";
@@ -39,7 +38,7 @@ type Memory = {
 }
 
 export class WorkletAudioEngine implements AudioEngine{
-    _mixer: Mixer;
+    mixer: Mixer;
     #hardware: Hardware;
     #mediaProvider: MediaProvider|undefined;
     #context: GlobalContext;
@@ -47,7 +46,7 @@ export class WorkletAudioEngine implements AudioEngine{
     constructor({hardware,mediaProvider,mixer,context}:WorkletAudioEngineDependencies) {
         this.#hardware = hardware;
         hardware.processorNode.port.onmessage = this.#workletOnMessage.bind(this);
-        this._mixer = mixer;
+        this.mixer = mixer;
         this.#mediaProvider = mediaProvider;
         this.#context = context;
     }
@@ -139,8 +138,7 @@ export class WorkletAudioEngine implements AudioEngine{
 
     public toggleMetronome(): void {
         const isMetronomeOn = this.#context.query("isMetronomeOn");
-        const param = this.#hardware.processorNode.parameters.get(MIXER_PARAMS.METRONOME_GAIN);
-        if(param) param.value = isMetronomeOn ? 1 : 0;
+        this.mixer.toggleMetronome(isMetronomeOn);
     }
 
     public startLatencyTest(): void {
@@ -148,27 +146,39 @@ export class WorkletAudioEngine implements AudioEngine{
     }
 
     public setMixMuted(muted: boolean): void {
-        this._mixer.setMixMuted(muted);
+        this.mixer.setMixMuted(muted);
     }
 
     public setStagingMuted(muted: boolean): void {
-        this._mixer.setStagingMuted(muted);
+        this.mixer.setStagingMuted(muted);
     }
 
     public setMixVolume(volume: number): void {
-        this._mixer.setMixMasterVolume(volume);
+        this.mixer.setMixMasterVolume(volume);
     }
 
     public setStagingVolume(volume: number): void {
-        this._mixer.setStagingMasterVolume(volume);
+        this.mixer.setStagingMasterVolume(volume);
     }
 
-    public syncMixerVolumes(mixerState: MixerState): void {
-        this._mixer.syncMixerVolumes(mixerState);
+    public syncMixerVolumes(mixerState: MixerState, bounceLayers: readonly BounceLayer[]): void {
+        this.mixer.syncMixerVolumes(mixerState, bounceLayers);
     }
 
     public setEffectChain(trackIndex: number, chain: (EffectSlotConfig | null)[]): void {
-        this.#hardware.processorNode.port.postMessage({ type: 'setEffectChain', trackIndex, chain });
+        this.mixer.setEffectChain(trackIndex, chain);
+    }
+
+    public setEffectParam(trackIndex: number, slotIndex: number, paramName: string, value: number): void {
+        this.mixer.setEffectParam(trackIndex, slotIndex, paramName, value);
+    }
+
+    public setStagingEffectChain(chain: (EffectSlotConfig | null)[]): void {
+        this.mixer.setStagingEffectChain(chain);
+    }
+
+    public setStagingEffectParam(slotIndex: number, paramName: string, value: number): void {
+        this.mixer.setStagingEffectParam(slotIndex, paramName, value);
     }
 
     public handlePacket(data: DecodeAudioData){
@@ -181,7 +191,7 @@ export class WorkletAudioEngine implements AudioEngine{
         }else{
             throw new Error("Source node is not initialized in WorkletAudioEngine. Cannot connect to processor node.");
         }
-        this.#hardware.processorNode.connect(this.#hardware.audioContext.destination);
+        this.mixer.initGraph();
         this.#hardware.processorNode.port.postMessage({type: "initAudio",memory: this.#hardware.memory});
         this.#hardware.opfsWorker.postMessage({type: "initAudio",memory: this.#hardware.memory});
         this.#hardware.processorNode.port.postMessage(

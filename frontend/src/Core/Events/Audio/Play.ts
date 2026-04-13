@@ -4,7 +4,7 @@ import { CONSTANTS } from "@/Constants/constants";
 import type { AudioEngine } from "@/Core/Audio/AudioEngine";
 import { executeSocketUtil, stateTransactionUtil } from "../genericEventFunctions";
 
-import type { AudioProcessorData } from "@/Types/AudioState";
+import type { AudioProcessorData, Region } from "@/Types/AudioState";
 import type { UIEngine } from "@/Core/UI/UIEngine";
 import type { SocketManager } from "@/Core/Sockets/SocketManager";
 import type { EventNamespace } from "../EventNamespace";
@@ -65,7 +65,7 @@ export const Play:EventNamespace<typeof EventTypes.START_PLAYBACK> = {
                 end: mouseDragEnd ? (snapToGrid ? Math.max(mouseDragStart.trounded, mouseDragEnd.trounded) : Math.max(mouseDragStart.t, mouseDragEnd.t)) : CONSTANTS.TIMELINE_LENGTH_IN_SECONDS,
                 pos: state.query('playheadTimeSeconds'),
                 staging: state.query('timeline').staging,
-                mix: state.query('timeline').mix,
+                mix: state.query('timeline').mix.map(l => l.regions as Region[]),
             }
 
         }

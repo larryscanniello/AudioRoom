@@ -50,8 +50,8 @@ export function renderMixWaveforms(ref: React.RefObject<HTMLElement|null>, data:
         let k = 0; //k iterates through vertical lines to be drawn
 
         let endSample = 0;
-        for(let track of timeline){
-            for(let region of track){
+        for(let layer of timeline){
+            for(let region of layer.regions){
                 endSample = Math.max(endSample,region.end)
             }
         }

@@ -3,7 +3,7 @@ import { Slider } from "@/Components/ui/slider";
 import { MAX_EFFECT_SLOTS, MAX_AUX_SENDS } from "@/Constants/constants";
 import type { AudioController } from "@/Core/Audio/AudioController";
 import type { EffectSlotConfig, EffectType } from "@/Types/AudioState";
-import { DEFAULT_EFFECT_PARAMS } from "@/Types/AudioState";
+import { DEFAULT_EFFECT_PARAMS } from "@/Core/Effects/effectCatalog";
 import EffectSlot from "./EffectSlot";
 import AuxSendSlot from "./AuxSendSlot";
 
@@ -106,8 +106,6 @@ function TrackStrip({ name, channelId, volume, effects, sends, audioControllerRe
 export default function Mixer({ audioControllerRef, compactMode: _compactMode, onClose }: MixerProps) {
     const timeline = audioControllerRef.current?.query("timeline");
     const mixerState = audioControllerRef.current?.query("mixerState");
-    const bounceCount = timeline?.mix.length ?? 0;
-    const bounceNames = timeline?.bounceNames ?? [];
 
     const getVolume = (channelId: string) =>
         mixerState?.channels.find(ch => ch.id === channelId)?.volume ?? 1.0;
@@ -132,14 +130,14 @@ export default function Mixer({ audioControllerRef, compactMode: _compactMode, o
                     onVolumeChange={(v) => audioControllerRef.current?.changeStagingVolumeLocal(v)}
                     onVolumeCommit={(v) => audioControllerRef.current?.changeStagingVolume(v)}
                 />
-                {Array.from({ length: bounceCount }, (_, i) => (
+                {(timeline?.mix ?? []).map(layer => (
                     <TrackStrip
-                        key={i}
-                        name={bounceNames[i] ?? `Bounce ${i + 1}`}
-                        channelId={`track-${i}`}
-                        volume={getVolume(`track-${i}`)}
-                        effects={getEffects(`track-${i}`)}
-                        sends={getSends(`track-${i}`)}
+                        key={layer.id}
+                        name={layer.name}
+                        channelId={layer.id}
+                        volume={getVolume(layer.id)}
+                        effects={getEffects(layer.id)}
+                        sends={getSends(layer.id)}
                         audioControllerRef={audioControllerRef}
                     />
                 ))}

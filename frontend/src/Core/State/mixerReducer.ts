@@ -1,4 +1,4 @@
-import type { MixerState, EffectSlotConfig } from "@/Types/AudioState";
+import type { Channel, MixerState, EffectSlotConfig } from "@/Types/AudioState";
 
 type MixerAction =
     | { type: 'change_channel_volume'; channelId: string; volume: number }
@@ -7,7 +7,7 @@ type MixerAction =
     | { type: 'update_effect_param'; channelId: string; slotIndex: number; param: string; value: number }
     | { type: 'bounce_effects'; newTrackId: string }
     | { type: 'restage_effects'; trackId: string }
-    | { type: 'delete_bounce_channels'; deletedIndices: number[] }
+    | { type: 'delete_bounce_channels'; deletedIds: string[] }
 
 export default function mixerReducer(state: MixerState, action: MixerAction): MixerState {
     switch (action.type) {
@@ -54,42 +54,48 @@ export default function mixerReducer(state: MixerState, action: MixerAction): Mi
         case 'bounce_effects': {
             const staging = state.channels.find(ch => ch.id === 'staging');
             if (!staging) return state;
-            const stagingEffects = staging.effects;
-            const stagingSends = staging.sends;
+            const newChannel: Channel = {
+                id: action.newTrackId,
+                type: 'track',
+                volume: 1.0,
+                pan: 0,
+                mute: false,
+                solo: false,
+                effects: staging.effects,
+                sends: staging.sends,
+            };
             return {
                 ...state,
-                channels: state.channels.map(ch => {
-                    if (ch.id === 'staging') return { ...ch, effects: [], sends: [{ auxId: 'aux-0', level: 0 }, { auxId: 'aux-1', level: 0 }] };
-                    if (ch.id === action.newTrackId) return { ...ch, effects: stagingEffects, sends: stagingSends };
-                    return ch;
-                }),
+                channels: [
+                    ...state.channels.map(ch =>
+                        ch.id === 'staging'
+                            ? { ...ch, effects: [], sends: [{ auxId: 'aux-0', level: 0 }, { auxId: 'aux-1', level: 0 }] }
+                            : ch
+                    ),
+                    newChannel,
+                ],
             };
         }
         case 'restage_effects': {
             const track = state.channels.find(ch => ch.id === action.trackId);
             if (!track) return state;
-            const trackEffects = track.effects;
-            const trackSends = track.sends;
             return {
                 ...state,
-                channels: state.channels.map(ch => {
-                    if (ch.id === 'staging') return { ...ch, effects: trackEffects, sends: trackSends };
-                    if (ch.id === action.trackId) return { ...ch, effects: [], sends: [{ auxId: 'aux-0', level: 0 }, { auxId: 'aux-1', level: 0 }] };
-                    return ch;
-                }),
+                channels: state.channels
+                    .filter(ch => ch.id !== action.trackId)
+                    .map(ch =>
+                        ch.id === 'staging'
+                            ? { ...ch, effects: track.effects, sends: track.sends }
+                            : ch
+                    ),
             };
         }
         case 'delete_bounce_channels': {
-            const deletedSet = new Set(action.deletedIndices);
-            const surviving = state.channels
-                .filter(ch => ch.id.startsWith('track-'))
-                .filter(ch => {
-                    const idx = parseInt(ch.id.split('-')[1], 10);
-                    return !deletedSet.has(idx);
-                })
-                .map((ch, newIdx) => ({ ...ch, id: `track-${newIdx}`, trackIndex: newIdx }));
-            const nonTrack = state.channels.filter(ch => !ch.id.startsWith('track-'));
-            return { ...state, channels: [...nonTrack, ...surviving] };
+            const deletedSet = new Set<string>(action.deletedIds);
+            return {
+                ...state,
+                channels: state.channels.filter(ch => !deletedSet.has(ch.id)),
+            };
         }
     }
 }

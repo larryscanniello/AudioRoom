@@ -3,7 +3,7 @@ import type { State, StateContainer } from "@/Core/State/State";
 import type { AudioEngine } from "@/Core/Audio/AudioEngine";
 import { executeSocketUtil, stateTransactionUtil } from "../genericEventFunctions";
 
-import type { AudioProcessorData } from "@/Types/AudioState";
+import type { AudioProcessorData, Region } from "@/Types/AudioState";
 import type { UIEngine } from "@/Core/UI/UIEngine";
 import type { SocketManager } from "@/Core/Sockets/SocketManager";
 import type { EventNamespace } from "../EventNamespace";
@@ -64,7 +64,7 @@ export const Record: EventNamespace<typeof EventTypes.START_RECORDING> = {
                 end: mouseDragEnd ? (snapToGrid ? mouseDragEnd.trounded : mouseDragEnd.t) : CONSTANTS.TIMELINE_LENGTH_IN_SECONDS,
                 pos: mouseDragEnd ? (snapToGrid ? mouseDragStart.trounded : mouseDragStart.t) : state.query('playheadTimeSeconds'),
                 staging: state.query('timeline').staging,
-                mix: state.query('timeline').mix,
+                mix: state.query('timeline').mix.map(l => l.regions as Region[]),
             }
         };
         const sharedSnapshot = state.getSharedStateSnapshot();

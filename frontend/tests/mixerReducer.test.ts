@@ -12,6 +12,7 @@ function makeChannel(overrides: Partial<Channel> & { id: string }): Channel {
         mute: false,
         solo: false,
         sends: [],
+        effects: [],
         ...overrides,
     };
 }
@@ -20,8 +21,8 @@ function defaultState(): MixerState {
     return {
         channels: [
             makeChannel({ id: 'staging' }),
-            makeChannel({ id: 'track-0', trackIndex: 0 }),
-            makeChannel({ id: 'track-1', trackIndex: 1 }),
+            makeChannel({ id: 'track-0' }),
+            makeChannel({ id: 'track-1' }),
             makeChannel({ id: 'aux-0', type: 'aux' }),
             makeChannel({ id: 'master', type: 'master' }),
         ],
@@ -109,7 +110,6 @@ describe('change_channel_volume', () => {
         expect(after.mute).toBe(before.mute);
         expect(after.solo).toBe(before.solo);
         expect(after.type).toBe(before.type);
-        expect(after.trackIndex).toBe(before.trackIndex);
         expect(after.sends).toBe(before.sends);
     });
 
@@ -121,8 +121,10 @@ describe('change_channel_volume', () => {
 
     it('no-ops gracefully when channelId does not exist', () => {
         const state = defaultState();
-        const next = mixerReducer(state, { type: 'change_channel_volume', channelId: 'nonexistent', volume: 0.5 });
-        expect(next.channels.every(ch => ch.volume === 1.0)).toBe(true);
+        const next = mixerReducer(state, { type: 'change_channel_volume',
+            
+            channelId: 'nonexistent', volume: 0.5 });
+        expect(next.channels.every((ch: Channel) => ch.volume === 1.0)).toBe(true);
     });
 
     it('successive volume changes compose correctly', () => {

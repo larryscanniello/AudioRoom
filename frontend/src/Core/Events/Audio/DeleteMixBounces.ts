@@ -37,7 +37,7 @@ export const DeleteMixBounces: EventNamespace<typeof EventTypes.DELETE_MIX_BOUNC
     executeAudio(engine: WorkletAudioEngine, data: any): void {
         engine.regenerateMixMipmap({
             type: "regenerate_mix_mipmap",
-            newMixTimelines: data.snapshot.timeline.mix,
+            newMixTimelines: data.snapshot.timeline.mix.map((l: any) => l.regions),
         });
     },
 

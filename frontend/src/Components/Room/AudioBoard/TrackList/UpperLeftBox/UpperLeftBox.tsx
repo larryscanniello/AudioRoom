@@ -61,8 +61,7 @@ export default function UpperLeftBox({compactMode, audioControllerRef, onBounceC
     const thingsToUndo = audioControllerRef.current ? audioControllerRef.current.query('timeline').undoStack.length : 0;
     const thingsToRedo = audioControllerRef.current ? audioControllerRef.current.query('timeline').redoStack.length : 0;
     const timeline = audioControllerRef.current?.query("timeline");
-    const bounceCount = timeline?.mix.length ?? 0;
-    const bounceNames = timeline?.bounceNames ?? [];
+    const bounceLayers = timeline?.mix ?? [];
 
     return <div className="bg-[rgb(86,86,133)] flex flex-col justify-center items-center text-xs text-gray-400"
                 style={{width:`${CONSTANTS.LEFT_CONTROLS_WIDTH}px`,height:Math.floor(35*compactMode)}}
@@ -104,17 +103,17 @@ export default function UpperLeftBox({compactMode, audioControllerRef, onBounceC
                             </button>
                         </div>
                         <div className="overflow-y-auto max-h-40">
-                            {bounceCount === 0
+                            {bounceLayers.length === 0
                                 ? <p className="text-xs p-2 text-gray-400">No bounces yet</p>
-                                : Array.from({ length: bounceCount }, (_, i) => (
-                                    <label key={i} className="flex items-center gap-2 px-2 py-1 text-xs cursor-pointer hover:bg-gray-400">
+                                : bounceLayers.map((layer, i) => (
+                                    <label key={layer.id} className="flex items-center gap-2 px-2 py-1 text-xs cursor-pointer hover:bg-gray-400">
                                         <input
                                             type="radio"
                                             name="restage-select"
                                             checked={selectedRestage === i}
                                             onChange={() => setSelectedRestage(i)}
                                         />
-                                        {bounceNames[i] ?? `Bounce ${i + 1}`}
+                                        {layer.name}
                                     </label>
                                 ))
                             }

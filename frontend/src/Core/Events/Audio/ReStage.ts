@@ -38,8 +38,24 @@ export const ReStage: EventNamespace<typeof EventTypes.RESTAGE> = {
         engine.reStage({
             type: "re_stage_bounce",
             newStagingTimeline: data.snapshot.timeline.staging,
-            newMixTimelines: data.snapshot.timeline.mix,
+            newMixTimelines: data.snapshot.timeline.mix.map((l: any) => l.regions),
         });
+        const channels: any[] = data.snapshot.mixerState.channels;
+        const bounceLayers: any[] = data.snapshot.timeline.mix;
+
+        // Wire the restaged effects onto staging
+        const stagingChannel = channels.find((c: any) => c.id === 'staging');
+        engine.setStagingEffectChain(stagingChannel?.effects ?? []);
+
+        // Re-apply all remaining bounce track chains (indices may have shifted)
+        for (let i = 0; i < bounceLayers.length; i++) {
+            const channel = channels.find((c: any) => c.id === bounceLayers[i].id);
+            engine.setEffectChain(i, channel?.effects ?? []);
+        }
+        // Clear the vacated slot left by the removed track
+        engine.setEffectChain(bounceLayers.length, []);
+
+        engine.syncMixerVolumes(data.snapshot.mixerState, bounceLayers);
     },
 
     executeUI(engine: UIEngine, data: any): void {

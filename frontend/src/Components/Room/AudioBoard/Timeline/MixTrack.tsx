@@ -1,4 +1,4 @@
-import type { Region } from "@/Types/AudioState";
+import type { BounceLayer, Region } from "@/Types/AudioState";
 import { useRef } from "react";
 import { DOMElements } from "@/Constants/DOMElements";
 
@@ -105,8 +105,8 @@ export default function MixTrack({timelinePxLen, trackHeights, uiControllerRef}:
                 data-stagingheight={trackHeights.stagingHeight}
                 data-track={"mix"}
             >
-                {timeline?.mix.map((track: Region[]) => 
-                    track.map((region: Region) => (
+                {timeline?.mix.map((layer: BounceLayer) =>
+                    layer.regions.map((region: Region) => (
                         <div
                             key={region.name}
                             data-start={region.start}

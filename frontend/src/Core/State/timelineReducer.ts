@@ -1,4 +1,4 @@
-import type { MipmapRange, Region, TimelineSnapshot, TimelineState } from '../../Types/AudioState';
+import type { BounceLayer, MipmapRange, Region, TimelineSnapshot, TimelineState } from '../../Types/AudioState';
 
 const MAX_UNDO_DEPTH = 20;
 const MIN_REGION_SAMPLES = Math.round(0.01 * 48000);
@@ -61,7 +61,6 @@ export default function timelineReducer(state: TimelineState, action: any): Time
             return {
                 staging: [newStaging],
                 mix: state.mix,
-                bounceNames: state.bounceNames ?? [],
                 undoStack: pushUndo(state, mipmapRanges),
                 redoStack: [],
                 lastRecordedRegion: newRegion,
@@ -70,11 +69,10 @@ export default function timelineReducer(state: TimelineState, action: any): Time
         }
 
         case 'delete_mix_bounces': {
-            const indicesToRemove = new Set<number>(action.bounceIndices);
+            const idsToRemove = new Set<string>(action.ids);
             return {
                 staging: state.staging,
-                mix: state.mix.filter((_: readonly Region[], i: number) => !indicesToRemove.has(i)),
-                bounceNames: (state.bounceNames ?? []).filter((_: string, i: number) => !indicesToRemove.has(i)),
+                mix: state.mix.filter((l: BounceLayer) => !idsToRemove.has(l.id)),
                 undoStack: [],
                 redoStack: [],
                 lastRecordedRegion: null,
@@ -85,10 +83,14 @@ export default function timelineReducer(state: TimelineState, action: any): Time
         case 'bounce_to_mix': {
             // Bounce is intentionally NOT undoable — it triggers OPFS audio rendering.
             // Clear both stacks so the user cannot undo past a bounce.
+            const newLayer: BounceLayer = {
+                id: action.bounceId,
+                name: action.name ?? `Bounce ${state.mix.length + 1}`,
+                regions: [...(state.staging[0] ?? [])],
+            };
             return {
                 staging: [[]],
-                mix: [...state.mix, [...(state.staging[0] ?? [])]],
-                bounceNames: [...(state.bounceNames ?? []), action.name ?? `Bounce ${state.mix.length + 1}`],
+                mix: [...state.mix, newLayer],
                 undoStack: [],
                 redoStack: [],
                 lastRecordedRegion: null,
@@ -105,7 +107,6 @@ export default function timelineReducer(state: TimelineState, action: any): Time
             return {
                 staging: [[]],
                 mix: state.mix,
-                bounceNames: state.bounceNames ?? [],
                 undoStack: pushUndo(state, mipmapRanges),
                 redoStack: [],
                 lastRecordedRegion: null,
@@ -117,7 +118,6 @@ export default function timelineReducer(state: TimelineState, action: any): Time
             return {
                 staging: state.staging,
                 mix: [],
-                bounceNames: [],
                 undoStack: pushUndo(state),
                 redoStack: [],
                 lastRecordedRegion: null,
@@ -131,7 +131,6 @@ export default function timelineReducer(state: TimelineState, action: any): Time
             return {
                 staging: prev.staging,
                 mix: prev.mix,
-                bounceNames: state.bounceNames ?? [],
                 undoStack: state.undoStack.slice(0, -1),
                 redoStack: [...state.redoStack, snapshot(state, [...prev.mipmapRanges])],
                 lastRecordedRegion: null,
@@ -145,7 +144,6 @@ export default function timelineReducer(state: TimelineState, action: any): Time
             return {
                 staging: next.staging,
                 mix: next.mix,
-                bounceNames: state.bounceNames ?? [],
                 undoStack: [...state.undoStack, snapshot(state, [...next.mipmapRanges])],
                 redoStack: state.redoStack.slice(0, -1),
                 lastRecordedRegion: null,
@@ -169,7 +167,6 @@ export default function timelineReducer(state: TimelineState, action: any): Time
             return {
                 staging: [newStaging],
                 mix: state.mix,
-                bounceNames: state.bounceNames ?? [],
                 undoStack: pushUndo(state, mipmapRanges),
                 redoStack: [],
                 lastRecordedRegion: null,
@@ -187,7 +184,6 @@ export default function timelineReducer(state: TimelineState, action: any): Time
             return {
                 staging: [newStaging],
                 mix: state.mix,
-                bounceNames: state.bounceNames ?? [],
                 undoStack: pushUndo(state, mipmapRanges),
                 redoStack: [],
                 lastRecordedRegion: null,
@@ -202,7 +198,6 @@ export default function timelineReducer(state: TimelineState, action: any): Time
             return {
                 staging: [newStaging],
                 mix: state.mix,
-                bounceNames: state.bounceNames ?? [],
                 undoStack: pushUndo(state, mipmapRanges),
                 redoStack: [],
                 lastRecordedRegion: null,
@@ -228,7 +223,6 @@ export default function timelineReducer(state: TimelineState, action: any): Time
             return {
                 staging: [newStaging],
                 mix: state.mix,
-                bounceNames: state.bounceNames ?? [],
                 undoStack: pushUndo(state, mipmapRanges),
                 redoStack: [],
                 lastRecordedRegion: null,
@@ -260,7 +254,6 @@ export default function timelineReducer(state: TimelineState, action: any): Time
             return {
                 staging: [newStaging],
                 mix: state.mix,
-                bounceNames: state.bounceNames ?? [],
                 undoStack: pushUndo(state, mipmapRanges),
                 redoStack: [],
                 lastRecordedRegion: null,
@@ -279,7 +272,6 @@ export default function timelineReducer(state: TimelineState, action: any): Time
             return {
                 staging: [newStaging],
                 mix: state.mix,
-                bounceNames: state.bounceNames ?? [],
                 undoStack: pushUndo(state, mipmapRanges),
                 redoStack: [],
                 lastRecordedRegion: null,
@@ -288,11 +280,10 @@ export default function timelineReducer(state: TimelineState, action: any): Time
         }
 
         case 'restage_from_mix': {
-            const regions = state.mix[action.bounceIndex] ?? [];
+            const layer = state.mix.find((l: BounceLayer) => l.id === action.bounceId);
             return {
-                staging: [[...regions]],
-                mix: state.mix.filter((_: readonly Region[], i: number) => i !== action.bounceIndex),
-                bounceNames: (state.bounceNames ?? []).filter((_: string, i: number) => i !== action.bounceIndex),
+                staging: [[...(layer?.regions ?? [])]],
+                mix: state.mix.filter((l: BounceLayer) => l.id !== action.bounceId),
                 undoStack: [],
                 redoStack: [],
                 lastRecordedRegion: null,

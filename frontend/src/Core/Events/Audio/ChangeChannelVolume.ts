@@ -6,9 +6,9 @@ import type { SocketManager } from "@/Core/Sockets/SocketManager";
 import type { EventNamespace } from "../EventNamespace";
 import type { AudioEngine } from "@/Core/Audio/AudioEngine";
 import type { TransactionData } from "@/Core/State/State";
-import type { MixerState } from "@/Types/AudioState";
+import type { BounceLayer, MixerState } from "@/Types/AudioState";
 
-type Payload = { mixerState: MixerState; sharedSnapshot: any };
+type Payload = { mixerState: MixerState; bounceLayers: readonly BounceLayer[]; sharedSnapshot: any };
 
 export const ChangeChannelVolume: EventNamespace<typeof EventTypes.CHANGE_CHANNEL_VOLUME> = {
     sharedState: true,
@@ -35,12 +35,13 @@ export const ChangeChannelVolume: EventNamespace<typeof EventTypes.CHANGE_CHANNE
     getLocalPayload(state: State): Payload {
         return {
             mixerState: state.query('mixerState'),
+            bounceLayers: state.query('timeline').mix,
             sharedSnapshot: state.getSharedStateSnapshot(),
         };
     },
 
     executeAudio(engine: AudioEngine, data: Payload): void {
-        engine.syncMixerVolumes(data.mixerState);
+        engine.syncMixerVolumes(data.mixerState, data.bounceLayers);
     },
 
     executeUI(_engine: UIEngine, _data: any): void {},

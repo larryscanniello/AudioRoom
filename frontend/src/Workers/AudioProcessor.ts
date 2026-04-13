@@ -1,7 +1,6 @@
-import { CONSTANTS } from "../Constants/constants.js";
+import { CONSTANTS, NUM_AUX_CHANNELS } from "../Constants/constants.js";
 import { RingSAB } from "../Core/RingSAB.js";
 import type { Buffers, Pointers, AudioProcessorData } from "../Types/AudioState.js";
-
 interface AudioWorkletProcessor {
   readonly port: MessagePort;
   process(
@@ -148,40 +147,8 @@ class AudioProcessor extends AudioWorkletProcessor {
   clickBuffer: Float32Array | null;
   clickPlaybackPos: number;
   nextClickSample: number;
-
-  static get parameterDescriptors(): AudioParamDescriptor[] {
-    const trackParams: AudioParamDescriptor[] = Array.from({ length: 16 }, (_, i) => ({
-      name: `TRACK_${i}_VOLUME`,
-      defaultValue: 1.0,
-      minValue: 0,
-      maxValue: 1.0,
-      automationRate: "k-rate" as const,
-    }));
-    return [
-      {
-        name: "MIX_MASTER_VOLUME",
-        defaultValue: 1.0,
-        minValue: 0,
-        maxValue: 1.0,
-        automationRate: "k-rate",
-      },
-      {
-        name: "STAGING_MASTER_VOLUME",
-        defaultValue: 1.0,
-        minValue: 0,
-        maxValue: 1.0,
-        automationRate: "k-rate",
-      },
-      {
-        name: "METRONOME_GAIN",
-        defaultValue: 0,
-        minValue: 0,
-        maxValue: 1.0,
-        automationRate: "k-rate",
-      },
-      ...trackParams,
-    ];
-  }
+  trackGainsScratch: Float32Array;
+  auxTracks: Float32Array[] = []; // initialized in constructor
 
   constructor() {
     super();
@@ -225,6 +192,7 @@ class AudioProcessor extends AudioWorkletProcessor {
     this.clickBuffer = null;
     this.clickPlaybackPos = -1;
     this.nextClickSample = 0;
+    this.trackGainsScratch = new Float32Array(16);
 
     this.timeline = {
       start: null,
@@ -239,6 +207,10 @@ class AudioProcessor extends AudioWorkletProcessor {
       recordingEnd: null,
       packetPos: 0,
     };
+
+    for(let i = 0; i < NUM_AUX_CHANNELS; i++){
+      this.auxTracks.push(new Float32Array(this.PROCESS_FRAMES));
+    }
 
     this.port.onmessage = (e: MessageEvent<ProcessorMessage>) => this.handleMessage(e.data);
   }
@@ -402,7 +374,6 @@ class AudioProcessor extends AudioWorkletProcessor {
   process(
     inputs: Float32Array[][],
     outputs: Float32Array[][],
-    parameters: Record<string, Float32Array>
   ): boolean {
 
     //This if handles the latency test
@@ -493,27 +464,29 @@ class AudioProcessor extends AudioWorkletProcessor {
       this.buffers.mix.readMultiTrack(this.readers.mix, CONSTANTS.MIX_MAX_TRACKS, this.PROCESS_FRAMES);
     }
 
-    const stagingGain = parameters["STAGING_MASTER_VOLUME"][0];
-    const masterGain = parameters["MIX_MASTER_VOLUME"][0];
-    const trackGains: number[] = Array.from({ length: CONSTANTS.MIX_MAX_TRACKS }, (_, i) => parameters[`TRACK_${i}_VOLUME`][0]);
-
-    const output = outputs[0];
-
-    for (let i = 0; i < this.PROCESS_FRAMES; i++) {
-      if (!this.state.isRecording && !this.state.isPlaying) break;
-      for (let channel = 0; channel < 2; channel++) {
-        output[channel][i] = (this.state.isPlaying ? this.readers.staging![i] * stagingGain : 0);
-
-        for (let track = 0; track < CONSTANTS.MIX_MAX_TRACKS; track++) {
-          output[channel][i] += this.readers.mix![track * this.PROCESS_FRAMES + i] * trackGains[track] * masterGain;
-        }
+    // Mix tracks: one mono output per track
+    for (let track = 0; track < CONSTANTS.MIX_MAX_TRACKS; track++) {
+      const offset = track * this.PROCESS_FRAMES;
+      const out = outputs[track][0];
+      for (let i = 0; i < this.PROCESS_FRAMES; i++) {
+        out[i] = this.readers.mix![offset + i];
       }
     }
 
-    //handle metronome clicks
-    const isValidPlaybackTime = !this.absolute.recordingEnd && (this.state.isPlaying || this.state.isRecording) //otherwise met would play in .5 seconds after recording stopped
-    if (this.clickBuffer && isValidPlaybackTime) { 
-      const metrGain = parameters["METRONOME_GAIN"][0];
+    // Staging: output[16]
+    const stagingOut = outputs[16][0];
+    stagingOut.fill(0);
+    if (this.state.isPlaying && this.readers.staging) {
+      for (let i = 0; i < this.PROCESS_FRAMES; i++) {
+        stagingOut[i] = this.readers.staging[i];
+      }
+    }
+
+    // Metronome: output[17]
+    const metronomeOut = outputs[17][0];
+    metronomeOut.fill(0);
+    const isValidPlaybackTime = !this.absolute.recordingEnd && (this.state.isPlaying || this.state.isRecording);
+    if (this.clickBuffer && isValidPlaybackTime) {
       const samplesPerBeat = Math.round(sampleRate * 60 / this.state.bpm);
       for (let i = 0; i < this.PROCESS_FRAMES; i++) {
         const absFrame = currentFrame + i;
@@ -523,16 +496,10 @@ class AudioProcessor extends AudioWorkletProcessor {
         }
         const pastTimelineEnd = this.absolute.end !== null && absFrame >= this.absolute.end;
         if (this.clickPlaybackPos >= 0 && this.clickPlaybackPos < this.clickBuffer.length && !pastTimelineEnd) {
-          if (metrGain > 0) {
-            const s = this.clickBuffer[this.clickPlaybackPos] * metrGain;
-            output[0][i] += s;
-            output[1][i] += s;
-          }
+          metronomeOut[i] = this.clickBuffer[this.clickPlaybackPos];
           this.clickPlaybackPos++;
         }
-        if (this.clickPlaybackPos >= this.clickBuffer.length) {
-          this.clickPlaybackPos = -1;
-        }
+        if (this.clickPlaybackPos >= this.clickBuffer.length) this.clickPlaybackPos = -1;
       }
     }
 

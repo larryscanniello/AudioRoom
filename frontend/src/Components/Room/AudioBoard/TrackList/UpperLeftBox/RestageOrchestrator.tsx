@@ -33,10 +33,12 @@ const RestageOrchestrator = forwardRef<RestageHandle, RestageOrchestratorProps>(
                 const ac = audioControllerRef.current;
                 if (!ac) return;
                 const timeline = ac.query("timeline");
-                const name = timeline.bounceNames?.[index] ?? null;
+                const layer = timeline.mix[index];
+                if (!layer) return;
+                const name = layer.name;
                 const stagingHasContent = timeline.staging[0]?.length > 0;
                 if (!stagingHasContent) {
-                    ac.reStage(index);
+                    ac.reStage(layer.id);
                     onRestageComplete?.(name);
                 } else {
                     setPendingIndex(index);
@@ -50,8 +52,10 @@ const RestageOrchestrator = forwardRef<RestageHandle, RestageOrchestratorProps>(
         const handleDeleteStaging = () => {
             const ac = audioControllerRef.current;
             if (!ac || pendingIndex === null) return;
+            const layer = ac.query("timeline").mix[pendingIndex];
+            if (!layer) return;
             ac.deleteStagingRegions();
-            ac.reStage(pendingIndex);
+            ac.reStage(layer.id);
             onRestageComplete?.(originalName);
             clearAll();
         };
@@ -61,8 +65,12 @@ const RestageOrchestrator = forwardRef<RestageHandle, RestageOrchestratorProps>(
             if (!ac || pendingIndex === null) return;
             if (conflictStagingName) {
                 // Staging already has a known name — skip the prompt
+                const layer = ac.query("timeline").mix[pendingIndex];
+                if (!layer) return;
                 ac.bounce(conflictStagingName);
-                ac.reStage(pendingIndex);
+                // After bounce, the layer we want to restage has shifted — find by current pendingIndex
+                // bounce() doesn't change existing mix layers, so pendingIndex is still valid
+                ac.reStage(layer.id);
                 onRestageComplete?.(originalName);
                 clearAll();
                 return;
@@ -76,9 +84,11 @@ const RestageOrchestrator = forwardRef<RestageHandle, RestageOrchestratorProps>(
         const handleConfirmBounce = () => {
             const ac = audioControllerRef.current;
             if (!ac || pendingIndex === null) return;
+            const layer = ac.query("timeline").mix[pendingIndex];
+            if (!layer) return;
             const name = bounceName.trim() || `Bounce ${(ac.query("bounce") ?? 0) + 1}`;
             ac.bounce(name);
-            ac.reStage(pendingIndex);
+            ac.reStage(layer.id);
             onRestageComplete?.(originalName);
             clearAll();
         };

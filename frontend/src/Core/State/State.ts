@@ -1,4 +1,4 @@
-import type { TimelineState, MixerState, Channel } from "../../Types/AudioState"; // Assuming type exists based on AudioEngine
+import type { TimelineState, MixerState } from "../../Types/AudioState";
 
 
 export interface StateContainer {
@@ -86,7 +86,7 @@ export class State {
                 denominator: 4
             },
             snapToGrid: true,
-            timeline: { staging: [[]], mix: [], bounceNames: [], undoStack: [], redoStack: [], lastRecordedRegion: null, lastMipmapRanges: [] },
+            timeline: { staging: [[]], mix: [], undoStack: [], redoStack: [], lastRecordedRegion: null, lastMipmapRanges: [] },
             isPlaying: false,
             isRecording: false,
             isDrainingRecording: false,
@@ -107,10 +107,6 @@ export class State {
             mixerState: {
                 channels: [
                     { id: 'staging', type: 'track', volume: 1.0, pan: 0, mute: false, solo: false, sends: [{ auxId: 'aux-0', level: 0 }, { auxId: 'aux-1', level: 0 }], effects: [] },
-                    ...Array.from({ length: 16 }, (_, i): Channel => ({
-                        id: `track-${i}`, type: 'track', trackIndex: i,
-                        volume: 1.0, pan: 0, mute: false, solo: false, sends: [{ auxId: 'aux-0', level: 0 }, { auxId: 'aux-1', level: 0 }], effects: [],
-                    })),
                     { id: 'aux-0', type: 'aux', volume: 1.0, pan: 0, mute: false, solo: false, sends: [], effects: [] },
                     { id: 'aux-1', type: 'aux', volume: 1.0, pan: 0, mute: false, solo: false, sends: [], effects: [] },
                     { id: 'aux-2', type: 'aux', volume: 1.0, pan: 0, mute: false, solo: false, sends: [], effects: [] },

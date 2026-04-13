@@ -12,7 +12,6 @@ import { UIEngine } from "../UI/UIEngine";
 import { UIController } from "../UI/UIController";
 import { KeydownManager } from "../UI/KeydownManager";
 import { DOMHandlers } from "../UI/DOMHandlers/DOMHandlers";
-import { MIXER_PARAMS } from "@/Constants/MixerParams";
 import { State } from "../State/State";
 import type { MipMap } from "../UI/UIEngine";
 import type { Buffers, Pointers } from "@/Types/AudioState";
@@ -152,21 +151,11 @@ export class SessionBuilder{
             } catch (e) {
                 throw new Error(`Failed to load worklet at '${audioWorkletUrl}'. \n1. Check Console for "Diagnostic pre-fetch" errors.\n2. If the file is valid JS, check inside 'AudioProcessor.js' for syntax errors.\nOriginal Error: ${e}`);
             }
-            processorNode = new AudioWorkletNode(audioContext,'AudioProcessor');
-            const stagingMasterVolumeParam = processorNode.parameters.get(MIXER_PARAMS.STAGING_MASTER_VOLUME);
-            const mixMasterVolumeParam = processorNode.parameters.get(MIXER_PARAMS.MIX_MASTER_VOLUME);
-            if(!stagingMasterVolumeParam || !mixMasterVolumeParam){
-                throw new Error("Master volume parameters not found in audio worklet processor");
-            }
-            const trackVolumeParams: AudioParam[] = [];
-            for (let i = 0; i < this.#config.numberOfMixTracks; i++) {
-                const key = `TRACK_${i}_VOLUME` as keyof typeof MIXER_PARAMS;
-                const param = processorNode.parameters.get(MIXER_PARAMS[key]);
-                if (!param) throw new Error(`Track volume param TRACK_${i}_VOLUME not found in audio worklet processor`);
-                trackVolumeParams.push(param);
-            }
-            const volumeParams = { stagingMasterVolumeParam, mixMasterVolumeParam, trackVolumeParams };
-            mixer = new Mixer(this.#config.numberOfMixTracks, audioContext, volumeParams, globalContext);
+            processorNode = new AudioWorkletNode(audioContext, 'AudioProcessor', {
+                numberOfOutputs: CONSTANTS.MIX_MAX_TRACKS + 1 + 1, //mix tracks + staging + metronome
+                outputChannelCount: Array(CONSTANTS.MIX_MAX_TRACKS + 1 + 1).fill(1),
+            });
+            mixer = new Mixer(this.#config.numberOfMixTracks, audioContext, processorNode, globalContext);
             if(!this.#opfsWorker){
                 this.#opfsWorker = new OPFSWorker();
             }

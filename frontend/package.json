@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "check": "tsc --noEmit -p tsconfig.app.json",
-    "build": "npm run check && vite build",
+    "check:tests": "tsc --noEmit -p tsconfig.test.json",
+    "build": "npm run check && npm run check:tests && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest --environment node"

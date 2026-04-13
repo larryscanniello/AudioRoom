@@ -54,16 +54,21 @@ export interface Region {
 
 export type MipmapRange = { start: number; end: number };
 
+export type BounceLayer = {
+    id: string;
+    name: string;
+    regions: readonly Region[];
+};
+
 export type TimelineSnapshot = {
     readonly staging: readonly Region[][];
-    readonly mix: readonly Region[][];
+    readonly mix: readonly BounceLayer[];
     readonly mipmapRanges: readonly MipmapRange[];
 }
 
 export interface TimelineState {
     readonly staging: readonly Region[][];
-    readonly mix: readonly Region[][];
-    readonly bounceNames: readonly string[];
+    readonly mix: readonly BounceLayer[];
     readonly undoStack: readonly TimelineSnapshot[];
     readonly redoStack: readonly TimelineSnapshot[];
     readonly lastRecordedRegion: Region | null;
@@ -112,7 +117,7 @@ interface StopAudioProcessorData {
 
 export type ChannelType = 'track' | 'aux' | 'master'
 
-export type EffectType = 'lowpass' | 'highpass' | 'delay' | 'distortion';
+export type EffectType = 'lowpass' | 'highpass';
 
 export interface EffectSlotConfig {
     effectType: EffectType;
@@ -120,17 +125,9 @@ export interface EffectSlotConfig {
     params?: Record<string, number>;
 }
 
-export const DEFAULT_EFFECT_PARAMS: Record<EffectType, Record<string, number>> = {
-    lowpass:    { cutoffHz: 2000, resonance: 0.7, wet: 0.8 },
-    highpass:   { cutoffHz: 200,  resonance: 0.7, wet: 0.8 },
-    delay:      { timeMs: 500,    feedback: 0.4,  wet: 0.5 },
-    distortion: { drive: 5,       wet: 0.5 },
-};
-
 export type Channel = {
     id: string
     type: ChannelType
-    trackIndex?: number
     volume: number
     pan: number
     mute: boolean

@@ -45,9 +45,18 @@ export const Bounce: EventNamespace<typeof EventTypes.BOUNCE> = {
     executeAudio(engine: AudioEngine,data:any): void {
         engine.bounce({
             type: "bounce_to_mix",
-            mixTimelines: data.snapshot.timeline.mix,
+            mixTimelines: data.snapshot.timeline.mix.map((l: any) => l.regions),
             bounce: data.snapshot.bounce,
         });
+        const bounceLayers: any[] = data.snapshot.timeline.mix;
+        const channels: any[] = data.snapshot.mixerState.channels;
+        for (const channel of channels) {
+            if (channel.type !== 'track' || channel.id === 'staging') continue;
+            const trackIndex = bounceLayers.findIndex((l: any) => l.id === channel.id);
+            if (trackIndex >= 0 && channel.effects?.length > 0) {
+                engine.setEffectChain(trackIndex, channel.effects);
+            }
+        }
     },
 
     executeUI(engine: UIEngine,data:any): void {

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { vi } from 'vitest';
 import timelineReducer from '../src/Core/State/timelineReducer';
-import type { TimelineState, Region } from "../src/Types/AudioState";
+import type { BounceLayer, TimelineState, Region } from "../src/Types/AudioState";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -26,7 +26,6 @@ function emptyState(): TimelineState {
         redoStack: [],
         lastRecordedRegion: null,
         lastMipmapRanges: [],
-        bounceNames: [],
     };
 }
 
@@ -34,12 +33,12 @@ function stateWithStaging(regions: Region[]): TimelineState {
     return { ...emptyState(), staging: [regions] };
 }
 
-function stateWithMix(bounces: Region[][], names?: string[]): TimelineState {
-    return {
-        ...emptyState(),
-        mix: bounces,
-        bounceNames: names ?? bounces.map((_, i) => `Bounce ${i + 1}`),
-    };
+function makeLayer(regions: Region[], name?: string): BounceLayer {
+    return { id: crypto.randomUUID(), name: name ?? `Bounce`, regions };
+}
+
+function stateWithMix(layers: BounceLayer[]): TimelineState {
+    return { ...emptyState(), mix: layers };
 }
 
 // Convenience: dispatch add_region and return new state
@@ -144,95 +143,99 @@ describe('bounce_to_mix', () => {
         const r0 = makeRegion({ start: 0, end: 10 });
         const r1 = makeRegion({ start: 20, end: 30 });
         const state = stateWithStaging([r0, r1]);
-        const next = timelineReducer(state, { type: 'bounce_to_mix' });
+        const next = timelineReducer(state, { type: 'bounce_to_mix', bounceId: 'id-1' });
         expect(next.staging).toEqual([[]]);
         expect(next.mix).toHaveLength(1);
-        expect(next.mix[0].map((r: Region) => [r.start, r.end])).toEqual([[0, 10], [20, 30]]);
+        expect(next.mix[0].regions.map((r: Region) => [r.start, r.end])).toEqual([[0, 10], [20, 30]]);
         expect(next.undoStack).toHaveLength(0);
         expect(next.redoStack).toHaveLength(0);
     });
 
-    it('stores custom name in bounceNames', () => {
+    it('stores custom name on the layer', () => {
         const state = stateWithStaging([makeRegion({ start: 0, end: 10 })]);
-        const next = timelineReducer(state, { type: 'bounce_to_mix', name: 'Verse 1' });
-        expect(next.bounceNames).toEqual(['Verse 1']);
+        const next = timelineReducer(state, { type: 'bounce_to_mix', bounceId: 'id-1', name: 'Verse 1' });
+        expect(next.mix[0].name).toBe('Verse 1');
+    });
+
+    it('stores the provided bounceId on the layer', () => {
+        const state = stateWithStaging([makeRegion({ start: 0, end: 10 })]);
+        const next = timelineReducer(state, { type: 'bounce_to_mix', bounceId: 'my-uuid', name: 'X' });
+        expect(next.mix[0].id).toBe('my-uuid');
     });
 
     it('defaults bounce name to "Bounce N" when no name given', () => {
         const r = makeRegion({ start: 0, end: 10 });
-        // Start with 1 existing bounce so the next should be "Bounce 2"
-        const state: TimelineState = { ...stateWithStaging([r]), mix: [[r]], bounceNames: ['Bounce 1'] };
-        const next = timelineReducer(state, { type: 'bounce_to_mix' });
-        expect(next.bounceNames![1]).toBe('Bounce 2');
+        const state: TimelineState = { ...stateWithStaging([r]), mix: [makeLayer([r], 'Bounce 1')] };
+        const next = timelineReducer(state, { type: 'bounce_to_mix', bounceId: 'id-2' });
+        expect(next.mix[1].name).toBe('Bounce 2');
     });
 
     it('accumulates multiple bounces in mix', () => {
         let state = stateWithStaging([makeRegion({ start: 0, end: 10 })]);
-        state = timelineReducer(state, { type: 'bounce_to_mix', name: 'A' });
-        state = timelineReducer({ ...state, staging: [[makeRegion({ start: 20, end: 30 })]] }, { type: 'bounce_to_mix', name: 'B' });
+        state = timelineReducer(state, { type: 'bounce_to_mix', bounceId: 'id-1', name: 'A' });
+        state = timelineReducer({ ...state, staging: [[makeRegion({ start: 20, end: 30 })]] }, { type: 'bounce_to_mix', bounceId: 'id-2', name: 'B' });
         expect(state.mix).toHaveLength(2);
-        expect(state.bounceNames).toEqual(['A', 'B']);
+        expect(state.mix.map(l => l.name)).toEqual(['A', 'B']);
     });
 
     it('clears undo and redo stacks', () => {
         let state = addRegion(emptyState(), { start: 0, end: 100 });
         expect(state.undoStack.length).toBeGreaterThan(0);
-        state = timelineReducer(state, { type: 'bounce_to_mix' });
+        state = timelineReducer(state, { type: 'bounce_to_mix', bounceId: 'id-1' });
         expect(state.undoStack).toHaveLength(0);
         expect(state.redoStack).toHaveLength(0);
     });
 
     it('empty staging still creates a mix entry', () => {
-        const next = timelineReducer(emptyState(), { type: 'bounce_to_mix' });
+        const next = timelineReducer(emptyState(), { type: 'bounce_to_mix', bounceId: 'id-1' });
         expect(next.mix).toHaveLength(1);
-        expect(next.mix[0]).toHaveLength(0);
+        expect(next.mix[0].regions).toHaveLength(0);
     });
 });
 
 // ─── delete_mix_bounces ───────────────────────────────────────────────────────
 
 describe('delete_mix_bounces', () => {
-    it('deletes a single bounce at a valid index', () => {
-        const r = makeRegion({ start: 0, end: 10 });
-        const state = stateWithMix([[r], [makeRegion({ start: 20, end: 30 })]]);
-        const next = timelineReducer(state, { type: 'delete_mix_bounces', bounceIndices: [0] });
+    it('deletes a single bounce by id', () => {
+        const layerA = makeLayer([makeRegion({ start: 0, end: 10 })], 'A');
+        const layerB = makeLayer([makeRegion({ start: 20, end: 30 })], 'B');
+        const state = stateWithMix([layerA, layerB]);
+        const next = timelineReducer(state, { type: 'delete_mix_bounces', ids: [layerA.id] });
         expect(next.mix).toHaveLength(1);
-        expect(next.mix[0][0]).toMatchObject({ start: 20, end: 30 });
+        expect(next.mix[0].regions[0]).toMatchObject({ start: 20, end: 30 });
     });
 
-    it('deletes multiple non-contiguous bounces in one action', () => {
-        const state = stateWithMix([
-            [makeRegion({ start: 0, end: 10 })],
-            [makeRegion({ start: 20, end: 30 })],
-            [makeRegion({ start: 40, end: 50 })],
-        ], ['A', 'B', 'C']);
-        const next = timelineReducer(state, { type: 'delete_mix_bounces', bounceIndices: [0, 2] });
+    it('deletes multiple non-contiguous bounces by id', () => {
+        const layerA = makeLayer([makeRegion({ start: 0, end: 10 })], 'A');
+        const layerB = makeLayer([makeRegion({ start: 20, end: 30 })], 'B');
+        const layerC = makeLayer([makeRegion({ start: 40, end: 50 })], 'C');
+        const state = stateWithMix([layerA, layerB, layerC]);
+        const next = timelineReducer(state, { type: 'delete_mix_bounces', ids: [layerA.id, layerC.id] });
         expect(next.mix).toHaveLength(1);
-        expect(next.bounceNames).toEqual(['B']);
+        expect(next.mix.map(l => l.name)).toEqual(['B']);
     });
 
-    it('keeps bounceNames in sync after deletion', () => {
-        const state = stateWithMix(
-            [[makeRegion({ start: 0, end: 10 })], [makeRegion({ start: 20, end: 30 })]],
-            ['Keep Me', 'Delete Me']
-        );
-        const next = timelineReducer(state, { type: 'delete_mix_bounces', bounceIndices: [1] });
-        expect(next.bounceNames).toEqual(['Keep Me']);
+    it('names travel with layers after deletion', () => {
+        const layerA = makeLayer([makeRegion({ start: 0, end: 10 })], 'Keep Me');
+        const layerB = makeLayer([makeRegion({ start: 20, end: 30 })], 'Delete Me');
+        const state = stateWithMix([layerA, layerB]);
+        const next = timelineReducer(state, { type: 'delete_mix_bounces', ids: [layerB.id] });
+        expect(next.mix.map(l => l.name)).toEqual(['Keep Me']);
     });
 
     it('clears undo and redo stacks', () => {
         let state = addRegion(emptyState(), { start: 0, end: 100 });
-        state = timelineReducer(state, { type: 'bounce_to_mix' });
-        // Add something to undo stack
+        state = timelineReducer(state, { type: 'bounce_to_mix', bounceId: 'id-1' });
         state = { ...state, undoStack: [{ staging: [[]], mix: [], mipmapRanges: [] }] };
-        const next = timelineReducer(state, { type: 'delete_mix_bounces', bounceIndices: [0] });
+        const next = timelineReducer(state, { type: 'delete_mix_bounces', ids: ['id-1'] });
         expect(next.undoStack).toHaveLength(0);
         expect(next.redoStack).toHaveLength(0);
     });
 
-    it('out-of-range index is silently ignored', () => {
-        const state = stateWithMix([[makeRegion({ start: 0, end: 10 })]]);
-        const next = timelineReducer(state, { type: 'delete_mix_bounces', bounceIndices: [99] });
+    it('unknown id is silently ignored', () => {
+        const layer = makeLayer([makeRegion({ start: 0, end: 10 })], 'A');
+        const state = stateWithMix([layer]);
+        const next = timelineReducer(state, { type: 'delete_mix_bounces', ids: ['nonexistent-id'] });
         expect(next.mix).toHaveLength(1);
     });
 });
@@ -283,20 +286,14 @@ describe('delete_staging_regions', () => {
 
 describe('delete_mix_regions', () => {
     it('clears entire mix to []', () => {
-        const state = stateWithMix([[makeRegion({ start: 0, end: 10 })]]);
+        const state = stateWithMix([makeLayer([makeRegion({ start: 0, end: 10 })])]);
         const next = timelineReducer(state, { type: 'delete_mix_regions' });
         expect(next.mix).toEqual([]);
     });
 
-    it('clears bounceNames to []', () => {
-        const state = stateWithMix([[makeRegion({ start: 0, end: 10 })]], ['My Bounce']);
-        const next = timelineReducer(state, { type: 'delete_mix_regions' });
-        expect(next.bounceNames).toEqual([]);
-    });
-
     it('pushes undo; undo restores mix', () => {
         const r = makeRegion({ start: 0, end: 10 });
-        const state = stateWithMix([[r]]);
+        const state = stateWithMix([makeLayer([r])]);
         const afterDelete = timelineReducer(state, { type: 'delete_mix_regions' });
         expect(afterDelete.undoStack.length).toBeGreaterThan(0);
         const afterUndo = timelineReducer(afterDelete, { type: 'undo' });
@@ -309,45 +306,46 @@ describe('delete_mix_regions', () => {
 describe('restage_from_mix', () => {
     it('moves the specified bounce into staging', () => {
         const r = makeRegion({ start: 0, end: 10 });
-        const state = stateWithMix([[r]]);
-        const next = timelineReducer(state, { type: 'restage_from_mix', bounceIndex: 0 });
+        const layer = makeLayer([r], 'A');
+        const state = stateWithMix([layer]);
+        const next = timelineReducer(state, { type: 'restage_from_mix', bounceId: layer.id });
         expect(next.staging[0]).toHaveLength(1);
         expect(next.staging[0][0]).toMatchObject({ start: 0, end: 10 });
     });
 
     it('removes the bounce from mix', () => {
-        const state = stateWithMix([
-            [makeRegion({ start: 0, end: 10 })],
-            [makeRegion({ start: 20, end: 30 })],
-        ]);
-        const next = timelineReducer(state, { type: 'restage_from_mix', bounceIndex: 0 });
+        const layerA = makeLayer([makeRegion({ start: 0, end: 10 })], 'A');
+        const layerB = makeLayer([makeRegion({ start: 20, end: 30 })], 'B');
+        const state = stateWithMix([layerA, layerB]);
+        const next = timelineReducer(state, { type: 'restage_from_mix', bounceId: layerA.id });
         expect(next.mix).toHaveLength(1);
-        expect(next.mix[0][0]).toMatchObject({ start: 20, end: 30 });
+        expect(next.mix[0].regions[0]).toMatchObject({ start: 20, end: 30 });
     });
 
-    it('removes the corresponding bounceNames entry', () => {
-        const state = stateWithMix(
-            [[makeRegion({ start: 0, end: 10 })], [makeRegion({ start: 20, end: 30 })]],
-            ['Keep', 'Restage Me']
-        );
-        const next = timelineReducer(state, { type: 'restage_from_mix', bounceIndex: 1 });
-        expect(next.bounceNames).toEqual(['Keep']);
+    it('removes the restaged layer name from mix', () => {
+        const layerA = makeLayer([makeRegion({ start: 0, end: 10 })], 'Keep');
+        const layerB = makeLayer([makeRegion({ start: 20, end: 30 })], 'Restage Me');
+        const state = stateWithMix([layerA, layerB]);
+        const next = timelineReducer(state, { type: 'restage_from_mix', bounceId: layerB.id });
+        expect(next.mix.map(l => l.name)).toEqual(['Keep']);
     });
 
     it('clears undo and redo stacks', () => {
+        const layer = makeLayer([makeRegion({ start: 0, end: 10 })], 'A');
         const state: TimelineState = {
-            ...stateWithMix([[makeRegion({ start: 0, end: 10 })]]),
+            ...stateWithMix([layer]),
             undoStack: [{ staging: [[]], mix: [], mipmapRanges: [] }],
             redoStack: [{ staging: [[]], mix: [], mipmapRanges: [] }],
         };
-        const next = timelineReducer(state, { type: 'restage_from_mix', bounceIndex: 0 });
+        const next = timelineReducer(state, { type: 'restage_from_mix', bounceId: layer.id });
         expect(next.undoStack).toHaveLength(0);
         expect(next.redoStack).toHaveLength(0);
     });
 
-    it('out-of-bounds index produces empty staging', () => {
-        const state = stateWithMix([[makeRegion({ start: 0, end: 10 })]]);
-        const next = timelineReducer(state, { type: 'restage_from_mix', bounceIndex: 99 });
+    it('unknown bounceId produces empty staging', () => {
+        const layer = makeLayer([makeRegion({ start: 0, end: 10 })], 'A');
+        const state = stateWithMix([layer]);
+        const next = timelineReducer(state, { type: 'restage_from_mix', bounceId: 'nonexistent' });
         expect(next.staging[0]).toHaveLength(0);
     });
 });
@@ -705,10 +703,10 @@ describe('undo/redo', () => {
 
     it('undo of a staging edit preserves mix', () => {
         const mixRegion = makeRegion({ start: 0, end: 10 });
-        let state: TimelineState = { ...emptyState(), mix: [[mixRegion]], bounceNames: ['B1'] };
+        let state: TimelineState = { ...emptyState(), mix: [makeLayer([mixRegion], 'B1')] };
         state = addRegion(state, { start: 100, end: 200 });
         const afterUndo = timelineReducer(state, { type: 'undo' });
         expect(afterUndo.mix).toHaveLength(1);
-        expect(afterUndo.mix[0][0]).toMatchObject({ start: 0, end: 10 });
+        expect(afterUndo.mix[0].regions[0]).toMatchObject({ start: 0, end: 10 });
     });
 });

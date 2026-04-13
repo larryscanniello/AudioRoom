@@ -61,7 +61,7 @@ export class Mixer {
         for (const node of this.#effectNodes[trackIndex]) {
             if (node) try { node.disconnect(); } catch (_) {}
         }
-        const newNodes = chain.map(cfg => cfg ? this.#createEffectNode(cfg) : null);
+        const newNodes = chain.map(cfg => (cfg && cfg.enabled) ? this.#createEffectNode(cfg) : null);
         this.#effectNodes[trackIndex] = newNodes;
         const active = newNodes.filter((n): n is AudioNode => n !== null);
         if (active.length === 0) {
@@ -108,7 +108,7 @@ export class Mixer {
         for (const node of this.#stagingEffectNodes) {
             if (node) try { node.disconnect(); } catch (_) {}
         }
-        const newNodes = chain.map(cfg => cfg ? this.#createEffectNode(cfg) : null);
+        const newNodes = chain.map(cfg => (cfg && cfg.enabled) ? this.#createEffectNode(cfg) : null);
         this.#stagingEffectNodes = newNodes;
         const active = newNodes.filter((node): node is AudioNode => node !== null);
         if (active.length === 0) {

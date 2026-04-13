@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { Power } from "lucide-react";
 import { Popover, PopoverTrigger, PopoverContent } from "@/Components/ui/popover";
 import { Slider } from "@/Components/ui/slider";
 import type { EffectSlotConfig } from "@/Types/AudioState";
@@ -44,9 +45,10 @@ type EffectSlotProps = {
     config: EffectSlotConfig | null;
     onSelect: (effectType: NativeEffectType | null) => void;
     onParamChange: (param: string, value: number) => void;
+    onBypassToggle: () => void;
 };
 
-export default function EffectSlot({ config, onSelect, onParamChange }: EffectSlotProps) {
+export default function EffectSlot({ config, onSelect, onParamChange, onBypassToggle }: EffectSlotProps) {
     const [open, setOpen] = useState(false);
     const [view, setView] = useState<'params' | 'select'>('params');
 
@@ -69,17 +71,33 @@ export default function EffectSlot({ config, onSelect, onParamChange }: EffectSl
 
     return (
         <Popover open={open} onOpenChange={handleOpenChange}>
-            <PopoverTrigger asChild>
-                <button
-                    className={`w-full h-5 rounded text-xs px-1.5 text-left truncate transition-colors ${
-                        config
-                            ? 'bg-gray-600 hover:bg-gray-500 text-gray-200'
-                            : 'bg-gray-800 hover:bg-gray-900 text-gray-500'
-                    }`}
-                >
-                    {descriptor?.displayName ?? ''}
-                </button>
-            </PopoverTrigger>
+            <div className="flex items-center gap-0.5 w-full">
+                {config && (
+                    <button
+                        onClick={(e) => { e.stopPropagation(); onBypassToggle(); }}
+                        className={`shrink-0 flex items-center justify-center w-4 h-5 rounded transition-colors ${
+                            config.enabled
+                                ? 'text-gray-300 hover:text-gray-200'
+                                : 'text-gray-300 hover:text-gray-200'
+                        }`}
+                    >
+                        <Power size={10} />
+                    </button>
+                )}
+                <PopoverTrigger asChild>
+                    <button
+                        className={`flex-1 min-w-0 h-5 rounded text-xs px-1.5 text-left truncate transition-colors ${
+                            config
+                                ? config.enabled
+                                    ? 'bg-gray-600 hover:bg-gray-500 text-gray-200'
+                                    : 'bg-gray-700 hover:bg-gray-600 text-gray-500'
+                                : 'bg-gray-800 hover:bg-gray-900 text-gray-500'
+                        }`}
+                    >
+                        {descriptor?.displayName ?? ''}
+                    </button>
+                </PopoverTrigger>
+            </div>
 
             <PopoverContent className="w-48 p-2" align="start">
                 {view === 'params' && config && descriptor ? (

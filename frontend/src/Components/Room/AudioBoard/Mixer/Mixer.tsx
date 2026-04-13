@@ -44,6 +44,13 @@ function TrackStrip({ name, channelId, volume, effects, sends, audioControllerRe
         audioControllerRef.current?.setEffectChain(channelId, applyEffectSelect(effects, slotIndex, effectType));
     }
 
+    function handleBypassToggle(slotIndex: number) {
+        const next = effects.map((slot, i) =>
+            i === slotIndex && slot ? { ...slot, enabled: !slot.enabled } : slot
+        );
+        audioControllerRef.current?.setEffectChain(channelId, next);
+    }
+
     return (
         <div className="shrink-0 flex flex-col items-center w-14 h-full pt-2 pb-1 gap-1">
             {/* Scrollable: fixed half-height, items render at natural size */}
@@ -55,6 +62,7 @@ function TrackStrip({ name, channelId, volume, effects, sends, audioControllerRe
                             config={effects[i] ?? null}
                             onSelect={(type) => handleEffectSelect(i, type)}
                             onParamChange={(param, value) => audioControllerRef.current?.updateEffectParam(channelId, i, param, value)}
+                            onBypassToggle={() => handleBypassToggle(i)}
                         />
                     ))}
                     {sends && Array.from({ length: MAX_AUX_SENDS }, (_, i) => {

@@ -277,7 +277,7 @@ class AudioProcessor extends AudioWorkletProcessor {
         packetPos: 0,
       });
       const samplesPerBeat = Math.round(sampleRate * 60 / this.state.bpm);
-      const samplesToNextBeat = samplesPerBeat - (this.timeline.pos! % samplesPerBeat);
+      const samplesToNextBeat = samplesPerBeat - (this.timeline.start! % samplesPerBeat);
       this.nextClickSample = absStart + (samplesToNextBeat % samplesPerBeat);
       this.clickPlaybackPos = -1;
       this.buffers.record?.storeGlobalCount(this.state.count.globalTake);

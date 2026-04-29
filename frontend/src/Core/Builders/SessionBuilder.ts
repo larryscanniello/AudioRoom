@@ -200,7 +200,12 @@ export class SessionBuilder{
         }
         this.#mediator = new Mediator(state);
         const globalContext = this.#mediator.getGlobalContext();
-        this.#mediaProvider = new MediaProvider(new AudioContext({latencyHint: 0}), this.#config.standaloneMode, globalContext);
+        this.#mediaProvider = new MediaProvider(new AudioContext({latencyHint: 0, sampleRate:CONSTANTS.SAMPLE_RATE}), this.#config.standaloneMode, globalContext);
+        const hardwareSampleRate = this.#mediaProvider.getAudioContext().sampleRate;
+        state.update("hardwareSampleRate", hardwareSampleRate);
+        if (hardwareSampleRate !== CONSTANTS.SAMPLE_RATE) {
+            throw new Error(`SAMPLE_RATE_MISMATCH:${hardwareSampleRate}`);
+        }
         this.#socketManager = this.#config.socketManager ? new SocketManager(globalContext) : null;
         if(this.#socketManager){ //later I want to enable just video chat alone, but for now, this will do
             this.#mediator.attach(this.#socketManager);

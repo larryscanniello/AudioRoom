@@ -5,6 +5,7 @@ import { CONSTANTS } from "@/Constants/constants";
 
 export class MediaProvider {
     #standaloneMode: boolean = false;
+    #videoAvailable: boolean = false;
     #AVStream: MediaStream | null = null;
     #audioStream: MediaStream | null = null;
     #remoteStream: MediaStream | null = null; 
@@ -65,6 +66,10 @@ export class MediaProvider {
         return this.#AVStream;
     }
 
+    isVideoAvailable(): boolean {
+        return this.#videoAvailable;
+    }
+
     getAudioContext(): AudioContext {
         return this.#audioContext;
     }
@@ -77,33 +82,47 @@ export class MediaProvider {
     }
 
     async loadStream(): Promise<GainNode|null>{
-        const config = {
-            video:!this.#standaloneMode,
-            audio:{
-                echoCancellation: false,
-                noiseSuppression: false,
-                autoGainControl: false
-        }};
-        return await navigator.mediaDevices.getUserMedia(config)
-        .then((stream) => {
-            const audioSource = this.#audioContext.createMediaStreamSource(stream);
-            this.#sourceNode = audioSource;
-            const chatGain = this.#audioContext.createGain();
-            audioSource.connect(chatGain);
-            const destination = this.#audioContext.createMediaStreamDestination();
-            chatGain.connect(destination);
+        const audioConstraints = {
+            echoCancellation: false,
+            noiseSuppression: false,
+            autoGainControl: false,
+        };
+        const wantVideo = !this.#standaloneMode;
 
-            this.#AVStream = new MediaStream([
-                stream.getVideoTracks()[0],
-                destination.stream.getAudioTracks()[0]
-            ]);
-            this.#audioStream = new MediaStream(this.#AVStream.getAudioTracks());
-            return chatGain
-        })
-        .catch((err) => {
-            console.error('Error accessing av stream:', err);
+        let stream = wantVideo
+            ? await navigator.mediaDevices.getUserMedia({ video: true, audio: audioConstraints }).catch(() => null)
+            : null;
+
+        const gotVideo = stream !== null;
+
+        if (!stream) {
+            stream = await navigator.mediaDevices.getUserMedia({ video: false, audio: audioConstraints }).catch(() => null);
+        }
+
+        if (!stream) {
+            console.error('Error accessing media stream');
             return null;
-        });
+        }
+
+        this.#videoAvailable = gotVideo;
+        if (!gotVideo) {
+            this.#globalContext.commMessage("Camera unavailable — running in audio-only mode", "red");
+        }
+
+        const audioSource = this.#audioContext.createMediaStreamSource(stream);
+        this.#sourceNode = audioSource;
+        const chatGain = this.#audioContext.createGain();
+        audioSource.connect(chatGain);
+        const destination = this.#audioContext.createMediaStreamDestination();
+        chatGain.connect(destination);
+
+        const audioTrack = destination.stream.getAudioTracks()[0];
+        const videoTracks = stream.getVideoTracks();
+        this.#AVStream = videoTracks.length > 0
+            ? new MediaStream([videoTracks[0], audioTrack])
+            : new MediaStream([audioTrack]);
+        this.#audioStream = new MediaStream(this.#AVStream.getAudioTracks());
+        return chatGain;
     }
 
 

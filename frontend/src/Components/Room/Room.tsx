@@ -13,12 +13,14 @@ import type { UIController } from "@/Core/UI/UIController.ts";
 import type { PeerJSManager } from "@/Core/WebRTC/PeerJSManager.ts";
 import RemoteVolumeSlider from "./VideoBox/VideoChatControls/RemoteVolumeSlider.tsx";
 import AudioBoard from "./AudioBoard/AudioBoard.tsx";
+import InitErrorCard from "./InitErrorCard.tsx";
 import { CONSTANTS } from "@/Constants/constants.ts";
 
 export default function Room() {
     const [width,height] = useWindowSize();
     const [validRoom, setValidRoom] = useState<boolean>(false);
     const [errorMessage, setErrorMessage] = useState<string>("");
+    const [initError, setInitError] = useState<string | null>(null);
     const [roomJoined, setRoomJoined] = useState<boolean>(false);
     const [_dawInternalState, setDawInternalState] = useState<number>(0);
     const [micsMuted, setMicsMuted] = useState<{local: boolean, remote: boolean}>({local: false, remote: false});
@@ -42,7 +44,7 @@ export default function Room() {
     },[width,height])
 
     useEffect(() => {
-    
+
       async function init() {
         const response = await fetch(
           import.meta.env.VITE_BACKEND_URL + "/getroom/" + roomID,
@@ -51,7 +53,7 @@ export default function Room() {
             method: "GET",
           }
         );
-    
+
         if (!response.ok) {
           setValidRoom(false);
           setErrorMessage("Error");
@@ -60,20 +62,33 @@ export default function Room() {
 
         setValidRoom(true);
         console.log(`Valid room ${roomID}`);
-    
-        
+
+
         /*
         socketManagerRef.current.on("file_transfer", (data:any) => {
           setSharedFile(data);
         });*/
 
-        builderRef.current = await new SessionBuilder(roomID)
-          .withReact(setDawInternalState)
-          .withAudEngine("worklet")
-          .withMixTracks(16)
-          .withSockets()
-          .withPeerJSWebRTC()
-          .buildRTC();
+        try {
+          builderRef.current = await new SessionBuilder(roomID)
+            .withReact(setDawInternalState)
+            .withAudEngine("worklet")
+            .withMixTracks(16)
+            .withSockets()
+            .withPeerJSWebRTC()
+            .buildRTC();
+        } catch (err) {
+          if (err instanceof Error && err.message.startsWith("SAMPLE_RATE_MISMATCH:")) {
+            const hwRate = err.message.split(":")[1];
+            setInitError(
+              `Your system audio is running at ${hwRate} Hz, but AudioRoom requires ${CONSTANTS.SAMPLE_RATE} Hz. ` +
+              `Change your system audio output to ${CONSTANTS.SAMPLE_RATE} Hz and refresh the page.`
+            );
+          } else {
+            setInitError("Failed to initialize audio. Please refresh and try again.");
+          }
+          return;
+        }
 
         webRTCManagerRef.current = builderRef.current.getWebRTCManager();
 
@@ -81,27 +96,26 @@ export default function Room() {
           throw new Error("Session builder failed to create WebRTC manager");
         }
 
-        
+
         if(!roomID){
           throw new Error("No room ID found in URL params");
         }
         webRTCManagerRef.current.joinSocketRoom(roomID);
 
-        await webRTCManagerRef.current.loadStream()
-          .then((localGain)=>{
-            gainNodesRef.current.local = localGain;
-            if(micsMuted.local && gainNodesRef.current.local){
-              gainNodesRef.current.local.gain.value = 0.0;
-            }
-          })
-          .catch((err)=>{
-            throw new Error("Error loading local media stream:",err);
-          });
+        const localGain = await webRTCManagerRef.current.loadStream();
+        if (localGain === null) {
+          setInitError("Microphone access denied. Please allow microphone access and refresh the page.");
+          return;
+        }
+        gainNodesRef.current.local = localGain;
+        if (micsMuted.local && gainNodesRef.current.local) {
+          gainNodesRef.current.local.gain.value = 0.0;
+        }
 
         //rerender so that components that depend on webRTCManager (ex: VideoBox) will update with the new stream info
         setDawInternalState(performance.now());
 
-       
+
       }
       init();
 
@@ -149,7 +163,8 @@ export default function Room() {
         height={height}
         compactMode={compactMode}
           />
-        {!roomJoined && <JoinRoomButton setRoomJoined={setRoomJoined} initDAW={initDAW} roomJoined={roomJoined}/>}
+        {!roomJoined && !initError && <JoinRoomButton setRoomJoined={setRoomJoined} initDAW={initDAW} roomJoined={roomJoined}/>}
+        {initError && <InitErrorCard message={initError} />}
         {roomJoined && <div className="absolute bottom-2 left-2 flex items-center gap-4 bg-black/40 p-4 rounded-2xl border border-white/10 backdrop-blur-md"
         ><ToggleMicButton gainNodesRef={gainNodesRef} micsMuted={micsMuted} setMicsMuted={setMicsMuted} />
         <ToggleRemoteMicButton gainNodesRef={gainNodesRef} micsMuted={micsMuted} setMicsMuted={setMicsMuted} />

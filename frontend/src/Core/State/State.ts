@@ -41,6 +41,7 @@ export interface StateContainer {
         totalDelayCompensationSamples: number;
         ctxLatencySamples: number;
     }
+    hardwareSampleRate: number | null;
 }
 
 export type TransactionQuery<K extends keyof StateContainer> = {
@@ -119,7 +120,8 @@ export class State {
             latency: {
                 totalDelayCompensationSamples: 0,
                 ctxLatencySamples: 0,
-            }
+            },
+            hardwareSampleRate: null,
         };
     #render: React.Dispatch<React.SetStateAction<number>> | null = null;
 

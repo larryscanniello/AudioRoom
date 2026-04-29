@@ -76,6 +76,10 @@ export class PeerJSManager implements WebRTCManager{
         return this.#mediaProvider.getAVStream();
     }
 
+    isVideoAvailable(): boolean {
+        return this.#mediaProvider.isVideoAvailable();
+    }
+
     getLocalChatGain(): GainNode | null {
         return this.#chatGains.local;
     }
@@ -93,7 +97,7 @@ export class PeerJSManager implements WebRTCManager{
     }
 
     initializeOpus(){
-        this.#hardware.opusWorker.postMessage({type: "initAudio", memory: this.#hardware.memory});
+        this.#hardware.opusWorker.postMessage({type: "initAudio", memory: this.#hardware.memory, hardwareSampleRate: this.#context.query("hardwareSampleRate")});
     }
 
     initializePeer(){

@@ -78,6 +78,7 @@ export type OPFS = {
         queue: DecodeAudioData[];
         mipMapOffset: number;
     }
+    hardwareSampleRate: number|null;
 }
 
 const opfs:OPFS = {
@@ -108,7 +109,8 @@ const opfs:OPFS = {
         isInitializing: false,
         queue: [],
         mipMapOffset: 0,
-    }
+    },
+    hardwareSampleRate: null,
 }
 
 
@@ -169,6 +171,7 @@ type OPFSInitAudioData = {
         buffers: Buffers;
         pointers: Pointers;
     }
+    hardwareSampleRate: number;
 }
 
 type OPFSInitUIData = {
@@ -246,6 +249,7 @@ if (typeof self !== "undefined") { // for testing, otherwise in testing self is 
                     Object.assign(buffers, e.data.memory.buffers);
                     Object.assign(pointers, e.data.memory.pointers);
                     opfs.root = root;
+                    opfs.hardwareSampleRate = e.data.hardwareSampleRate;
                 };
 
                 init();
@@ -700,7 +704,7 @@ function writeToOPFS(
         return;
     }
     const handle = opfs.bounces[opfs.curr.bounce].takeHandles[`bounce_${opfs.curr.bounce}_take_${opfs.curr.take}`];
-    let oldReadPtr = readPtr;
+let oldReadPtr = readPtr;
     readPtr = writeToOPFSUtil(
         samplesToWrite,
         buffer,
@@ -710,7 +714,7 @@ function writeToOPFS(
         opfs.timeline.startSample,
         opfs.incomingStream.mipMapOffset,
     );
-    if(readPtr !== oldReadPtr){
+    if(readPtr !== oldReadPtr){ 
         postMessage({type:"staging_mipmap_done"})
     }
     Atomics.store(read,0,readPtr);

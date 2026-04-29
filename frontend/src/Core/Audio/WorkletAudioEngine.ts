@@ -193,7 +193,7 @@ export class WorkletAudioEngine implements AudioEngine{
         }
         this.mixer.initGraph();
         this.#hardware.processorNode.port.postMessage({type: "initAudio",memory: this.#hardware.memory});
-        this.#hardware.opfsWorker.postMessage({type: "initAudio",memory: this.#hardware.memory});
+        this.#hardware.opfsWorker.postMessage({type: "initAudio",memory: this.#hardware.memory,hardwareSampleRate: this.#context.query("hardwareSampleRate")});
         this.#hardware.processorNode.port.postMessage(
             {type: "initMetronome", clickBuffer: this.#hardware.clickBuffer},
             [this.#hardware.clickBuffer.buffer]

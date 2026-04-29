@@ -12,6 +12,7 @@ export interface WebRTCManager extends Observer {
     initializePeer(): void;
     loadStream(): Promise<GainNode | null>;
     getAVStream(): MediaStream;
+    isVideoAvailable(): boolean;
     terminate(): void;
     record(data: AudioProcessorData): void;
     stop(): void;
